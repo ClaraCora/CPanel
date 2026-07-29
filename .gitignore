@@ -1,0 +1,14 @@
+.tools/
+.build/
+.impeccable/questions/
+.env
+.env.*
+!.env.example
+bin/
+/dist/
+coverage/
+web/node_modules/
+*.log
+*.exe
+*.test
+*.out

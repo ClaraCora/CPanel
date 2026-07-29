@@ -1,0 +1,604 @@
+package httpapi
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"cpanel/internal/domain"
+	"cpanel/internal/store"
+	"github.com/go-chi/chi/v5"
+)
+
+func validOneOf(value *string, allowed ...string) bool {
+	if value == nil {
+		return true
+	}
+	for _, candidate := range allowed {
+		if *value == candidate {
+			return true
+		}
+	}
+	return false
+}
+
+func validNodeEndpoints(items []domain.NodeEndpoint, fields map[string]string) {
+	for index, item := range items {
+		prefix := fmt.Sprintf("endpoints.%d", index)
+		if !required(item.Name) {
+			fields[prefix+".name"] = "required"
+		}
+		if !required(item.Host) {
+			fields[prefix+".host"] = "required"
+		}
+		if item.Port < 1 || item.Port > 65535 {
+			fields[prefix+".port"] = "invalid"
+		}
+		if item.Status != "" && item.Status != "active" && item.Status != "disabled" {
+			fields[prefix+".status"] = "invalid"
+		}
+	}
+}
+
+func (s *Server) handleListMachines(w http.ResponseWriter, r *http.Request) {
+	items, err := s.store.ListMachines(r.Context())
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	writeData(w, r, http.StatusOK, items)
+}
+
+func (s *Server) handleCreateMachine(w http.ResponseWriter, r *http.Request) {
+	var input domain.MachineCreate
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	if !required(input.Name) {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "请填写服务器名称", map[string]string{"name": "required"})
+		return
+	}
+	if input.KernelType != "" && input.KernelType != "singbox" && input.KernelType != "xray" {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "内核类型无效", map[string]string{"kernel_type": "invalid"})
+		return
+	}
+	item, err := s.store.CreateMachine(r.Context(), input)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	auditCreate(s, r, "machine", item.ID, input)
+	writeData(w, r, http.StatusCreated, item)
+}
+
+func (s *Server) handleUpdateMachine(w http.ResponseWriter, r *http.Request) {
+	var input domain.MachineUpdate
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	if input.Name != nil && !required(*input.Name) {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "请填写服务器名称", map[string]string{"name": "required"})
+		return
+	}
+	if !validOneOf(input.KernelType, "singbox", "xray") || !validOneOf(input.Status, "pending", "online", "offline", "disabled") {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "服务器状态或内核无效", nil)
+		return
+	}
+	item, err := s.store.UpdateMachine(r.Context(), chi.URLParam(r, "id"), input)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	auditUpdate(s, r, "machine", item.ID, input)
+	writeData(w, r, http.StatusOK, item)
+}
+
+func (s *Server) handleCreateMachineCredential(w http.ResponseWriter, r *http.Request) {
+	item, err := s.store.CreateMachineCredential(r.Context(), chi.URLParam(r, "id"), nil)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	auditCreate(s, r, "machine_credential", item.ID, map[string]string{"machine_id": item.MachineID})
+	writeData(w, r, http.StatusCreated, item)
+}
+
+func (s *Server) handleMachineInstallation(w http.ResponseWriter, r *http.Request) {
+	machineID := chi.URLParam(r, "id")
+	machines, err := s.store.ListMachines(r.Context())
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	found := false
+	for _, machine := range machines {
+		if machine.ID == machineID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		writeStoreError(w, r, store.ErrNotFound)
+		return
+	}
+	sealed, err := s.store.RawSetting(r.Context(), "agent", "communication_key")
+	if err != nil {
+		writeError(w, r, http.StatusUnprocessableEntity, "AGENT_KEY_NOT_CONFIGURED", "请先在系统设置中配置 Agent 统一通讯密钥", nil)
+		return
+	}
+	plain, err := s.secureBox.Open(sealed)
+	if err != nil {
+		writeError(w, r, http.StatusInternalServerError, "AGENT_KEY_UNAVAILABLE", "Agent 通讯密钥无法读取", nil)
+		return
+	}
+	var key string
+	if json.Unmarshal(plain, &key) != nil || key == "" {
+		writeError(w, r, http.StatusInternalServerError, "AGENT_KEY_UNAVAILABLE", "Agent 通讯密钥无法读取", nil)
+		return
+	}
+	controlURL := s.store.SettingString(r.Context(), "agent", "external_url", s.cfg.ExternalURL)
+	installerURL := s.store.SettingString(r.Context(), "agent", "installer_url", "https://raw.githubusercontent.com/ClaraCora/CPanelde/main/install.sh")
+	command := fmt.Sprintf("curl -fsSL %s | sudo bash -s -- --control-url %s --communication-key %s --machine-id %s",
+		shellQuote(installerURL), shellQuote(controlURL), shellQuote(key), shellQuote(machineID))
+	writeData(w, r, http.StatusOK, map[string]string{
+		"machine_id": machineID, "control_url": controlURL, "installer_url": installerURL, "command": command,
+	})
+}
+
+func (s *Server) handleAgentArtifact(w http.ResponseWriter, r *http.Request) {
+	artifact := chi.URLParam(r, "artifact")
+	allowed := map[string]bool{
+		"corade-linux-amd64":        true,
+		"corade-linux-amd64.sha256": true,
+		"corade-linux-arm64":        true,
+		"corade-linux-arm64.sha256": true,
+	}
+	if !allowed[artifact] {
+		http.NotFound(w, r)
+		return
+	}
+	filePath := filepath.Join(s.cfg.AgentArtifactDir, artifact)
+	info, err := os.Stat(filePath)
+	if err != nil || !info.Mode().IsRegular() {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, artifact))
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	http.ServeFile(w, r, filePath)
+}
+
+func shellQuote(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
+}
+
+func (s *Server) handleListNodes(w http.ResponseWriter, r *http.Request) {
+	items, err := s.store.ListNodes(r.Context())
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	writeData(w, r, http.StatusOK, items)
+}
+
+func (s *Server) handleGetNode(w http.ResponseWriter, r *http.Request) {
+	item, err := s.store.GetNode(r.Context(), chi.URLParam(r, "id"))
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	writeData(w, r, http.StatusOK, item)
+}
+
+func (s *Server) handleCreateNode(w http.ResponseWriter, r *http.Request) {
+	var input domain.NodeCreate
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	fields := map[string]string{}
+	if !required(input.Name) {
+		fields["name"] = "required"
+	}
+	if !required(input.MachineID) {
+		fields["machine_id"] = "required"
+	}
+	if !required(input.Protocol) {
+		fields["protocol"] = "required"
+	}
+	if input.ServerPort < 1 || input.ServerPort > 65535 {
+		fields["server_port"] = "invalid"
+	}
+	if message := nodeConfigValidationMessage(input.Config); message != "" {
+		fields["config"] = message
+	}
+	validNodeEndpoints(input.Endpoints, fields)
+	if len(fields) > 0 {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "节点配置不完整", fields)
+		return
+	}
+	item, err := s.store.CreateNode(r.Context(), input)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	auditCreate(s, r, "node", item.ID, input)
+	writeData(w, r, http.StatusCreated, item)
+}
+
+func (s *Server) handleUpdateNode(w http.ResponseWriter, r *http.Request) {
+	var input domain.NodeUpdate
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	fields := map[string]string{}
+	if input.Name != nil && !required(*input.Name) {
+		fields["name"] = "required"
+	}
+	if input.MachineID != nil && !required(*input.MachineID) {
+		fields["machine_id"] = "required"
+	}
+	if input.Protocol != nil && !required(*input.Protocol) {
+		fields["protocol"] = "required"
+	}
+	if input.ServerPort != nil && (*input.ServerPort < 1 || *input.ServerPort > 65535) {
+		fields["server_port"] = "invalid"
+	}
+	if input.KernelType != nil && *input.KernelType != "singbox" && *input.KernelType != "xray" {
+		fields["kernel_type"] = "invalid"
+	}
+	if input.Config != nil {
+		if message := nodeConfigValidationMessage(*input.Config); message != "" {
+			fields["config"] = message
+		}
+	}
+	if !validOneOf(input.Status, "draft", "published", "disabled", "error") {
+		fields["status"] = "invalid"
+	}
+	if input.Endpoints != nil {
+		validNodeEndpoints(*input.Endpoints, fields)
+	}
+	if len(fields) > 0 {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "节点配置不完整", fields)
+		return
+	}
+	item, err := s.store.UpdateNode(r.Context(), chi.URLParam(r, "id"), input)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	admin := currentAdmin(r)
+	_ = s.store.WriteAudit(r.Context(), admin.ID, "node.update", "node", item.ID, input, clientIP(r), requestID(r))
+	writeData(w, r, http.StatusOK, item)
+}
+
+func (s *Server) handlePublishNode(w http.ResponseWriter, r *http.Request) {
+	admin := currentAdmin(r)
+	item, err := s.store.PublishNode(r.Context(), chi.URLParam(r, "id"), admin.ID)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	_ = s.store.WriteAudit(r.Context(), admin.ID, "node.publish", "node", item.ID, map[string]int{"revision": item.CurrentRevision}, clientIP(r), requestID(r))
+	writeData(w, r, http.StatusOK, item)
+}
+
+func (s *Server) handleListAccessGroups(w http.ResponseWriter, r *http.Request) {
+	items, err := s.store.ListAccessGroups(r.Context())
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	writeData(w, r, http.StatusOK, items)
+}
+
+func (s *Server) handleCreateAccessGroup(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Name    string   `json:"name"`
+		Notes   string   `json:"notes"`
+		NodeIDs []string `json:"node_ids"`
+	}
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	if !required(input.Name) {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "请填写权限组名称", map[string]string{"name": "required"})
+		return
+	}
+	item, err := s.store.CreateAccessGroup(r.Context(), input.Name, input.Notes, input.NodeIDs)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	auditCreate(s, r, "access_group", item.ID, input)
+	writeData(w, r, http.StatusCreated, item)
+}
+
+func (s *Server) handleUpdateAccessGroup(w http.ResponseWriter, r *http.Request) {
+	var input domain.AccessGroupUpdate
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	if input.Name != nil && !required(*input.Name) {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "请填写权限组名称", map[string]string{"name": "required"})
+		return
+	}
+	if !validOneOf(input.Status, "active", "disabled") {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "权限组状态无效", nil)
+		return
+	}
+	item, err := s.store.UpdateAccessGroup(r.Context(), chi.URLParam(r, "id"), input)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	auditUpdate(s, r, "access_group", item.ID, input)
+	writeData(w, r, http.StatusOK, item)
+}
+
+func (s *Server) handleListPlans(w http.ResponseWriter, r *http.Request) {
+	items, err := s.store.ListPlans(r.Context())
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	writeData(w, r, http.StatusOK, items)
+}
+
+func (s *Server) handleCreatePlan(w http.ResponseWriter, r *http.Request) {
+	var input domain.PlanCreate
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	if !required(input.Name) || !required(input.AccessGroupID) {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "套餐名称和权限组必填", nil)
+		return
+	}
+	item, err := s.store.CreatePlan(r.Context(), input)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	auditCreate(s, r, "plan", item.ID, input)
+	writeData(w, r, http.StatusCreated, item)
+}
+
+func (s *Server) handleUpdatePlan(w http.ResponseWriter, r *http.Request) {
+	var input domain.PlanUpdate
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	if (input.Name != nil && !required(*input.Name)) || (input.AccessGroupID != nil && !required(*input.AccessGroupID)) ||
+		(input.TrafficLimitBytes != nil && *input.TrafficLimitBytes < 0) ||
+		(input.SpeedLimitMbps != nil && *input.SpeedLimitMbps < 0) || (input.DeviceLimit != nil && *input.DeviceLimit < 0) {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "套餐配置无效", nil)
+		return
+	}
+	if !validOneOf(input.Status, "active", "disabled") {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "套餐状态无效", nil)
+		return
+	}
+	item, err := s.store.UpdatePlan(r.Context(), chi.URLParam(r, "id"), input)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	auditUpdate(s, r, "plan", item.ID, input)
+	writeData(w, r, http.StatusOK, item)
+}
+
+func (s *Server) handleListUsers(w http.ResponseWriter, r *http.Request) {
+	items, err := s.store.ListUsers(r.Context())
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	writeData(w, r, http.StatusOK, items)
+}
+
+func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
+	var input domain.UserCreate
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	if !required(input.Name) {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "请填写账号名称", map[string]string{"name": "required"})
+		return
+	}
+	if input.Role != "" && input.Role != "user" && input.Role != "friend" {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "账号角色只能是用户或朋友", map[string]string{"role": "invalid"})
+		return
+	}
+	item, err := s.store.CreateUser(r.Context(), input)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	auditCreate(s, r, "user", item.ID, map[string]any{"role": item.Role, "name": item.Name})
+	writeData(w, r, http.StatusCreated, item)
+}
+
+func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
+	var input domain.UserUpdate
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	if input.Name != nil && !required(*input.Name) {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "请填写账号名称", map[string]string{"name": "required"})
+		return
+	}
+	if !validOneOf(input.Role, "user", "friend") || !validOneOf(input.Status, "active", "paused", "expired") {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "账号分类或状态无效", nil)
+		return
+	}
+	if input.ExpiresAt != nil && *input.ExpiresAt != "" {
+		if _, err := time.Parse(time.RFC3339, *input.ExpiresAt); err != nil {
+			writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "到期时间无效", map[string]string{"expires_at": "invalid"})
+			return
+		}
+	}
+	item, err := s.store.UpdateUser(r.Context(), chi.URLParam(r, "id"), input)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	auditUpdate(s, r, "user", item.ID, input)
+	writeData(w, r, http.StatusOK, item)
+}
+
+func (s *Server) handleGetUserSubscription(w http.ResponseWriter, r *http.Request) {
+	userID := chi.URLParam(r, "id")
+	token, err := s.store.UserSubscriptionToken(r.Context(), userID)
+	if errors.Is(err, store.ErrSubscriptionTokenUnavailable) {
+		writeError(w, r, http.StatusConflict, "SUBSCRIPTION_TOKEN_UNAVAILABLE",
+			"该账号的原始订阅令牌未保存，无法恢复；请重新导入旧数据", nil)
+		return
+	}
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	baseURL := s.store.SettingString(r.Context(), "subscription", "base_url", "")
+	if strings.TrimSpace(baseURL) == "" {
+		baseURL = s.store.SettingString(r.Context(), "site", "site_url", s.cfg.ExternalURL)
+	}
+	link := strings.TrimRight(baseURL, "/") + "/ca/x/" + url.PathEscape(token)
+	admin := currentAdmin(r)
+	_ = s.store.WriteAudit(r.Context(), admin.ID, "user.subscription.copy", "user", userID,
+		map[string]any{}, clientIP(r), requestID(r))
+	writeData(w, r, http.StatusOK, domain.UserSubscription{URL: link})
+}
+
+func (s *Server) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
+	userID := chi.URLParam(r, "id")
+	if err := s.store.ArchiveUser(r.Context(), userID); err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	admin := currentAdmin(r)
+	_ = s.store.WriteAudit(r.Context(), admin.ID, "user.delete", "user", userID,
+		map[string]any{"status": "archived"}, clientIP(r), requestID(r))
+	writeData(w, r, http.StatusOK, map[string]any{"deleted": true})
+}
+
+func (s *Server) handleListRoutePolicies(w http.ResponseWriter, r *http.Request) {
+	items, err := s.store.ListRoutePolicies(r.Context())
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	writeData(w, r, http.StatusOK, items)
+}
+
+func (s *Server) handleCreateRoutePolicy(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Name  string `json:"name"`
+		Notes string `json:"notes"`
+	}
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	if !required(input.Name) {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "请填写路由策略名称", nil)
+		return
+	}
+	item, err := s.store.CreateRoutePolicy(r.Context(), input.Name, input.Notes)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	auditCreate(s, r, "route_policy", item.ID, input)
+	writeData(w, r, http.StatusCreated, item)
+}
+
+func (s *Server) handleUpdateRoutePolicy(w http.ResponseWriter, r *http.Request) {
+	var input domain.RoutePolicyUpdate
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	if input.Name != nil && !required(*input.Name) {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "请填写路由策略名称", nil)
+		return
+	}
+	if !validOneOf(input.Status, "draft", "published", "disabled") {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "路由策略状态无效", nil)
+		return
+	}
+	item, err := s.store.UpdateRoutePolicy(r.Context(), chi.URLParam(r, "id"), input)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	auditUpdate(s, r, "route_policy", item.ID, input)
+	writeData(w, r, http.StatusOK, item)
+}
+
+func (s *Server) handleListOutbounds(w http.ResponseWriter, r *http.Request) {
+	items, err := s.store.ListOutbounds(r.Context())
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	writeData(w, r, http.StatusOK, items)
+}
+
+func (s *Server) handleCreateOutbound(w http.ResponseWriter, r *http.Request) {
+	var input domain.Outbound
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	if !required(input.Name) || !required(input.Tag) || !required(input.Protocol) {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "出站名称、标记和协议必填", nil)
+		return
+	}
+	if len(input.Settings) > 0 && !json.Valid(input.Settings) {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "出站设置不是有效 JSON", nil)
+		return
+	}
+	input.Tag = strings.ToLower(input.Tag)
+	item, err := s.store.CreateOutbound(r.Context(), input)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	auditCreate(s, r, "outbound", item.ID, map[string]string{"tag": item.Tag})
+	writeData(w, r, http.StatusCreated, item)
+}
+
+func (s *Server) handleUpdateOutbound(w http.ResponseWriter, r *http.Request) {
+	var input domain.OutboundUpdate
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	if (input.Name != nil && !required(*input.Name)) || (input.Tag != nil && !required(*input.Tag)) ||
+		(input.Protocol != nil && !required(*input.Protocol)) || (input.Settings != nil && !json.Valid(*input.Settings)) {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "出站配置无效", nil)
+		return
+	}
+	if input.Tag != nil {
+		value := strings.ToLower(strings.TrimSpace(*input.Tag))
+		input.Tag = &value
+	}
+	if !validOneOf(input.Status, "active", "disabled") {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "出站状态无效", nil)
+		return
+	}
+	item, err := s.store.UpdateOutbound(r.Context(), chi.URLParam(r, "id"), input)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	auditUpdate(s, r, "outbound", item.ID, input)
+	writeData(w, r, http.StatusOK, item)
+}
+
+func auditUpdate(s *Server, r *http.Request, resourceType, resourceID string, changes any) {
+	admin := currentAdmin(r)
+	_ = s.store.WriteAudit(r.Context(), admin.ID, resourceType+".update", resourceType, resourceID, changes, clientIP(r), requestID(r))
+}

@@ -23,9 +23,9 @@ type Config struct {
 
 func Load() (Config, error) {
 	cfg := Config{
-		Addr:                 env("CPANEL_ADDR", ":8080"),
+		Addr:                 env("CPANEL_ADDR", "127.0.0.1:8256"),
 		DatabaseURL:          strings.TrimSpace(os.Getenv("CPANEL_DATABASE_URL")),
-		ExternalURL:          strings.TrimRight(env("CPANEL_EXTERNAL_URL", "http://127.0.0.1:8080"), "/"),
+		ExternalURL:          strings.TrimRight(env("CPANEL_EXTERNAL_URL", "http://127.0.0.1:8256"), "/"),
 		EncryptionKey:        strings.TrimSpace(os.Getenv("CPANEL_ENCRYPTION_KEY")),
 		CookieSecure:         envBool("CPANEL_COOKIE_SECURE", false),
 		SessionTTL:           envDuration("CPANEL_SESSION_TTL", 24*time.Hour),

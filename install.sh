@@ -13,7 +13,7 @@ SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}"
 ACTION="install"
 VERSION="latest"
 EXTERNAL_URL=""
-LISTEN_ADDRESS=":8080"
+LISTEN_ADDRESS="${CPANEL_ADDR:-127.0.0.1:8256}"
 ADMIN_EMAIL="${CPANEL_ADMIN_EMAIL:-admin@cpanel.local}"
 ADMIN_NAME="${CPANEL_ADMIN_NAME:-管理员}"
 ADMIN_PASSWORD="${CPANEL_ADMIN_PASSWORD:-}"
@@ -28,7 +28,7 @@ Usage:
 
 Install options:
   --external-url URL       Public panel URL (auto-detected when omitted)
-  --listen-address ADDR    Listen address (default: :8080)
+  --listen-address ADDR    Listen address (default: 127.0.0.1:8256)
   --admin-email EMAIL      Initial administrator email
   --admin-name NAME        Initial administrator name
   --version VERSION        Release tag (default: latest)
@@ -83,13 +83,20 @@ install_prerequisites() {
 }
 
 detect_external_url() {
-  local public_ip
-  public_ip=$(curl --fail --silent --show-error --max-time 5 https://api.ipify.org 2>/dev/null || true)
-  if [ -z "$public_ip" ]; then
-    public_ip=$(hostname -I 2>/dev/null | awk '{print $1}')
-  fi
-  [ -n "$public_ip" ] || public_ip="127.0.0.1"
-  printf 'http://%s:8080' "$public_ip"
+  local host port public_ip
+  host="${LISTEN_ADDRESS%:*}"
+  port="${LISTEN_ADDRESS##*:}"
+  case "$host" in
+    ""|"0.0.0.0"|"[::]")
+      public_ip=$(curl --fail --silent --show-error --max-time 5 https://api.ipify.org 2>/dev/null || true)
+      if [ -z "$public_ip" ]; then
+        public_ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+      fi
+      host="${public_ip:-127.0.0.1}"
+      ;;
+    "localhost"|"[::1]") host="127.0.0.1" ;;
+  esac
+  printf 'http://%s:%s' "$host" "$port"
 }
 
 download_verified() {
@@ -183,7 +190,7 @@ if [ "$ACTION" = "upgrade" ]; then
   systemctl enable "$SERVICE_NAME" >/dev/null
   systemctl restart "$SERVICE_NAME"
   LISTEN_ADDRESS=$(sed -n 's/^CPANEL_ADDR=//p' "$ENV_FILE" | tail -n 1)
-  LISTEN_ADDRESS=${LISTEN_ADDRESS:-:8080}
+  LISTEN_ADDRESS=${LISTEN_ADDRESS:-127.0.0.1:8256}
   wait_until_ready
   log "upgrade completed"
   exit 0

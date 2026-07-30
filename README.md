@@ -10,6 +10,16 @@ CPanel 是面向 Corade Agent 的轻量设备管理平台，提供服务器、�
 curl -fsSL https://raw.githubusercontent.com/ClaraCora/CPanel/main/install.sh | sudo bash
 ```
 
+默认仅监听 `127.0.0.1:8256`，不会直接暴露到公网。配置 HTTPS 反向代理后，更新 `/etc/cpanel/cpanel.env`：
+
+```dotenv
+CPANEL_ADDR=127.0.0.1:8256
+CPANEL_EXTERNAL_URL=https://panel.example.com
+CPANEL_COOKIE_SECURE=true
+```
+
+然后运行 `systemctl restart cpanel`。反向代理的上游地址应设置为 `http://127.0.0.1:8256`。
+
 脚本会自动安装并初始化 PostgreSQL、下载已校验的 CPanel 与 CPanelde Agent 文件、创建 systemd 服务，并生成首个管理员密码。也可以预先指定站点和管理员信息：
 
 ```bash

@@ -6,6 +6,7 @@ import {
   ChevronDown,
   CircleGauge,
   FileClock,
+  History,
   Group,
   LogOut,
   Menu,
@@ -47,6 +48,7 @@ const groups = [
   {
     label: "系统",
     items: [
+      { to: "/history", label: "历史数据", icon: History },
       { to: "/settings", label: "系统设置", icon: Settings },
       { to: "/audit", label: "审计日志", icon: FileClock },
     ],

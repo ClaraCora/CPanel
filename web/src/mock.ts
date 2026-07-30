@@ -1,5 +1,6 @@
 import type {
   AccessGroup,
+  HistoricalData,
   Machine,
   Node,
   Outbound,
@@ -58,6 +59,14 @@ export const demoOutbounds: Outbound[] = [
 
 export const demoOverview: Overview = { machines_total: 3, machines_online: 2, machines_offline: 1, nodes_total: 4, nodes_published: 2, admins_active: 1, users_active: 1284, friends_active: 28, traffic_today_bytes: 7237010223104, traffic_today_upload_bytes: 1546188226560, traffic_today_download_bytes: 5690821996544, node_traffic_ranking: [{ id: "nod_1042", name: "香港 VLESS 主入口", upload_bytes: 824633720832, download_bytes: 2748779069440, total_bytes: 3573412790272 }], user_traffic_ranking: [{ id: "usr_1001", name: "li.ming", upload_bytes: 5368709120, download_bytes: 7516192768, total_bytes: 12884901888 }] };
 
+export const demoHistory: HistoricalData = {
+  retention: { metrics_days: 30, devices_days: 30, traffic_days: 90 },
+  traffic: [{ day: now, upload_bytes: 1546188226560, download_bytes: 5690821996544 }],
+  machine_metrics: [{ resource_id: "mch_hk01", resource_name: "香港边缘 01", sampled_at: now, metrics: { cpu_percent: 18.4, memory_percent: 42.1, load_1: 0.82 } }],
+  node_metrics: [{ resource_id: "nod_1042", resource_name: "香港 VLESS 主入口", sampled_at: now, metrics: { connections: 126, upload_bytes: 824633720832, download_bytes: 2748779069440 } }],
+  devices: [{ id: "dev_demo", user_id: "usr_1001", user_name: "li.ming", node_id: "nod_1042", node_name: "香港 VLESS 主入口", ip_address: "203.0.113.8", first_seen_at: now, last_seen_at: now, online: true }],
+};
+
 export const demoSettings: Record<string, Setting[]> = {
   site: [
     { key: "platform_name", value: "CPanel", sensitive: false, version: 1, updated_at: now },
@@ -80,6 +89,7 @@ export const demoAuditEvents = [
 export function demoResource(path: string): unknown {
   if (path === "/session") return demoSession;
   if (path === "/overview") return demoOverview;
+  if (path === "/history") return demoHistory;
   if (path === "/machines") return demoMachines;
   if (path === "/nodes") return demoNodes;
   if (path.startsWith("/nodes/")) return demoNodes.find((item) => item.id === path.split("/")[2]);

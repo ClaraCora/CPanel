@@ -104,7 +104,7 @@ func (s *Store) CreateMachine(ctx context.Context, input domain.MachineCreate) (
 		labels = json.RawMessage(`{}`)
 	}
 	if input.KernelType == "" {
-		input.KernelType = "singbox"
+		input.KernelType = "xray"
 	}
 	err := s.pool.QueryRow(ctx, `
 		INSERT INTO machines(id,name,region,host,labels,notes,kernel_type)
@@ -116,6 +116,24 @@ func (s *Store) CreateMachine(ctx context.Context, input domain.MachineCreate) (
 	).Scan(&item.Name, &item.Region, &item.Host, &item.Labels, &item.Notes, &item.Status,
 		&item.AgentVersion, &item.KernelType, &item.Capabilities, &item.LastHeartbeat, &item.CreatedAt, &item.UpdatedAt)
 	return item, mapError(err)
+}
+
+func (s *Store) ArchiveMachine(ctx context.Context, machineID string) error {
+	var exists bool
+	var nodeCount int
+	if err := s.pool.QueryRow(ctx, `SELECT
+		EXISTS(SELECT 1 FROM machines WHERE id=$1 AND status <> 'archived'),
+		(SELECT count(*) FROM nodes WHERE machine_id=$1 AND status <> 'archived')`, machineID).Scan(&exists, &nodeCount); err != nil {
+		return err
+	}
+	if !exists {
+		return ErrNotFound
+	}
+	if nodeCount > 0 {
+		return ErrMachineHasNodes
+	}
+	_, err := s.pool.Exec(ctx, `UPDATE machines SET status='archived',updated_at=now() WHERE id=$1`, machineID)
+	return err
 }
 
 func (s *Store) UpdateMachine(ctx context.Context, machineID string, input domain.MachineUpdate) (domain.Machine, error) {
@@ -261,7 +279,7 @@ func (s *Store) CreateNode(ctx context.Context, input domain.NodeCreate) (domain
 		input.ListenIP = "0.0.0.0"
 	}
 	if input.KernelType == "" {
-		input.KernelType = "singbox"
+		input.KernelType = "xray"
 	}
 	if len(input.Config) == 0 {
 		input.Config = json.RawMessage(`{}`)
@@ -295,6 +313,32 @@ func (s *Store) CreateNode(ctx context.Context, input domain.NodeCreate) (domain
 		return domain.Node{}, err
 	}
 	return item, tx.Commit(ctx)
+}
+
+func (s *Store) ArchiveNode(ctx context.Context, nodeID string) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	var machineID string
+	var agentID int64
+	var revision int
+	err = tx.QueryRow(ctx, `UPDATE nodes SET status='archived',updated_at=now()
+		WHERE id=$1 AND status <> 'archived'
+		RETURNING machine_id,agent_id,current_revision`, nodeID).Scan(&machineID, &agentID, &revision)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO control_changes(machine_id,node_id,event_type,revision,payload)
+		VALUES($1,$2,'machine.nodes.replace',$3,jsonb_build_object('node_id',$4))`,
+		machineID, nodeID, revision, agentID); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (s *Store) UpdateNode(ctx context.Context, nodeID string, input domain.NodeUpdate) (domain.Node, error) {
@@ -421,10 +465,12 @@ func (s *Store) PublishNode(ctx context.Context, nodeID, adminID string) (domain
 func (s *Store) ListAccessGroups(ctx context.Context) ([]domain.AccessGroup, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT g.id,g.name,g.status,g.notes,
-		       (SELECT count(*) FROM access_group_nodes gn WHERE gn.access_group_id=g.id),
+		       (SELECT count(*) FROM access_group_nodes gn JOIN nodes n ON n.id=gn.node_id
+		        WHERE gn.access_group_id=g.id AND n.status <> 'archived'),
 		       (SELECT count(*) FROM users u LEFT JOIN plans p ON p.id=u.plan_id
 		        WHERE COALESCE(u.access_group_override_id,p.access_group_id)=g.id AND u.status <> 'archived'),
-		       ARRAY(SELECT gn.node_id FROM access_group_nodes gn WHERE gn.access_group_id=g.id ORDER BY gn.node_id),
+		       ARRAY(SELECT gn.node_id FROM access_group_nodes gn JOIN nodes n ON n.id=gn.node_id
+		             WHERE gn.access_group_id=g.id AND n.status <> 'archived' ORDER BY gn.node_id),
 		       g.created_at,g.updated_at
 		FROM access_groups g WHERE g.status <> 'archived' ORDER BY g.created_at DESC`)
 	if err != nil {
@@ -440,6 +486,25 @@ func (s *Store) ListAccessGroups(ctx context.Context) ([]domain.AccessGroup, err
 		items = append(items, item)
 	}
 	return items, rows.Err()
+}
+
+func (s *Store) ArchiveAccessGroup(ctx context.Context, groupID string) error {
+	var exists bool
+	var dependencyCount int
+	if err := s.pool.QueryRow(ctx, `SELECT
+		EXISTS(SELECT 1 FROM access_groups WHERE id=$1 AND status <> 'archived'),
+		(SELECT count(*) FROM plans WHERE access_group_id=$1 AND status <> 'archived') +
+		(SELECT count(*) FROM users WHERE access_group_override_id=$1 AND status <> 'archived')`, groupID).Scan(&exists, &dependencyCount); err != nil {
+		return err
+	}
+	if !exists {
+		return ErrNotFound
+	}
+	if dependencyCount > 0 {
+		return ErrAccessGroupInUse
+	}
+	_, err := s.pool.Exec(ctx, `UPDATE access_groups SET status='archived',updated_at=now() WHERE id=$1`, groupID)
+	return err
 }
 
 func (s *Store) CreateAccessGroup(ctx context.Context, name, notes string, nodeIDs []string) (domain.AccessGroup, error) {
@@ -463,6 +528,24 @@ func (s *Store) CreateAccessGroup(ctx context.Context, name, notes string, nodeI
 	item.NodeCount = len(nodeIDs)
 	item.NodeIDs = append([]string(nil), nodeIDs...)
 	return item, tx.Commit(ctx)
+}
+
+func (s *Store) ArchivePlan(ctx context.Context, planID string) error {
+	var exists bool
+	var userCount int
+	if err := s.pool.QueryRow(ctx, `SELECT
+		EXISTS(SELECT 1 FROM plans WHERE id=$1 AND status <> 'archived'),
+		(SELECT count(*) FROM users WHERE plan_id=$1 AND status <> 'archived')`, planID).Scan(&exists, &userCount); err != nil {
+		return err
+	}
+	if !exists {
+		return ErrNotFound
+	}
+	if userCount > 0 {
+		return ErrPlanInUse
+	}
+	_, err := s.pool.Exec(ctx, `UPDATE plans SET status='archived',updated_at=now() WHERE id=$1`, planID)
+	return err
 }
 
 func (s *Store) UpdateAccessGroup(ctx context.Context, groupID string, input domain.AccessGroupUpdate) (domain.AccessGroup, error) {
@@ -750,11 +833,29 @@ func (s *Store) ListRoutePolicies(ctx context.Context) ([]domain.RoutePolicy, er
 
 func (s *Store) CreateRoutePolicy(ctx context.Context, name, notes string) (domain.RoutePolicy, error) {
 	item := domain.RoutePolicy{ID: domain.MustID("rte")}
-	err := s.pool.QueryRow(ctx, `INSERT INTO route_policies(id,name,notes) VALUES($1,$2,$3)
+	err := s.pool.QueryRow(ctx, `INSERT INTO route_policies(id,name,notes,status) VALUES($1,$2,$3,'published')
 		RETURNING name,status,current_revision,notes,created_at,updated_at`,
 		item.ID, strings.TrimSpace(name), strings.TrimSpace(notes),
 	).Scan(&item.Name, &item.Status, &item.CurrentRevision, &item.Notes, &item.CreatedAt, &item.UpdatedAt)
 	return item, mapError(err)
+}
+
+func (s *Store) ArchiveRoutePolicy(ctx context.Context, routeID string) error {
+	var exists bool
+	var nodeCount int
+	if err := s.pool.QueryRow(ctx, `SELECT
+		EXISTS(SELECT 1 FROM route_policies WHERE id=$1 AND status <> 'archived'),
+		(SELECT count(*) FROM nodes WHERE route_policy_id=$1 AND status <> 'archived')`, routeID).Scan(&exists, &nodeCount); err != nil {
+		return err
+	}
+	if !exists {
+		return ErrNotFound
+	}
+	if nodeCount > 0 {
+		return ErrRoutePolicyInUse
+	}
+	_, err := s.pool.Exec(ctx, `UPDATE route_policies SET status='archived',updated_at=now() WHERE id=$1`, routeID)
+	return err
 }
 
 func (s *Store) UpdateRoutePolicy(ctx context.Context, routeID string, input domain.RoutePolicyUpdate) (domain.RoutePolicy, error) {

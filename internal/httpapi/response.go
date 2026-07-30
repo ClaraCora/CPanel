@@ -39,6 +39,14 @@ func writeError(w http.ResponseWriter, r *http.Request, status int, code, messag
 
 func writeStoreError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
+	case errors.Is(err, store.ErrMachineHasNodes):
+		writeError(w, r, http.StatusConflict, "MACHINE_HAS_NODES", "请先删除或迁移该服务器下的节点", nil)
+	case errors.Is(err, store.ErrAccessGroupInUse):
+		writeError(w, r, http.StatusConflict, "ACCESS_GROUP_IN_USE", "该权限组仍被套餐或账号使用，请先解除关联", nil)
+	case errors.Is(err, store.ErrPlanInUse):
+		writeError(w, r, http.StatusConflict, "PLAN_IN_USE", "该套餐仍有账号使用，请先调整这些账号的套餐", nil)
+	case errors.Is(err, store.ErrRoutePolicyInUse):
+		writeError(w, r, http.StatusConflict, "ROUTE_POLICY_IN_USE", "该路由策略仍被节点使用，请先解除节点绑定", nil)
 	case errors.Is(err, store.ErrNotFound):
 		writeError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "资源不存在", nil)
 	case errors.Is(err, store.ErrConflict):

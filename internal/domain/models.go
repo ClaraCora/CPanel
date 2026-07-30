@@ -309,6 +309,45 @@ type TrafficRank struct {
 	TotalBytes    int64  `json:"total_bytes"`
 }
 
+type HistoricalData struct {
+	Retention      HistoricalRetention `json:"retention"`
+	Traffic        []DailyTraffic      `json:"traffic"`
+	MachineMetrics []MetricSample      `json:"machine_metrics"`
+	NodeMetrics    []MetricSample      `json:"node_metrics"`
+	Devices        []DeviceHistory     `json:"devices"`
+}
+
+type HistoricalRetention struct {
+	MetricsDays int `json:"metrics_days"`
+	DevicesDays int `json:"devices_days"`
+	TrafficDays int `json:"traffic_days"`
+}
+
+type DailyTraffic struct {
+	Day           time.Time `json:"day"`
+	UploadBytes   int64     `json:"upload_bytes"`
+	DownloadBytes int64     `json:"download_bytes"`
+}
+
+type MetricSample struct {
+	ResourceID   string          `json:"resource_id"`
+	ResourceName string          `json:"resource_name"`
+	SampledAt    time.Time       `json:"sampled_at"`
+	Metrics      json.RawMessage `json:"metrics"`
+}
+
+type DeviceHistory struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"user_id"`
+	UserName  string    `json:"user_name"`
+	NodeID    string    `json:"node_id"`
+	NodeName  string    `json:"node_name"`
+	IPAddress string    `json:"ip_address"`
+	FirstSeen time.Time `json:"first_seen_at"`
+	LastSeen  time.Time `json:"last_seen_at"`
+	Online    bool      `json:"online"`
+}
+
 type AgentMachine struct {
 	ID           string
 	Name         string

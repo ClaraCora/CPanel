@@ -13,6 +13,15 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+func (s *Server) handleHistoricalData(w http.ResponseWriter, r *http.Request) {
+	data, err := s.store.HistoricalData(r.Context())
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	writeData(w, r, http.StatusOK, data)
+}
+
 var allowedSettingSections = map[string]bool{
 	"site": true, "agent": true, "security": true, "node_defaults": true,
 	"certificate": true, "subscription": true, "retention": true,

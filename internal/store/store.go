@@ -11,6 +11,10 @@ import (
 var (
 	ErrNotFound                     = errors.New("resource not found")
 	ErrConflict                     = errors.New("resource conflict")
+	ErrMachineHasNodes              = errors.New("machine still has nodes")
+	ErrAccessGroupInUse             = errors.New("access group is still in use")
+	ErrPlanInUse                    = errors.New("plan is still in use")
+	ErrRoutePolicyInUse             = errors.New("route policy is still in use")
 	ErrSubscriptionTokenUnavailable = errors.New("subscription token unavailable")
 )
 

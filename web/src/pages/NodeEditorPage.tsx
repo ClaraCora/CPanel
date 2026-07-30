@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -26,7 +26,7 @@ import {
   type NodeSettings,
 } from "../components/NodeConfigForm";
 import { useResource } from "../hooks";
-import type { Machine, Node, NodeEndpoint, RoutePolicy } from "../types";
+import type { Machine, Node, NodeEndpoint, RoutePolicy, Setting } from "../types";
 
 type NodeForm = {
   name: string;
@@ -46,7 +46,7 @@ const emptyForm: NodeForm = {
   protocol: "vless",
   listen_ip: "0.0.0.0",
   server_port: "443",
-  kernel_type: "singbox",
+  kernel_type: "xray",
   config: defaultNodeSettings,
   endpoints: [],
 };
@@ -64,6 +64,8 @@ export function NodeEditorPage() {
     [],
   );
   const { data: routes } = useResource<RoutePolicy[]>("/route-policies", []);
+  const { data: nodeDefaults } = useResource<Setting[]>("/settings/node_defaults", []);
+  const defaultsApplied = useRef(false);
   const [form, setForm] = useState<NodeForm>(emptyForm);
   const [nodeLoading, setNodeLoading] = useState(editing || copying);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -98,13 +100,21 @@ export function NodeEditorPage() {
   }, [copyID, copying, id]);
 
   useEffect(() => {
-    if (!editing && !form.machine_id && machines.length)
+    if (!editing && !copying && !defaultsApplied.current && nodeDefaults.length) {
+      const stored = new Map(nodeDefaults.map((item) => [item.key, String(item.value ?? "")]));
       setForm((value) => ({
         ...value,
-        machine_id: machines[0].id,
-        kernel_type: machines[0].kernel_type || value.kernel_type,
+        kernel_type: stored.get("default_kernel") || "xray",
+        listen_ip: stored.get("listen_ip") || "0.0.0.0",
       }));
-  }, [editing, form.machine_id, machines]);
+      defaultsApplied.current = true;
+    }
+  }, [copying, editing, nodeDefaults]);
+
+  useEffect(() => {
+    if (!editing && !copying && !form.machine_id && machines.length)
+      setForm((value) => ({ ...value, machine_id: machines[0].id }));
+  }, [copying, editing, form.machine_id, machines]);
 
   const selectedMachine = useMemo(
     () => machines.find((item) => item.id === form.machine_id),
@@ -245,10 +255,6 @@ export function NodeEditorPage() {
                 value={form.machine_id}
                 onChange={(event) => {
                   update("machine_id", event.target.value);
-                  const selected = machines.find(
-                    (item) => item.id === event.target.value,
-                  );
-                  if (selected) update("kernel_type", selected.kernel_type);
                 }}
               >
                 <option value="">请选择服务器</option>
@@ -289,8 +295,8 @@ export function NodeEditorPage() {
                 value={form.kernel_type}
                 onChange={(event) => update("kernel_type", event.target.value)}
               >
-                <option value="singbox">sing-box</option>
                 <option value="xray">Xray</option>
+                <option value="singbox">sing-box</option>
               </select>
             </Field>
             <Field label="监听地址" required>

@@ -3,18 +3,20 @@ import {
   Copy,
   Edit3,
   Filter,
-  MoreHorizontal,
   Plus,
   Power,
   Rocket,
   Search,
+  Trash2,
 } from "lucide-react";
 import { Link, useSearchParams } from "wouter";
 import { ApiError, api, demoMode } from "../api";
 import {
   Button,
+  ConfirmDialog,
   EmptyState,
   PageHeader,
+  RowMenu,
   StatusBadge,
   TableSkeleton,
   formatDate,
@@ -37,6 +39,8 @@ export function NodesPage() {
   const [status, setStatus] = useState(params.get("status") ?? "");
   const [publishing, setPublishing] = useState("");
   const [changingStatus, setChangingStatus] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Node | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const toast = useToast();
 
   const filtered = useMemo(() => {
@@ -93,6 +97,21 @@ export function NodesPage() {
       toast(reason instanceof ApiError ? reason.message : "节点状态修改失败", "error");
     } finally {
       setChangingStatus("");
+    }
+  }
+
+  async function deleteNode() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/nodes/${deleteTarget.id}`);
+      toast(`${deleteTarget.name} 已删除`);
+      setDeleteTarget(null);
+      await reload();
+    } catch (reason) {
+      toast(reason instanceof ApiError ? reason.message : "节点删除失败，请重试", "error");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -273,14 +292,13 @@ export function NodesPage() {
                           )}
                         </button>
                       )}
-                      <details className="row-menu">
-                        <summary className="icon-button" aria-label={`${node.name} 更多操作`} title="更多操作"><MoreHorizontal size={17} /></summary>
-                        <div className="row-menu__panel">
-                          <Link to={`/nodes/${node.id}/edit`}><Edit3 size={15} />编辑节点</Link>
-                          <Link to={`/nodes/new?copy=${node.id}`}><Copy size={15} />复制节点</Link>
-                          <button disabled={changingStatus === node.id} onClick={() => void toggleStatus(node)}><Power size={15} />{node.status === "disabled" ? "恢复为草稿" : "停用节点"}</button>
-                        </div>
-                      </details>
+                      <button type="button" className="icon-button icon-button--danger" aria-label={`删除 ${node.name}`} title="删除" onClick={() => setDeleteTarget(node)}><Trash2 size={16} /></button>
+                      <RowMenu label={`${node.name} 更多操作`}>
+                        <Link to={`/nodes/${node.id}/edit`}><Edit3 size={15} />编辑节点</Link>
+                        <Link to={`/nodes/new?copy=${node.id}`}><Copy size={15} />复制节点</Link>
+                        <button disabled={changingStatus === node.id} onClick={() => void toggleStatus(node)}><Power size={15} />{node.status === "disabled" ? "恢复为草稿" : "停用节点"}</button>
+                        <button type="button" className="menu-action--danger" onClick={() => setDeleteTarget(node)}><Trash2 size={15} />删除节点</button>
+                      </RowMenu>
                     </td>
                   </tr>
                 ))}
@@ -301,6 +319,15 @@ export function NodesPage() {
           </div>
         </footer>
       )}
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="删除这个节点？"
+        description={deleteTarget ? `“${deleteTarget.name}”将从节点列表、订阅和 Agent 配置中移除，指标与审计历史仍会保留。` : ""}
+        confirmLabel="删除节点"
+        loading={deleting}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => void deleteNode()}
+      />
     </div>
   );
 }

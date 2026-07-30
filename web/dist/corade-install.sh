@@ -12,7 +12,7 @@ ACTION="install"
 CONTROL_URL="${CORADE_CONTROL_URL:-}"
 COMMUNICATION_KEY="${CORADE_AGENT_TOKEN:-}"
 MACHINE_ID=""
-KERNEL_TYPE="singbox"
+KERNEL_TYPE="xray"
 HEALTH_PORT="65530"
 BINARY_SOURCE=""
 VERSION="latest"
@@ -31,7 +31,7 @@ Required for install:
   --machine-id ID             CPanel server ID
 
 Optional:
-  --kernel singbox|xray       Default kernel type (default: singbox)
+  --kernel singbox|xray       Default kernel type (default: xray)
   --health-port PORT          Local health endpoint (default: 65530)
   --binary PATH               Install a local Corade binary
   --version VERSION           GitHub release tag (default: latest)
@@ -103,15 +103,6 @@ stage_binary() {
     [ -f "$BINARY_SOURCE" ] || fail "binary not found: $BINARY_SOURCE"
     cp "$BINARY_SOURCE" "$STAGED_BINARY"
   else
-    if [ -n "$CONTROL_URL" ]; then
-      log "downloading the verified Agent binary from CPanel"
-      if try_download "${CONTROL_URL%/}/corade-downloads"; then
-        chmod 755 "$STAGED_BINARY"
-        "$STAGED_BINARY" -v >/dev/null 2>&1 || fail "downloaded binary failed its version check"
-        return
-      fi
-      log "CPanel artifact is unavailable; falling back to GitHub release"
-    fi
     log "downloading ${REPOSITORY} release ${VERSION}"
     try_download "https://github.com/${REPOSITORY}/releases/download/${VERSION}" || fail "could not download a verified Agent binary"
   fi

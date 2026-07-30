@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -98,6 +99,10 @@ func (s *Server) handleUpdateMachine(w http.ResponseWriter, r *http.Request) {
 	}
 	auditUpdate(s, r, "machine", item.ID, input)
 	writeData(w, r, http.StatusOK, item)
+}
+
+func (s *Server) handleDeleteMachine(w http.ResponseWriter, r *http.Request) {
+	s.handleArchiveResource(w, r, "machine", s.store.ArchiveMachine)
 }
 
 func (s *Server) handleCreateMachineCredential(w http.ResponseWriter, r *http.Request) {
@@ -290,6 +295,10 @@ func (s *Server) handlePublishNode(w http.ResponseWriter, r *http.Request) {
 	writeData(w, r, http.StatusOK, item)
 }
 
+func (s *Server) handleDeleteNode(w http.ResponseWriter, r *http.Request) {
+	s.handleArchiveResource(w, r, "node", s.store.ArchiveNode)
+}
+
 func (s *Server) handleListAccessGroups(w http.ResponseWriter, r *http.Request) {
 	items, err := s.store.ListAccessGroups(r.Context())
 	if err != nil {
@@ -343,6 +352,10 @@ func (s *Server) handleUpdateAccessGroup(w http.ResponseWriter, r *http.Request)
 	writeData(w, r, http.StatusOK, item)
 }
 
+func (s *Server) handleDeleteAccessGroup(w http.ResponseWriter, r *http.Request) {
+	s.handleArchiveResource(w, r, "access_group", s.store.ArchiveAccessGroup)
+}
+
 func (s *Server) handleListPlans(w http.ResponseWriter, r *http.Request) {
 	items, err := s.store.ListPlans(r.Context())
 	if err != nil {
@@ -392,6 +405,10 @@ func (s *Server) handleUpdatePlan(w http.ResponseWriter, r *http.Request) {
 	}
 	auditUpdate(s, r, "plan", item.ID, input)
 	writeData(w, r, http.StatusOK, item)
+}
+
+func (s *Server) handleDeletePlan(w http.ResponseWriter, r *http.Request) {
+	s.handleArchiveResource(w, r, "plan", s.store.ArchivePlan)
 }
 
 func (s *Server) handleListUsers(w http.ResponseWriter, r *http.Request) {
@@ -543,7 +560,7 @@ func (s *Server) handleUpdateRoutePolicy(w http.ResponseWriter, r *http.Request)
 		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "请填写路由策略名称", nil)
 		return
 	}
-	if !validOneOf(input.Status, "draft", "published", "disabled") {
+	if !validOneOf(input.Status, "published", "disabled") {
 		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "路由策略状态无效", nil)
 		return
 	}
@@ -554,6 +571,10 @@ func (s *Server) handleUpdateRoutePolicy(w http.ResponseWriter, r *http.Request)
 	}
 	auditUpdate(s, r, "route_policy", item.ID, input)
 	writeData(w, r, http.StatusOK, item)
+}
+
+func (s *Server) handleDeleteRoutePolicy(w http.ResponseWriter, r *http.Request) {
+	s.handleArchiveResource(w, r, "route_policy", s.store.ArchiveRoutePolicy)
 }
 
 func (s *Server) handleListOutbounds(w http.ResponseWriter, r *http.Request) {
@@ -618,4 +639,16 @@ func (s *Server) handleUpdateOutbound(w http.ResponseWriter, r *http.Request) {
 func auditUpdate(s *Server, r *http.Request, resourceType, resourceID string, changes any) {
 	admin := currentAdmin(r)
 	_ = s.store.WriteAudit(r.Context(), admin.ID, resourceType+".update", resourceType, resourceID, changes, clientIP(r), requestID(r))
+}
+
+func (s *Server) handleArchiveResource(w http.ResponseWriter, r *http.Request, resourceType string, archive func(context.Context, string) error) {
+	resourceID := chi.URLParam(r, "id")
+	if err := archive(r.Context(), resourceID); err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	admin := currentAdmin(r)
+	_ = s.store.WriteAudit(r.Context(), admin.ID, resourceType+".delete", resourceType, resourceID,
+		map[string]any{"status": "archived"}, clientIP(r), requestID(r))
+	writeData(w, r, http.StatusOK, map[string]any{"deleted": true})
 }

@@ -95,6 +95,9 @@ func backfillXboardSubscriptionsCommand(ctx context.Context, pool *pgxpool.Pool,
 }
 
 func serve(cfg config.Config, dataStore *store.Store, box *securebox.Box) error {
+	maintenanceCtx, stopMaintenance := context.WithCancel(context.Background())
+	defer stopMaintenance()
+	go maintainHistoricalData(maintenanceCtx, dataStore)
 	server := &http.Server{Addr: cfg.Addr, Handler: httpapi.New(cfg, dataStore, box).Handler(), ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
 	errCh := make(chan error, 1)
 	go func() { slog.Info("cpanel listening", "addr", cfg.Addr); errCh <- server.ListenAndServe() }()
@@ -110,6 +113,25 @@ func serve(cfg config.Config, dataStore *store.Store, box *securebox.Box) error 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	return server.Shutdown(ctx)
+}
+
+func maintainHistoricalData(ctx context.Context, dataStore *store.Store) {
+	prune := func() {
+		if err := dataStore.PruneHistoricalData(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			slog.Error("historical data retention failed", "error", err)
+		}
+	}
+	prune()
+	ticker := time.NewTicker(24 * time.Hour)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			prune()
+		}
+	}
 }
 
 func importXboardCommand(ctx context.Context, pool *pgxpool.Pool, args []string) error {

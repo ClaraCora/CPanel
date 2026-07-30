@@ -156,6 +156,43 @@ export interface TrafficRank {
   total_bytes: number;
 }
 
+export interface HistoricalData {
+  retention: {
+    metrics_days: number;
+    devices_days: number;
+    traffic_days: number;
+  };
+  traffic: DailyTraffic[];
+  machine_metrics: MetricSample[];
+  node_metrics: MetricSample[];
+  devices: DeviceHistory[];
+}
+
+export interface DailyTraffic {
+  day: string;
+  upload_bytes: number;
+  download_bytes: number;
+}
+
+export interface MetricSample {
+  resource_id: string;
+  resource_name: string;
+  sampled_at: string;
+  metrics: Record<string, unknown>;
+}
+
+export interface DeviceHistory {
+  id: string;
+  user_id: string;
+  user_name: string;
+  node_id: string;
+  node_name: string;
+  ip_address: string;
+  first_seen_at: string;
+  last_seen_at: string;
+  online: boolean;
+}
+
 export interface Setting {
   key: string;
   value: unknown;

@@ -14,6 +14,7 @@ import {
 } from "./pages/ResourcePages";
 import { AuditPage } from "./pages/AuditPage";
 import { LoginPage } from "./pages/LoginPage";
+import { HistoryPage } from "./pages/HistoryPage";
 import { NodeEditorPage } from "./pages/NodeEditorPage";
 import { NodesPage } from "./pages/NodesPage";
 import { OverviewPage } from "./pages/OverviewPage";
@@ -82,6 +83,7 @@ export default function App() {
             <Route path="/users" component={UsersPage} />
             <Route path="/routes" component={RoutesPage} />
             <Route path="/outbounds" component={OutboundsPage} />
+            <Route path="/history" component={HistoryPage} />
             <Route path="/settings">
               <SettingsPage
                 admin={session.admin}

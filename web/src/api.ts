@@ -2,6 +2,7 @@ import { demoNodes, demoResource, demoSession } from "./mock";
 import type { ApiErrorBody, Envelope, Session } from "./types";
 
 const base = "/api/ops/v1";
+const requestTimeoutMs = 15_000;
 let csrfToken = "";
 
 export const demoMode = new URLSearchParams(window.location.search).get("demo") === "1";
@@ -29,12 +30,27 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.body) headers.set("Content-Type", "application/json");
   if (init.method && !["GET", "HEAD"].includes(init.method)) headers.set("X-CSRF-Token", csrfToken);
-  const response = await fetch(`${base}${path}`, { ...init, headers, credentials: "same-origin" });
-  const payload = (await response.json()) as Envelope<T>;
-  if (!response.ok || payload.error) {
-    throw new ApiError(response.status, payload.error ?? { code: "REQUEST_FAILED", message: "请求失败，请稍后重试" });
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), requestTimeoutMs);
+  try {
+    const response = await fetch(`${base}${path}`, { ...init, headers, credentials: "same-origin", signal: init.signal ?? controller.signal });
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!contentType.includes("application/json")) {
+      throw new ApiError(response.status, { code: "INVALID_RESPONSE", message: response.ok ? "服务返回了无法识别的响应" : `服务请求失败（${response.status}）` });
+    }
+    const payload = (await response.json()) as Envelope<T>;
+    if (!response.ok || payload.error) {
+      throw new ApiError(response.status, payload.error ?? { code: "REQUEST_FAILED", message: "请求失败，请稍后重试" });
+    }
+    return payload.data;
+  } catch (reason) {
+    if (reason instanceof DOMException && reason.name === "AbortError") {
+      throw new ApiError(408, { code: "REQUEST_TIMEOUT", message: "请求超时，请检查网络后重试" });
+    }
+    throw reason;
+  } finally {
+    window.clearTimeout(timeout);
   }
-  return payload.data;
 }
 
 async function demoRequest<T>(path: string, init: RequestInit): Promise<T> {

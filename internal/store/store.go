@@ -15,6 +15,7 @@ var (
 	ErrAccessGroupInUse             = errors.New("access group is still in use")
 	ErrPlanInUse                    = errors.New("plan is still in use")
 	ErrRoutePolicyInUse             = errors.New("route policy is still in use")
+	ErrNodePortInUse                = errors.New("node port is already in use")
 	ErrSubscriptionTokenUnavailable = errors.New("subscription token unavailable")
 )
 

@@ -153,7 +153,7 @@ export function NodeEditorPage() {
     const payload = {
       name: form.name.trim(),
       machine_id: form.machine_id,
-      route_policy_id: form.route_policy_id,
+      route_policy_id: form.route_policy_id || (editing ? "" : null),
       protocol: form.protocol,
       listen_ip: form.listen_ip.trim() || "0.0.0.0",
       server_port: Number(form.server_port),

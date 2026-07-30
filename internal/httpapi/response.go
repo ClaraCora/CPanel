@@ -47,6 +47,8 @@ func writeStoreError(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, r, http.StatusConflict, "PLAN_IN_USE", "该套餐仍有账号使用，请先调整这些账号的套餐", nil)
 	case errors.Is(err, store.ErrRoutePolicyInUse):
 		writeError(w, r, http.StatusConflict, "ROUTE_POLICY_IN_USE", "该路由策略仍被节点使用，请先解除节点绑定", nil)
+	case errors.Is(err, store.ErrNodePortInUse):
+		writeError(w, r, http.StatusConflict, "NODE_PORT_IN_USE", "该服务器上的监听端口已被其他节点占用，请更换端口", map[string]string{"server_port": "该端口已被占用"})
 	case errors.Is(err, store.ErrNotFound):
 		writeError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "资源不存在", nil)
 	case errors.Is(err, store.ErrConflict):

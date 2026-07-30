@@ -10,6 +10,7 @@ import (
 	"cpanel/internal/auth"
 	"cpanel/internal/domain"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 func (s *Store) Overview(ctx context.Context) (domain.Overview, error) {
@@ -275,6 +276,7 @@ func replaceNodeEndpoints(ctx context.Context, tx pgx.Tx, nodeID string, endpoin
 
 func (s *Store) CreateNode(ctx context.Context, input domain.NodeCreate) (domain.Node, error) {
 	item := domain.Node{ID: domain.MustID("nod")}
+	input.RoutePolicyID = normalizeOptionalID(input.RoutePolicyID)
 	if input.ListenIP == "" {
 		input.ListenIP = "0.0.0.0"
 	}
@@ -306,13 +308,35 @@ func (s *Store) CreateNode(ctx context.Context, input domain.NodeCreate) (domain
 	item.KernelType = input.KernelType
 	item.Config = input.Config
 	if err != nil {
-		return domain.Node{}, mapError(err)
+		return domain.Node{}, mapNodeError(err)
 	}
 	item.Endpoints, err = replaceNodeEndpoints(ctx, tx, item.ID, input.Endpoints)
 	if err != nil {
 		return domain.Node{}, err
 	}
 	return item, tx.Commit(ctx)
+}
+
+func normalizeOptionalID(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	trimmed := strings.TrimSpace(*value)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
+}
+
+func mapNodeError(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.ConstraintName {
+		case "nodes_machine_id_server_port_key", "nodes_machine_port_active_unique":
+			return errors.Join(ErrNodePortInUse, err)
+		}
+	}
+	return mapError(err)
 }
 
 func (s *Store) ArchiveNode(ctx context.Context, nodeID string) error {
@@ -396,7 +420,7 @@ func (s *Store) UpdateNode(ctx context.Context, nodeID string, input domain.Node
 		WHERE id=$1 AND status <> 'archived'`, nodeID, item.MachineID, item.RoutePolicyID, item.Name,
 		item.Protocol, item.ListenIP, item.ServerPort, item.KernelType, item.Config, input.Status)
 	if err != nil {
-		return domain.Node{}, mapError(err)
+		return domain.Node{}, mapNodeError(err)
 	}
 	if command.RowsAffected() == 0 {
 		return domain.Node{}, ErrNotFound

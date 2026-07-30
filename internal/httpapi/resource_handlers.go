@@ -54,6 +54,10 @@ func (s *Server) handleListMachines(w http.ResponseWriter, r *http.Request) {
 		writeStoreError(w, r, err)
 		return
 	}
+	latestVersion := s.agentRelease.Latest(r.Context())
+	for index := range items {
+		items[index].LatestAgentVersion = latestVersion
+	}
 	writeData(w, r, http.StatusOK, items)
 }
 
@@ -159,7 +163,12 @@ func (s *Server) handleMachineInstallation(w http.ResponseWriter, r *http.Reques
 
 func (s *Server) handleMachineAgentUpgrade(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "id")
-	task, err := s.store.RequestMachineAgentUpgrade(r.Context(), machineID)
+	latestVersion := s.agentRelease.Latest(r.Context())
+	if latestVersion == "" {
+		writeError(w, r, http.StatusServiceUnavailable, "AGENT_RELEASE_UNAVAILABLE", "暂时无法获取 Agent 最新版本，请稍后重试", nil)
+		return
+	}
+	task, err := s.store.RequestMachineAgentUpgrade(r.Context(), machineID, latestVersion)
 	if err != nil {
 		writeStoreError(w, r, err)
 		return

@@ -22,6 +22,7 @@ export interface Machine {
   notes?: string;
   status: string;
   agent_version: string;
+  latest_agent_version: string;
   kernel_type: string;
   last_heartbeat_at: string | null;
   metrics: {

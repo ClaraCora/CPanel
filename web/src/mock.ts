@@ -20,9 +20,9 @@ export const demoSession: Session = {
 };
 
 export const demoMachines: Machine[] = [
-  { id: "mch_hk01", name: "香港边缘 01", region: "香港", host: "hk01.example.net", labels: { tier: "edge" }, status: "online", agent_version: "0.8.4", kernel_type: "singbox", last_heartbeat_at: now, metrics: { cpu: 18.4, mem: { total: 17179869184, used: 7214202880 }, disk: { total: 107374182400, used: 42949672960 } }, metrics_sampled_at: now, node_count: 3, created_at: now, updated_at: now },
-  { id: "mch_sg02", name: "新加坡边缘 02", region: "新加坡", host: "sg02.example.net", labels: { tier: "edge" }, status: "online", agent_version: "0.8.4", kernel_type: "singbox", last_heartbeat_at: now, metrics: { cpu: 32.1, mem: { total: 8589934592, used: 3865470566 }, disk: { total: 53687091200, used: 21474836480 } }, metrics_sampled_at: now, node_count: 2, created_at: now, updated_at: now },
-  { id: "mch_jp01", name: "日本边缘 01", region: "日本", host: "jp01.example.net", labels: {}, status: "offline", agent_version: "0.8.2", kernel_type: "xray", last_heartbeat_at: "2026-07-29T05:18:00Z", metrics: {}, metrics_sampled_at: "2026-07-29T05:18:00Z", node_count: 1, created_at: now, updated_at: now },
+  { id: "mch_hk01", name: "香港边缘 01", region: "香港", host: "hk01.example.net", labels: { tier: "edge" }, status: "online", agent_version: "0.8.4", latest_agent_version: "0.8.4", kernel_type: "singbox", last_heartbeat_at: now, metrics: { cpu: 18.4, mem: { total: 17179869184, used: 7214202880 }, disk: { total: 107374182400, used: 42949672960 } }, metrics_sampled_at: now, node_count: 3, created_at: now, updated_at: now },
+  { id: "mch_sg02", name: "新加坡边缘 02", region: "新加坡", host: "sg02.example.net", labels: { tier: "edge" }, status: "online", agent_version: "0.8.4", latest_agent_version: "0.8.4", kernel_type: "singbox", last_heartbeat_at: now, metrics: { cpu: 32.1, mem: { total: 8589934592, used: 3865470566 }, disk: { total: 53687091200, used: 21474836480 } }, metrics_sampled_at: now, node_count: 2, created_at: now, updated_at: now },
+  { id: "mch_jp01", name: "日本边缘 01", region: "日本", host: "jp01.example.net", labels: {}, status: "offline", agent_version: "0.8.2", latest_agent_version: "0.8.4", kernel_type: "xray", last_heartbeat_at: "2026-07-29T05:18:00Z", metrics: {}, metrics_sampled_at: "2026-07-29T05:18:00Z", node_count: 1, created_at: now, updated_at: now },
 ];
 
 export const demoRoutes: RoutePolicy[] = [

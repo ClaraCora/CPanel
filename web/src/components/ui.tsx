@@ -138,6 +138,20 @@ export function formatBytes(value: number) {
 }
 
 export function formatDate(value: string | null | undefined) {
+  return formatDateValue(value, { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+}
+
+export function formatPreciseDate(value: string | null | undefined) {
+  return formatDateValue(value, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
+}
+
+export function formatDateWithYear(value: string | null | undefined) {
+  return formatDateValue(value, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+}
+
+function formatDateValue(value: string | null | undefined, options: Intl.DateTimeFormatOptions) {
   if (!value) return "从未";
-  return new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value));
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "时间无效";
+  return new Intl.DateTimeFormat("zh-CN", options).format(date);
 }

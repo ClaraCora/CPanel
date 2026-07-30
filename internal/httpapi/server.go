@@ -19,11 +19,12 @@ type Server struct {
 	store             *store.Store
 	dummyPasswordHash string
 	secureBox         *securebox.Box
+	agentRelease      *agentReleaseResolver
 }
 
 func New(cfg config.Config, dataStore *store.Store, box *securebox.Box) *Server {
 	dummy, _ := auth.HashPassword("this password is intentionally never valid")
-	return &Server{cfg: cfg, store: dataStore, dummyPasswordHash: dummy, secureBox: box}
+	return &Server{cfg: cfg, store: dataStore, dummyPasswordHash: dummy, secureBox: box, agentRelease: newAgentReleaseResolver(nil, "")}
 }
 
 func (s *Server) Handler() http.Handler {

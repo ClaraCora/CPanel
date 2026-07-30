@@ -51,6 +51,10 @@ func writeStoreError(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, r, http.StatusConflict, "NODE_PORT_IN_USE", "该服务器上的监听端口已被其他节点占用，请更换端口", map[string]string{"server_port": "该端口已被占用"})
 	case errors.Is(err, store.ErrAgentNotConnected):
 		writeError(w, r, http.StatusConflict, "AGENT_NOT_CONNECTED", "Agent 尚未连接，暂时无法下发升级任务", nil)
+	case errors.Is(err, store.ErrAgentAlreadyLatest):
+		writeError(w, r, http.StatusConflict, "AGENT_ALREADY_LATEST", "Agent 已是最新版本，无需升级", nil)
+	case errors.Is(err, store.ErrAgentUpgradePending):
+		writeError(w, r, http.StatusConflict, "AGENT_UPGRADE_PENDING", "Agent 升级任务正在处理，请等待下一次心跳", nil)
 	case errors.Is(err, store.ErrNotFound):
 		writeError(w, r, http.StatusNotFound, "RESOURCE_NOT_FOUND", "资源不存在", nil)
 	case errors.Is(err, store.ErrConflict):

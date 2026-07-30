@@ -17,6 +17,8 @@ var (
 	ErrRoutePolicyInUse             = errors.New("route policy is still in use")
 	ErrNodePortInUse                = errors.New("node port is already in use")
 	ErrAgentNotConnected            = errors.New("agent has not connected")
+	ErrAgentAlreadyLatest           = errors.New("agent is already latest")
+	ErrAgentUpgradePending          = errors.New("agent upgrade is pending")
 	ErrSubscriptionTokenUnavailable = errors.New("subscription token unavailable")
 )
 

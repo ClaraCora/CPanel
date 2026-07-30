@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Copy, Edit3, Link2, Plus, Power, RefreshCw, Search, Terminal, Trash2, UserPlus, UsersRound } from "lucide-react";
 import { ApiError, api } from "../api";
-import { Button, ConfirmDialog, Drawer, EmptyState, Field, PageHeader, RowMenu, StatusBadge, TableSkeleton, formatBytes, formatDate, useToast } from "../components/ui";
+import { Button, ConfirmDialog, Drawer, EmptyState, Field, PageHeader, RowMenu, StatusBadge, TableSkeleton, formatBytes, formatDate, formatDateWithYear, formatPreciseDate, useToast } from "../components/ui";
 import { useResource } from "../hooks";
 import type { AccessGroup, Machine, Node, Outbound, Plan, RoutePolicy, User } from "../types";
 
@@ -38,12 +38,13 @@ type ResourcePageProps<T extends Resource> = {
   deletable?: boolean;
   identifierAction?: { label: string; value: (item: T) => string };
   protectedItem?: (item: T) => boolean;
+  refreshIntervalMs?: number;
 };
 
-function ResourcePage<T extends Resource>({ title, description, endpoint, createLabel, columns, fields, defaults, transform, toValues, enabledStatus = "active", disabledStatus = "disabled", installable = false, upgradeable = false, subscriptionActions = false, quickAccountCreation = false, deletable = false, identifierAction, protectedItem }: ResourcePageProps<T>) {
+function ResourcePage<T extends Resource>({ title, description, endpoint, createLabel, columns, fields, defaults, transform, toValues, enabledStatus = "active", disabledStatus = "disabled", installable = false, upgradeable = false, subscriptionActions = false, quickAccountCreation = false, deletable = false, identifierAction, protectedItem, refreshIntervalMs = 0 }: ResourcePageProps<T>) {
 	deletable = deletable || ["/machines", "/access-groups", "/plans", "/route-policies"].includes(endpoint);
 	if (endpoint === "/route-policies") enabledStatus = "published";
-  const { data, loading, error, reload } = useResource<T[]>(endpoint, []);
+  const { data, loading, error, reload } = useResource<T[]>(endpoint, [], refreshIntervalMs);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<T | null>(null);
@@ -231,7 +232,7 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
           return <tr key={item.id}>{columns.map((column) => <td className={column.className} key={column.label}>{column.render(item)}</td>)}<td><StatusBadge status={item.status} /></td><td className="row-actions">
             {identifierAction && <button type="button" className="icon-button" aria-label={`复制 ${item.id} 的 ${identifierAction.label}`} title={`复制 ${identifierAction.label}`} disabled={copyingIdentifier === item.id} onClick={() => void copyIdentifier(item)}><Copy size={16} /></button>}
             {subscriptionActions && <button type="button" className="icon-button" aria-label={`复制 ${item.id} 的订阅链接`} title={canCopy ? "复制订阅链接" : "完整令牌尚未保存"} disabled={!canCopy || copying === item.id} onClick={() => void copySubscription(item)}><Link2 size={16} /></button>}
-            {upgradeable && <button type="button" className="icon-button" aria-label={`升级 ${resourceName(item)} 的 Agent`} title={upgradeStateLabel(item)} disabled={!canRequestUpgrade(item) || upgrading} onClick={() => setUpgradeTarget(item)}><RefreshCw size={16} /></button>}
+            {upgradeable && <button type="button" className={`icon-button ${agentUpgradeState(item) === "available" ? "icon-button--update" : ""}`} aria-label={`升级 ${resourceName(item)} 的 Agent`} title={upgradeStateLabel(item)} disabled={!canRequestUpgrade(item) || upgrading} onClick={() => setUpgradeTarget(item)}><RefreshCw size={16} /></button>}
             <button type="button" className="icon-button" aria-label={`编辑 ${item.id}`} title="编辑" onClick={() => showEdit(item)}><Edit3 size={16} /></button>
             {deletable && !protectedRow && <button type="button" className="icon-button icon-button--danger" aria-label={`删除 ${resourceName(item)}`} title="删除" onClick={() => setDeleteTarget(item)}><Trash2 size={16} /></button>}
             <RowMenu label={`${item.id} 更多操作`}><button type="button" onClick={() => showEdit(item)}><Edit3 size={15} />编辑</button>{identifierAction && <button type="button" disabled={copyingIdentifier === item.id} onClick={() => void copyIdentifier(item)}><Copy size={15} />复制 {identifierAction.label}</button>}{subscriptionActions && <button type="button" disabled={!canCopy || copying === item.id} onClick={() => void copySubscription(item)}><Link2 size={15} />{canCopy ? "复制订阅链接" : "完整令牌未保存"}</button>}{installable && <button type="button" onClick={() => void loadInstallation(item)}><Terminal size={15} />一键安装 Agent</button>}{!protectedRow && <button type="button" disabled={changingStatus === item.id} onClick={() => void toggleStatus(item)}><Power size={15} />{item.status === disabledStatus ? "恢复启用" : disabledStatus === "paused" ? "暂停" : "停用"}</button>}{deletable && !protectedRow && <button type="button" className="menu-action--danger" onClick={() => setDeleteTarget(item)}><Trash2 size={15} />删除</button>}</RowMenu>
@@ -242,15 +243,24 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
     <Drawer open={open} title={editing ? `编辑${title}` : createLabel} description={editing ? `修改 ${editing.id} 的配置` : `创建新的${title}记录`} onClose={() => { if (!saving) setOpen(false); }}><form className="drawer-form" onSubmit={submit} aria-busy={saving} noValidate>{formError && <div className="form-error" role="alert">{formError}</div>}{fields.filter((field) => !field.editOnly || editing).map((field) => <Field key={field.key} label={field.label} required={field.required} helper={field.helper} error={errors[field.key]}>{field.type === "textarea" || field.type === "json" ? <textarea className={field.type === "json" ? "code-editor code-editor--small" : ""} rows={field.type === "json" ? 9 : 4} value={values[field.key] ?? ""} placeholder={field.placeholder} onChange={(event) => updateValue(field.key, event.target.value)} /> : field.type === "select" ? <select disabled={Boolean(editing && field.lockedValue && values[field.key] === field.lockedValue)} value={values[field.key] ?? ""} onChange={(event) => updateValue(field.key, event.target.value)}>{field.options?.filter((option) => !option.exclusive || values[field.key] === option.value).map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select> : field.type === "multiselect" ? <select multiple size={Math.min(8, Math.max(3, field.options?.length ?? 3))} value={(values[field.key] ?? "").split(",").filter(Boolean)} onChange={(event) => updateValue(field.key, Array.from(event.target.selectedOptions).map((option) => option.value).join(","))}>{field.options?.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select> : <input type={field.type ?? "text"} value={values[field.key] ?? ""} placeholder={field.placeholder} onChange={(event) => updateValue(field.key, event.target.value)} />}</Field>)}<footer className="drawer__actions"><Button type="button" variant="ghost" disabled={saving} onClick={() => setOpen(false)}>取消</Button><Button type="button" variant="primary" loading={saving} onClick={() => void save()}>{saving ? editing ? "保存中…" : "创建中…" : editing ? "保存修改" : "创建"}</Button></footer></form></Drawer>
     <Drawer open={Boolean(install)} title="一键安装 Corade Agent" description={install ? `目标服务器：${install.name}` : undefined} onClose={() => setInstall(null)}>{install && <div className="install-command"><p>在目标服务器的 root shell 中执行以下命令。</p><textarea className="code-editor" readOnly rows={7} value={install.command} /><footer><Button variant="primary" onClick={() => void writeClipboard(install.command).then(() => toast("安装命令已复制")).catch(() => toast("复制失败，请手动选择命令", "error"))}><Copy size={16} />复制命令</Button></footer></div>}</Drawer>
     <ConfirmDialog open={Boolean(deleteTarget)} title={`删除${subscriptionActions ? "这个账号" : `这条${title}记录`}？`} description={deleteTarget ? subscriptionActions ? `“${resourceName(deleteTarget)}”将从订阅账号列表中移除，现有订阅链接会立即失效。流量与审计历史仍会保留。` : `“${resourceName(deleteTarget)}”将从${title}列表中移除。存在关联资源时系统会阻止删除，审计历史仍会保留。` : ""} confirmLabel="确认删除" loading={deleting} onClose={() => setDeleteTarget(null)} onConfirm={() => void deleteResource()} />
-    <ConfirmDialog open={Boolean(upgradeTarget)} title="升级 Agent" description={upgradeTarget ? `将在 ${resourceName(upgradeTarget)} 的下一次心跳中领取升级任务，并从 GitHub 安装最新版本。当前 Agent 会在独立任务中重启。` : ""} confirmLabel="下发升级任务" confirmVariant="primary" loading={upgrading} onClose={() => { if (!upgrading) setUpgradeTarget(null); }} onConfirm={() => void requestUpgrade()} />
+    <ConfirmDialog open={Boolean(upgradeTarget)} title="升级 Agent" description={upgradeTarget ? `将在 ${resourceName(upgradeTarget)} 的下一次心跳中领取升级任务，并从 GitHub 更新至 ${latestAgentVersion(upgradeTarget)}。当前 Agent 会在独立任务中重启。` : ""} confirmLabel="下发升级任务" confirmVariant="primary" loading={upgrading} onClose={() => { if (!upgrading) setUpgradeTarget(null); }} onConfirm={() => void requestUpgrade()} />
   </div>;
 }
 
 const primary = (name: string, id: string, detail?: string) => <><strong className="cell-primary">{name}</strong><span className="resource-id">{detail || id}</span></>;
 const subscriptionAvailable = (item: Resource) => "subscription_available" in item && item.subscription_available === true;
 const resourceName = (item: Resource) => "name" in item && typeof item.name === "string" ? item.name : item.id;
-const canRequestUpgrade = (item: Resource) => "last_heartbeat_at" in item && Boolean(item.last_heartbeat_at) && !("agent_upgrade_task_id" in item && item.agent_upgrade_task_id && !("agent_upgrade_dispatched_at" in item && item.agent_upgrade_dispatched_at));
-const upgradeStateLabel = (item: Resource) => !("last_heartbeat_at" in item) || !item.last_heartbeat_at ? "Agent 尚未连接" : "agent_upgrade_task_id" in item && item.agent_upgrade_task_id && !("agent_upgrade_dispatched_at" in item && item.agent_upgrade_dispatched_at) ? "等待下一次心跳" : "升级 Agent";
+type AgentUpgradeState = "disconnected" | "pending" | "running" | "latest" | "available" | "unknown";
+const latestAgentVersion = (item: Resource) => "latest_agent_version" in item && typeof item.latest_agent_version === "string" ? item.latest_agent_version : "";
+const agentUpgradeState = (item: Resource): AgentUpgradeState => {
+  if (!("last_heartbeat_at" in item) || !item.last_heartbeat_at) return "disconnected";
+  if ("agent_upgrade_task_id" in item && item.agent_upgrade_task_id) return "agent_upgrade_dispatched_at" in item && item.agent_upgrade_dispatched_at ? "running" : "pending";
+  const latest = latestAgentVersion(item);
+  if (!latest || !("agent_version" in item) || typeof item.agent_version !== "string") return "unknown";
+  return item.agent_version.toLowerCase() === latest.toLowerCase() ? "latest" : "available";
+};
+const canRequestUpgrade = (item: Resource) => agentUpgradeState(item) === "available";
+const upgradeStateLabel = (item: Resource) => ({ disconnected: "Agent 尚未连接", pending: "等待下一次心跳", running: "升级执行中，等待心跳确认", latest: "Agent 已是最新版本", available: `更新至 ${latestAgentVersion(item)}`, unknown: "暂时无法检查最新版本" })[agentUpgradeState(item)];
 async function writeClipboard(value: string) {
   if (navigator.clipboard?.writeText) {
     try { await navigator.clipboard.writeText(value); return; } catch { /* HTTP deployments use the fallback below. */ }
@@ -275,6 +285,7 @@ export function MachinesPage() {
     createLabel="添加服务器"
     installable
     upgradeable
+    refreshIntervalMs={15_000}
     enabledStatus="pending"
     defaults={{ name: "", region: "", host: "", labels: "{}", notes: "" }}
     fields={[{ key: "name", label: "服务器名称", required: true, placeholder: "例如：香港边缘 01" }, { key: "region", label: "区域", placeholder: "例如：香港" }, { key: "host", label: "IP 或域名", placeholder: "hk01.example.net" }, { key: "labels", label: "标签 JSON", type: "json", helper: "用于筛选和自动化识别", placeholder: "{}" }, { key: "notes", label: "备注", type: "textarea" }]}
@@ -285,8 +296,8 @@ export function MachinesPage() {
       { label: "区域", render: (item) => item.region || "未设置" },
       { label: "节点", render: (item) => <span className="mono">{item.node_count}</span> },
       { label: "资源占用", render: (item) => <MachineMetrics machine={item} /> },
-      { label: "Agent", render: (item) => <><span className="cell-primary">{item.agent_version || "未接入"}</span><span className="resource-id">{agentUpgradeLabel(item)}</span></> },
-      { label: "最后心跳", render: (item) => formatDate(item.last_heartbeat_at) },
+      { label: "Agent", render: (item) => <><span className="cell-primary">{item.agent_version || "未接入"}</span><span className={`resource-id ${agentUpgradeState(item) === "available" ? "text-success" : ""}`}>{agentUpgradeLabel(item)}</span></> },
+      { label: "最后心跳", render: (item) => formatPreciseDate(item.last_heartbeat_at) },
     ]}
   />;
 }
@@ -295,7 +306,7 @@ function MachineMetrics({ machine }: { machine: Machine }) {
   const memory = usagePercent(machine.metrics?.mem?.used, machine.metrics?.mem?.total);
   const disk = usagePercent(machine.metrics?.disk?.used, machine.metrics?.disk?.total);
   if (!machine.metrics_sampled_at) return <span className="history-muted">等待心跳</span>;
-  return <div className="machine-metrics" title={`采样时间 ${formatDate(machine.metrics_sampled_at)}`}>
+  return <div className="machine-metrics" title={`采样时间 ${formatPreciseDate(machine.metrics_sampled_at)}`}>
     <span><b>CPU</b>{formatPercent(machine.metrics?.cpu)}</span>
     <span><b>内存</b>{formatPercent(memory)}</span>
     <span><b>磁盘</b>{formatPercent(disk)}</span>
@@ -311,10 +322,9 @@ function formatPercent(value?: number) {
 }
 
 function agentUpgradeLabel(machine: Machine) {
-  if (!machine.last_heartbeat_at) return "尚未连接";
-  if (machine.agent_upgrade_task_id && !machine.agent_upgrade_dispatched_at) return "升级任务等待心跳";
-  if (machine.agent_upgrade_dispatched_at) return "升级任务已下发";
-  return "可一键升级";
+  const state = agentUpgradeState(machine);
+  if (state === "available") return `可更新至 ${machine.latest_agent_version}`;
+  return ({ disconnected: "尚未连接", pending: "升级任务等待心跳", running: "升级执行中", latest: "已是最新版本", unknown: "版本检查暂不可用" } as const)[state];
 }
 
 export function AccessGroupsPage() {
@@ -363,7 +373,7 @@ export function UsersPage() {
       { label: "套餐", render: (item) => item.plan_name || "未分配" },
       { label: "已用流量", render: (item) => formatBytes(item.traffic_used_bytes) },
       { label: "订阅令牌", render: (item) => item.subscription_available ? <span className="mono">{item.subscription_token_prefix}…</span> : <span className="token-unavailable">未保存完整令牌</span> },
-      { label: "到期", render: (item) => item.expires_at ? formatDate(item.expires_at) : "长期" },
+      { label: "到期", render: (item) => item.expires_at ? formatDateWithYear(item.expires_at) : "长期" },
     ]}
   />;
 }

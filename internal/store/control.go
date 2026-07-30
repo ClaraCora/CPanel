@@ -144,7 +144,11 @@ func (s *Store) RecordMachineHeartbeat(ctx context.Context, machine domain.Agent
 		metrics = json.RawMessage(`{}`)
 	}
 	_, err = tx.Exec(ctx, `UPDATE machines SET status='online',agent_version=$2,kernel_type=$3,
-		capabilities=$4,last_heartbeat_at=now(),updated_at=now() WHERE id=$1`,
+		capabilities=$4,last_heartbeat_at=now(),updated_at=now(),
+		agent_upgrade_task_id=CASE WHEN agent_upgrade_dispatched_at IS NOT NULL THEN NULL ELSE agent_upgrade_task_id END,
+		agent_upgrade_requested_at=CASE WHEN agent_upgrade_dispatched_at IS NOT NULL THEN NULL ELSE agent_upgrade_requested_at END,
+		agent_upgrade_dispatched_at=CASE WHEN agent_upgrade_dispatched_at IS NOT NULL THEN NULL ELSE agent_upgrade_dispatched_at END
+		WHERE id=$1`,
 		machine.ID, version, kernel, capabilities)
 	if err != nil {
 		return err

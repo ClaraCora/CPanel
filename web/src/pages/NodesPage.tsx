@@ -19,7 +19,7 @@ import {
   RowMenu,
   StatusBadge,
   TableSkeleton,
-  formatDate,
+  formatPreciseDate,
   useToast,
 } from "../components/ui";
 import { useResource } from "../hooks";
@@ -259,7 +259,7 @@ export function NodesPage() {
                         <span className="cell-error">{node.last_error}</span>
                       )}
                     </td>
-                    <td>{formatDate(node.last_report_at)}</td>
+                    <td>{formatPreciseDate(node.last_report_at)}</td>
                     <td className="row-actions">
                       <Link
                         className="icon-button"

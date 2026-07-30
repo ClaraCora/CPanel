@@ -63,6 +63,8 @@ tbody tr:last-child td { border-bottom: 0; }
 .button--danger { color: white; background: var(--danger); border-color: var(--danger); }
 .icon-button { display: inline-grid; flex: 0 0 auto; width: 34px; height: 34px; place-items: center; padding: 0; color: #515154; background: transparent; border: 1px solid transparent; border-radius: 6px; transition: color 120ms ease, background 120ms ease, border-color 120ms ease; }
 .icon-button:hover:not(:disabled) { color: var(--foreground); background: #f2f2f7; border-color: var(--border); }
+.icon-button--update { color: var(--success); background: #eef8f0; border-color: #b8dcbc; }
+.icon-button--update:hover:not(:disabled) { color: white; background: var(--success); border-color: var(--success); }
 .icon-button--danger { color: var(--danger); }
 .icon-button--danger:hover:not(:disabled) { color: white; background: var(--danger); border-color: var(--danger); }
 .icon-button--dark { color: #8e8e93; }

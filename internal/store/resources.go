@@ -103,10 +103,11 @@ func (s *Store) ListMachines(ctx context.Context) ([]domain.Machine, error) {
 	return items, rows.Err()
 }
 
-func (s *Store) RequestMachineAgentUpgrade(ctx context.Context, machineID string) (domain.AgentUpgradeTask, error) {
-	var connected bool
-	err := s.pool.QueryRow(ctx, `SELECT last_heartbeat_at IS NOT NULL FROM machines
-		WHERE id=$1 AND status <> 'archived'`, machineID).Scan(&connected)
+func (s *Store) RequestMachineAgentUpgrade(ctx context.Context, machineID, latestVersion string) (domain.AgentUpgradeTask, error) {
+	var connected, pending bool
+	var currentVersion string
+	err := s.pool.QueryRow(ctx, `SELECT last_heartbeat_at IS NOT NULL,agent_version,agent_upgrade_task_id IS NOT NULL FROM machines
+		WHERE id=$1 AND status <> 'archived'`, machineID).Scan(&connected, &currentVersion, &pending)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.AgentUpgradeTask{}, ErrNotFound
 	}
@@ -115,6 +116,12 @@ func (s *Store) RequestMachineAgentUpgrade(ctx context.Context, machineID string
 	}
 	if !connected {
 		return domain.AgentUpgradeTask{}, ErrAgentNotConnected
+	}
+	if pending {
+		return domain.AgentUpgradeTask{}, ErrAgentUpgradePending
+	}
+	if latestVersion != "" && strings.EqualFold(strings.TrimSpace(currentVersion), strings.TrimSpace(latestVersion)) {
+		return domain.AgentUpgradeTask{}, ErrAgentAlreadyLatest
 	}
 	task := domain.AgentUpgradeTask{ID: domain.MustID("upg"), MachineID: machineID}
 	err = s.pool.QueryRow(ctx, `UPDATE machines SET agent_upgrade_task_id=$2,

@@ -35,6 +35,7 @@ type Machine struct {
 	Notes                    string          `json:"notes,omitempty"`
 	Status                   string          `json:"status"`
 	AgentVersion             string          `json:"agent_version"`
+	LatestAgentVersion       string          `json:"latest_agent_version"`
 	KernelType               string          `json:"kernel_type"`
 	Capabilities             json.RawMessage `json:"capabilities"`
 	LastHeartbeat            *time.Time      `json:"last_heartbeat_at"`

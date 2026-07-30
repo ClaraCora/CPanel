@@ -446,6 +446,8 @@ func (s *Server) handleAgentV2Stream(w http.ResponseWriter, r *http.Request) {
 
 	pollTicker := time.NewTicker(2 * time.Second)
 	defer pollTicker.Stop()
+	keepaliveTicker := time.NewTicker(agentStreamKeepaliveInterval)
+	defer keepaliveTicker.Stop()
 	sessionTimer := time.NewTimer(time.Until(record.expiresAt))
 	defer sessionTimer.Stop()
 	for {
@@ -457,6 +459,10 @@ func (s *Server) handleAgentV2Stream(w http.ResponseWriter, r *http.Request) {
 			return
 		case <-errCh:
 			return
+		case <-keepaliveTicker.C:
+			if err := writeAgentV2WS(streamCtx, conn, record.session, r.URL.Path, map[string]string{"lx": ""}); err != nil {
+				return
+			}
 		case <-pollTicker.C:
 			if _, sessionErr := s.agentV2.sessionByID(response.SessionID, time.Now().UTC()); sessionErr != nil {
 				_ = conn.Close(websocket.StatusPolicyViolation, "")

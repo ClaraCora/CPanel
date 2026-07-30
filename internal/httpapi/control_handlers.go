@@ -16,6 +16,8 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+const agentStreamKeepaliveInterval = 25 * time.Second
+
 func (s *Server) handleAgentHandshake(w http.ResponseWriter, r *http.Request) {
 	machine := currentAgent(r)
 	heartbeatInterval, telemetryInterval, fallbackInterval := s.agentIntervals(r.Context())
@@ -222,6 +224,8 @@ func (s *Server) handleAgentStream(w http.ResponseWriter, r *http.Request) {
 	}
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
+	keepaliveTicker := time.NewTicker(agentStreamKeepaliveInterval)
+	defer keepaliveTicker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
@@ -231,6 +235,10 @@ func (s *Server) handleAgentStream(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			return
+		case <-keepaliveTicker.C:
+			if err := wsWriteJSON(ctx, conn, map[string]string{"type": ""}); err != nil {
+				return
+			}
 		case <-ticker.C:
 			items, err := s.store.AgentChanges(ctx, machine.ID, cursor, 200)
 			if err != nil {

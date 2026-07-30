@@ -77,9 +77,12 @@ func (s *Store) ListMachines(ctx context.Context) ([]domain.Machine, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT m.id, m.name, m.region, m.host, m.labels, m.notes, m.status,
 		       m.agent_version, m.kernel_type, m.capabilities, m.last_heartbeat_at,
+		       COALESCE(mm.metrics,'{}'::jsonb),mm.sampled_at,
+		       COALESCE(m.agent_upgrade_task_id,''),m.agent_upgrade_requested_at,m.agent_upgrade_dispatched_at,
 		       (SELECT count(*) FROM nodes n WHERE n.machine_id=m.id AND n.status <> 'archived'),
 		       m.created_at, m.updated_at
-		FROM machines m WHERE m.status <> 'archived'
+		FROM machines m LEFT JOIN machine_metrics mm ON mm.machine_id=m.id
+		WHERE m.status <> 'archived'
 		ORDER BY m.created_at DESC`)
 	if err != nil {
 		return nil, err
@@ -90,12 +93,34 @@ func (s *Store) ListMachines(ctx context.Context) ([]domain.Machine, error) {
 		var item domain.Machine
 		if err := rows.Scan(&item.ID, &item.Name, &item.Region, &item.Host, &item.Labels, &item.Notes,
 			&item.Status, &item.AgentVersion, &item.KernelType, &item.Capabilities, &item.LastHeartbeat,
+			&item.Metrics, &item.MetricsSampledAt, &item.AgentUpgradeTaskID, &item.AgentUpgradeRequestedAt,
+			&item.AgentUpgradeDispatchedAt,
 			&item.NodeCount, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, item)
 	}
 	return items, rows.Err()
+}
+
+func (s *Store) RequestMachineAgentUpgrade(ctx context.Context, machineID string) (domain.AgentUpgradeTask, error) {
+	var connected bool
+	err := s.pool.QueryRow(ctx, `SELECT last_heartbeat_at IS NOT NULL FROM machines
+		WHERE id=$1 AND status <> 'archived'`, machineID).Scan(&connected)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.AgentUpgradeTask{}, ErrNotFound
+	}
+	if err != nil {
+		return domain.AgentUpgradeTask{}, err
+	}
+	if !connected {
+		return domain.AgentUpgradeTask{}, ErrAgentNotConnected
+	}
+	task := domain.AgentUpgradeTask{ID: domain.MustID("upg"), MachineID: machineID}
+	err = s.pool.QueryRow(ctx, `UPDATE machines SET agent_upgrade_task_id=$2,
+		agent_upgrade_requested_at=now(),agent_upgrade_dispatched_at=NULL,updated_at=now()
+		WHERE id=$1 RETURNING agent_upgrade_requested_at`, machineID, task.ID).Scan(&task.RequestedAt)
+	return task, err
 }
 
 func (s *Store) CreateMachine(ctx context.Context, input domain.MachineCreate) (domain.Machine, error) {

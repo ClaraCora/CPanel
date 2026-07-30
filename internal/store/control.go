@@ -149,12 +149,28 @@ func (s *Store) RecordMachineHeartbeat(ctx context.Context, machine domain.Agent
 	if err != nil {
 		return err
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO machine_metrics(machine_id,sampled_at,metrics) VALUES($1,$2,$3)`,
+	_, err = tx.Exec(ctx, `INSERT INTO machine_metrics(machine_id,sampled_at,metrics) VALUES($1,$2,$3)
+		ON CONFLICT(machine_id) DO UPDATE SET sampled_at=EXCLUDED.sampled_at,metrics=EXCLUDED.metrics`,
 		machine.ID, time.Now().UTC(), metrics)
 	if err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
+}
+
+func (s *Store) ClaimMachineAgentUpgrade(ctx context.Context, machineID string) (domain.AgentCommand, bool, error) {
+	var command domain.AgentCommand
+	err := s.pool.QueryRow(ctx, `UPDATE machines SET agent_upgrade_dispatched_at=now(),updated_at=now()
+		WHERE id=$1 AND agent_upgrade_task_id IS NOT NULL AND agent_upgrade_dispatched_at IS NULL
+		RETURNING agent_upgrade_task_id`, machineID).Scan(&command.ID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.AgentCommand{}, false, nil
+	}
+	if err != nil {
+		return domain.AgentCommand{}, false, err
+	}
+	command.Type = "agent.upgrade"
+	return command, true, nil
 }
 
 func (s *Store) RecordTelemetryBatch(ctx context.Context, machineID, idempotencyKey string, payload json.RawMessage) (bool, error) {
@@ -174,10 +190,6 @@ func (s *Store) RecordTelemetryBatch(ctx context.Context, machineID, idempotency
 	}
 	if tag.RowsAffected() == 0 {
 		return false, nil
-	}
-	_, err = tx.Exec(ctx, `INSERT INTO machine_metrics(machine_id,sampled_at,metrics) VALUES($1,now(),$2)`, machineID, payload)
-	if err != nil {
-		return false, err
 	}
 	for _, event := range batch.Events {
 		switch event.Type {
@@ -262,7 +274,8 @@ func recordNodeTelemetry(ctx context.Context, tx pgx.Tx, machineID string, event
 		return err
 	}
 	if _, err := tx.Exec(ctx, `INSERT INTO node_metrics(node_id,sampled_at,metrics) VALUES($1,$2,$3)
-		ON CONFLICT(node_id,sampled_at) DO UPDATE SET metrics=EXCLUDED.metrics`, nodeID, sampledAt, event.Data); err != nil {
+		ON CONFLICT(node_id) DO UPDATE SET sampled_at=EXCLUDED.sampled_at,metrics=EXCLUDED.metrics
+		WHERE EXCLUDED.sampled_at >= node_metrics.sampled_at`, nodeID, sampledAt, event.Data); err != nil {
 		return err
 	}
 	for userAgentID, traffic := range data.Traffic {

@@ -136,6 +136,9 @@ tbody tr:last-child td { border-bottom: 0; }
 .resource-name, .cell-primary { display: block; color: var(--foreground); font-size: 13px; font-weight: 600; }
 a.resource-name:hover { color: var(--primary); text-decoration: underline; }
 .resource-id { display: block; max-width: 260px; margin-top: 3px; overflow: hidden; color: #6e6e73; font-family: "Cascadia Mono", Consolas, monospace; font-size: 10px; text-overflow: ellipsis; }
+.machine-metrics { display: grid; grid-template-columns: repeat(3, minmax(58px, auto)); gap: 4px; }
+.machine-metrics span { display: flex; min-height: 26px; align-items: center; justify-content: space-between; gap: 7px; padding: 3px 7px; color: #3a3a3c; background: #f2f2f7; border-radius: 5px; font-family: "Cascadia Mono", Consolas, monospace; font-size: 10px; font-variant-numeric: tabular-nums; }
+.machine-metrics b { color: var(--secondary); font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif; font-weight: 500; }
 .col-udid { width: 250px; max-width: 250px; }
 .data-ellipsis { display: block; max-width: 224px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .token-unavailable { color: var(--warning); font-size: 11px; white-space: nowrap; }
@@ -285,6 +288,7 @@ a.resource-name:hover { color: var(--primary); text-decoration: underline; }
 .drawer__header p { margin-top: 4px; color: var(--secondary); font-size: 11px; }
 .drawer__body { flex: 1; min-height: 0; overflow-y: auto; }
 .drawer-form { display: flex; min-height: 100%; flex-direction: column; gap: 16px; padding: 18px; }
+.form-error { padding: 10px 12px; color: #9d0010; background: #fff0f1; border: 1px solid #efc2c7; border-radius: 6px; font-size: 12px; line-height: 1.5; }
 .drawer__actions { display: flex; justify-content: flex-end; gap: 8px; margin: auto -18px -18px; padding: 12px 18px; background: #fbfbfd; border-top: 1px solid var(--border); }
 .install-command { display: flex; min-height: 100%; flex-direction: column; gap: 14px; padding: 18px; }
 .install-command > p { color: var(--secondary); font-size: 12px; line-height: 1.55; }

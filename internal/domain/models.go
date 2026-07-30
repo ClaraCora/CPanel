@@ -27,20 +27,37 @@ type AdminSession struct {
 }
 
 type Machine struct {
-	ID            string          `json:"id"`
-	Name          string          `json:"name"`
-	Region        string          `json:"region"`
-	Host          string          `json:"host"`
-	Labels        json.RawMessage `json:"labels"`
-	Notes         string          `json:"notes,omitempty"`
-	Status        string          `json:"status"`
-	AgentVersion  string          `json:"agent_version"`
-	KernelType    string          `json:"kernel_type"`
-	Capabilities  json.RawMessage `json:"capabilities"`
-	LastHeartbeat *time.Time      `json:"last_heartbeat_at"`
-	NodeCount     int             `json:"node_count"`
-	CreatedAt     time.Time       `json:"created_at"`
-	UpdatedAt     time.Time       `json:"updated_at"`
+	ID                       string          `json:"id"`
+	Name                     string          `json:"name"`
+	Region                   string          `json:"region"`
+	Host                     string          `json:"host"`
+	Labels                   json.RawMessage `json:"labels"`
+	Notes                    string          `json:"notes,omitempty"`
+	Status                   string          `json:"status"`
+	AgentVersion             string          `json:"agent_version"`
+	KernelType               string          `json:"kernel_type"`
+	Capabilities             json.RawMessage `json:"capabilities"`
+	LastHeartbeat            *time.Time      `json:"last_heartbeat_at"`
+	Metrics                  json.RawMessage `json:"metrics"`
+	MetricsSampledAt         *time.Time      `json:"metrics_sampled_at"`
+	AgentUpgradeTaskID       string          `json:"agent_upgrade_task_id,omitempty"`
+	AgentUpgradeRequestedAt  *time.Time      `json:"agent_upgrade_requested_at,omitempty"`
+	AgentUpgradeDispatchedAt *time.Time      `json:"agent_upgrade_dispatched_at,omitempty"`
+	NodeCount                int             `json:"node_count"`
+	CreatedAt                time.Time       `json:"created_at"`
+	UpdatedAt                time.Time       `json:"updated_at"`
+}
+
+type AgentUpgradeTask struct {
+	ID           string     `json:"id"`
+	MachineID    string     `json:"machine_id"`
+	RequestedAt  time.Time  `json:"requested_at"`
+	DispatchedAt *time.Time `json:"dispatched_at,omitempty"`
+}
+
+type AgentCommand struct {
+	ID   string `json:"id"`
+	Type string `json:"type"`
 }
 
 type MachineCreate struct {
@@ -318,7 +335,6 @@ type HistoricalData struct {
 }
 
 type HistoricalRetention struct {
-	MetricsDays int `json:"metrics_days"`
 	DevicesDays int `json:"devices_days"`
 	TrafficDays int `json:"traffic_days"`
 }

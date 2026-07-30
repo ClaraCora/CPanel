@@ -96,7 +96,7 @@ function MoreHorizontalIcon() {
   return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>;
 }
 
-export function ConfirmDialog({ open, title, description, confirmLabel = "确认", loading = false, onConfirm, onClose }: { open: boolean; title: string; description: string; confirmLabel?: string; loading?: boolean; onConfirm: () => void; onClose: () => void }) {
+export function ConfirmDialog({ open, title, description, confirmLabel = "确认", confirmVariant = "danger", loading = false, onConfirm, onClose }: { open: boolean; title: string; description: string; confirmLabel?: string; confirmVariant?: ButtonVariant; loading?: boolean; onConfirm: () => void; onClose: () => void }) {
   const titleID = useId();
   const descriptionID = useId();
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -108,7 +108,7 @@ export function ConfirmDialog({ open, title, description, confirmLabel = "确认
     return () => document.removeEventListener("keydown", onKey);
   }, [loading, onClose, open]);
   if (!open) return null;
-  return createPortal(<div className="confirm-layer"><button type="button" className="confirm-backdrop" aria-label="取消并关闭" onClick={() => { if (!loading) onClose(); }} /><section className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby={titleID} aria-describedby={descriptionID}><h2 id={titleID}>{title}</h2><p id={descriptionID}>{description}</p><footer><button ref={cancelRef} type="button" className="button button--secondary" onClick={onClose} disabled={loading}>取消</button><Button type="button" variant="danger" loading={loading} onClick={onConfirm}>{confirmLabel}</Button></footer></section></div>, document.body);
+  return createPortal(<div className="confirm-layer"><button type="button" className="confirm-backdrop" aria-label="取消并关闭" onClick={() => { if (!loading) onClose(); }} /><section className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby={titleID} aria-describedby={descriptionID}><h2 id={titleID}>{title}</h2><p id={descriptionID}>{description}</p><footer><button ref={cancelRef} type="button" className="button button--secondary" onClick={onClose} disabled={loading}>取消</button><Button type="button" variant={confirmVariant} loading={loading} onClick={onConfirm}>{confirmLabel}</Button></footer></section></div>, document.body);
 }
 
 export function Field({ label, required, error, helper, children }: { label: string; required?: boolean; error?: string; helper?: string; children: ReactNode }) {

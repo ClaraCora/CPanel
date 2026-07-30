@@ -157,6 +157,19 @@ func (s *Server) handleMachineInstallation(w http.ResponseWriter, r *http.Reques
 	})
 }
 
+func (s *Server) handleMachineAgentUpgrade(w http.ResponseWriter, r *http.Request) {
+	machineID := chi.URLParam(r, "id")
+	task, err := s.store.RequestMachineAgentUpgrade(r.Context(), machineID)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	admin := currentAdmin(r)
+	_ = s.store.WriteAudit(r.Context(), admin.ID, "machine.agent_upgrade", "machine", machineID,
+		map[string]string{"task_id": task.ID}, clientIP(r), requestID(r))
+	writeData(w, r, http.StatusAccepted, task)
+}
+
 func (s *Server) handleAgentArtifact(w http.ResponseWriter, r *http.Request) {
 	artifact := chi.URLParam(r, "artifact")
 	allowed := map[string]bool{

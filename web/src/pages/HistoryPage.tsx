@@ -6,7 +6,7 @@ import { useResource } from "../hooks";
 import type { HistoricalData, MetricSample } from "../types";
 
 const emptyHistory: HistoricalData = {
-  retention: { metrics_days: 30, devices_days: 30, traffic_days: 90 },
+  retention: { devices_days: 30, traffic_days: 90 },
   traffic: [],
   machine_metrics: [],
   node_metrics: [],
@@ -18,7 +18,7 @@ type View = "traffic" | "machines" | "nodes" | "devices";
 export function HistoryPage() {
   const { data, loading, error, reload } = useResource<HistoricalData>("/history", emptyHistory);
   const [view, setView] = useState<View>("traffic");
-  const retentionDays = view === "traffic" ? data.retention.traffic_days : view === "devices" ? data.retention.devices_days : data.retention.metrics_days;
+  const retentionLabel = view === "traffic" ? `保留 ${data.retention.traffic_days} 天` : view === "devices" ? `保留 ${data.retention.devices_days} 天` : "仅保留最新值";
 
   return <div className="page">
     <PageHeader title="历史数据" description="查看保留期内的流量、运行指标与设备连接记录" actions={<Link className="button button--secondary" to="/settings"><Settings size={16} />保留设置</Link>} />
@@ -29,7 +29,7 @@ export function HistoryPage() {
         <Tab active={view === "nodes"} onClick={() => setView("nodes")}>节点指标</Tab>
         <Tab active={view === "devices"} onClick={() => setView("devices")}>设备记录</Tab>
       </div>
-      <span className="retention-label"><Clock3 size={15} />保留 {retentionDays} 天</span>
+      <span className="retention-label"><Clock3 size={15} />{retentionLabel}</span>
     </div>
     {loading ? <TableSkeleton columns={5} rows={8} /> : error ? <EmptyState title="历史数据加载失败" description={error} action={<Button onClick={() => void reload()}>重新加载</Button>} /> : view === "traffic" ? <TrafficTable data={data} /> : view === "machines" ? <MetricsTable title="服务器指标" items={data.machine_metrics} /> : view === "nodes" ? <MetricsTable title="节点指标" items={data.node_metrics} /> : <DeviceTable data={data} />}
   </div>;
@@ -61,7 +61,7 @@ function DeviceTable({ data }: { data: HistoricalData }) {
 }
 
 function HistoryEmpty({ title }: { title: string }) {
-  return <div className="table-surface table-surface--standalone"><EmptyState title={title} description="Agent 上报数据后会显示在这里。" /></div>;
+  return <div className="table-surface table-surface--standalone"><EmptyState title={title} description="Agent 上报数据后会显示在这里。指标只保留每台服务器或节点的最新值。" /></div>;
 }
 
 function metricLabel(key: string) {

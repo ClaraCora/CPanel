@@ -10,7 +10,6 @@ import (
 func (s *Store) HistoricalData(ctx context.Context) (domain.HistoricalData, error) {
 	result := domain.HistoricalData{
 		Retention: domain.HistoricalRetention{
-			MetricsDays: s.SettingInt(ctx, "retention", "metrics_days", 30, 1),
 			DevicesDays: s.SettingInt(ctx, "retention", "devices_days", 30, 1),
 			TrafficDays: s.SettingInt(ctx, "retention", "traffic_days", 90, 1),
 		},
@@ -23,16 +22,14 @@ func (s *Store) HistoricalData(ctx context.Context) (domain.HistoricalData, erro
 	result.MachineMetrics, err = s.listMetricSamples(ctx, `
 		SELECT mm.machine_id,m.name,mm.sampled_at,mm.metrics
 		FROM machine_metrics mm JOIN machines m ON m.id=mm.machine_id
-		WHERE mm.sampled_at >= now() - ($1::int * interval '1 day')
-		ORDER BY mm.sampled_at DESC LIMIT 300`, result.Retention.MetricsDays)
+		ORDER BY mm.sampled_at DESC LIMIT 300`)
 	if err != nil {
 		return result, err
 	}
 	result.NodeMetrics, err = s.listMetricSamples(ctx, `
 		SELECT nm.node_id,n.name,nm.sampled_at,nm.metrics
 		FROM node_metrics nm JOIN nodes n ON n.id=nm.node_id
-		WHERE nm.sampled_at >= now() - ($1::int * interval '1 day')
-		ORDER BY nm.sampled_at DESC LIMIT 300`, result.Retention.MetricsDays)
+		ORDER BY nm.sampled_at DESC LIMIT 300`)
 	if err != nil {
 		return result, err
 	}
@@ -64,8 +61,8 @@ func (s *Store) listDailyTraffic(ctx context.Context, days int) ([]domain.DailyT
 	return items, rows.Err()
 }
 
-func (s *Store) listMetricSamples(ctx context.Context, query string, days int) ([]domain.MetricSample, error) {
-	rows, err := s.pool.Query(ctx, query, days)
+func (s *Store) listMetricSamples(ctx context.Context, query string) ([]domain.MetricSample, error) {
+	rows, err := s.pool.Query(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +101,6 @@ func (s *Store) listDeviceHistory(ctx context.Context, days int) ([]domain.Devic
 }
 
 func (s *Store) PruneHistoricalData(ctx context.Context) error {
-	metricsDays := s.SettingInt(ctx, "retention", "metrics_days", 30, 1)
 	devicesDays := s.SettingInt(ctx, "retention", "devices_days", 30, 1)
 	trafficDays := s.SettingInt(ctx, "retention", "traffic_days", 90, 1)
 	auditDays := s.SettingInt(ctx, "retention", "audit_days", 180, 1)
@@ -112,8 +108,6 @@ func (s *Store) PruneHistoricalData(ctx context.Context) error {
 		query string
 		days  int
 	}{
-		{`DELETE FROM machine_metrics WHERE sampled_at < now() - ($1::int * interval '1 day')`, metricsDays},
-		{`DELETE FROM node_metrics WHERE sampled_at < now() - ($1::int * interval '1 day')`, metricsDays},
 		{`DELETE FROM user_devices WHERE last_seen_at < now() - ($1::int * interval '1 day')`, devicesDays},
 		{`DELETE FROM traffic_daily WHERE day < current_date - $1::int`, trafficDays},
 		{`DELETE FROM imported_node_traffic_daily WHERE day < current_date - $1::int`, trafficDays},

@@ -154,7 +154,16 @@ func (s *Server) handleAgentHeartbeat(w http.ResponseWriter, r *http.Request) {
 		writeStoreError(w, r, err)
 		return
 	}
-	writeData(w, r, http.StatusOK, map[string]bool{"accepted": true})
+	commands := make([]domain.AgentCommand, 0, 1)
+	command, claimed, err := s.store.ClaimMachineAgentUpgrade(r.Context(), machine.ID)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	if claimed {
+		commands = append(commands, command)
+	}
+	writeData(w, r, http.StatusOK, map[string]any{"accepted": true, "commands": commands})
 }
 
 func (s *Server) handleAgentTelemetry(w http.ResponseWriter, r *http.Request) {

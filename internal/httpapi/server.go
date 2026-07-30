@@ -52,6 +52,7 @@ func (s *Server) Handler() http.Handler {
 		ops.Patch("/machines/{id}", s.handleUpdateMachine)
 		ops.Delete("/machines/{id}", s.handleDeleteMachine)
 		ops.Get("/machines/{id}/installation", s.handleMachineInstallation)
+		ops.Post("/machines/{id}/agent-upgrade", s.handleMachineAgentUpgrade)
 		ops.Post("/machines/{id}/credentials", s.handleCreateMachineCredential)
 		ops.Get("/nodes", s.handleListNodes)
 		ops.Post("/nodes", s.handleCreateNode)

@@ -24,6 +24,16 @@ export interface Machine {
   agent_version: string;
   kernel_type: string;
   last_heartbeat_at: string | null;
+  metrics: {
+    cpu?: number;
+    mem?: { total?: number; used?: number };
+    disk?: { total?: number; used?: number };
+    [key: string]: unknown;
+  };
+  metrics_sampled_at: string | null;
+  agent_upgrade_task_id?: string;
+  agent_upgrade_requested_at?: string | null;
+  agent_upgrade_dispatched_at?: string | null;
   node_count: number;
   created_at: string;
   updated_at: string;
@@ -158,7 +168,6 @@ export interface TrafficRank {
 
 export interface HistoricalData {
   retention: {
-    metrics_days: number;
     devices_days: number;
     traffic_days: number;
   };

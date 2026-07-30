@@ -455,6 +455,30 @@ func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	writeData(w, r, http.StatusCreated, item)
 }
 
+func (s *Server) handleQuickCreateUser(w http.ResponseWriter, r *http.Request) {
+	role := chi.URLParam(r, "role")
+	label := "用户"
+	if role == "friend" {
+		label = "朋友"
+	} else if role != "user" {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "账号角色只能是用户或朋友", nil)
+		return
+	}
+
+	input := domain.UserCreate{
+		Role:  role,
+		Name:  fmt.Sprintf("待编辑%s %s", label, time.Now().Format("20060102-150405.000")),
+		Notes: "一键添加，待编辑",
+	}
+	item, err := s.store.CreateUser(r.Context(), input)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	auditCreate(s, r, "user", item.ID, map[string]any{"role": item.Role, "name": item.Name, "quick_create": true})
+	writeData(w, r, http.StatusCreated, item)
+}
+
 func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	var input domain.UserUpdate
 	if !decodeJSON(w, r, &input) {

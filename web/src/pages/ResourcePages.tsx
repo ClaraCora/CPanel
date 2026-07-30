@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
-import { Copy, Edit3, Link2, Plus, Power, RefreshCw, Search, Terminal, Trash2 } from "lucide-react";
+import { Copy, Edit3, Link2, Plus, Power, RefreshCw, Search, Terminal, Trash2, UserPlus, UsersRound } from "lucide-react";
 import { ApiError, api } from "../api";
 import { Button, ConfirmDialog, Drawer, EmptyState, Field, PageHeader, RowMenu, StatusBadge, TableSkeleton, formatBytes, formatDate, useToast } from "../components/ui";
 import { useResource } from "../hooks";
@@ -34,12 +34,13 @@ type ResourcePageProps<T extends Resource> = {
   installable?: boolean;
   upgradeable?: boolean;
   subscriptionActions?: boolean;
+  quickAccountCreation?: boolean;
   deletable?: boolean;
   identifierAction?: { label: string; value: (item: T) => string };
   protectedItem?: (item: T) => boolean;
 };
 
-function ResourcePage<T extends Resource>({ title, description, endpoint, createLabel, columns, fields, defaults, transform, toValues, enabledStatus = "active", disabledStatus = "disabled", installable = false, upgradeable = false, subscriptionActions = false, deletable = false, identifierAction, protectedItem }: ResourcePageProps<T>) {
+function ResourcePage<T extends Resource>({ title, description, endpoint, createLabel, columns, fields, defaults, transform, toValues, enabledStatus = "active", disabledStatus = "disabled", installable = false, upgradeable = false, subscriptionActions = false, quickAccountCreation = false, deletable = false, identifierAction, protectedItem }: ResourcePageProps<T>) {
 	deletable = deletable || ["/machines", "/access-groups", "/plans", "/route-policies"].includes(endpoint);
 	if (endpoint === "/route-policies") enabledStatus = "published";
   const { data, loading, error, reload } = useResource<T[]>(endpoint, []);
@@ -58,6 +59,7 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
   const [upgradeTarget, setUpgradeTarget] = useState<T | null>(null);
   const [upgrading, setUpgrading] = useState(false);
   const [formError, setFormError] = useState("");
+  const [quickCreating, setQuickCreating] = useState<"user" | "friend" | "">("");
   const toast = useToast();
   const filtered = useMemo(() => data.filter((item) => !query.trim() || JSON.stringify(item).toLowerCase().includes(query.trim().toLowerCase())), [data, query]);
 
@@ -199,13 +201,27 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
     }
   }
 
+  async function quickCreateAccount(role: "user" | "friend") {
+    if (quickCreating) return;
+    setQuickCreating(role);
+    try {
+      await api.post(`${endpoint}/quick/${role}`);
+      toast(`${role === "friend" ? "朋友" : "用户"}已添加，可在列表中编辑资料`);
+      await reload();
+    } catch (reason) {
+      toast(reason instanceof ApiError ? reason.message : "一键添加失败，请重试", "error");
+    } finally {
+      setQuickCreating("");
+    }
+  }
+
   function updateValue(key: string, value: string) {
     setValues((current) => ({ ...current, [key]: value }));
     setErrors((current) => ({ ...current, [key]: "" }));
   }
 
   return <div className="page">
-    <PageHeader title={title} description={description} actions={<Button variant="primary" onClick={showCreate}><Plus size={16} />{createLabel}</Button>} />
+    <PageHeader title={title} description={description} actions={<>{quickAccountCreation && <><Button type="button" loading={quickCreating === "user"} disabled={Boolean(quickCreating)} onClick={() => void quickCreateAccount("user")}><UserPlus size={16} />{quickCreating === "user" ? "添加中…" : "一键添加用户"}</Button><Button type="button" loading={quickCreating === "friend"} disabled={Boolean(quickCreating)} onClick={() => void quickCreateAccount("friend")}><UsersRound size={16} />{quickCreating === "friend" ? "添加中…" : "一键添加朋友"}</Button></>}<Button type="button" variant="primary" disabled={Boolean(quickCreating)} onClick={showCreate}><Plus size={16} />{createLabel}</Button></>} />
     <div className="toolbar"><label className="search-box"><Search size={16} /><span className="sr-only">搜索{title}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`搜索${title}`} /></label><span className="toolbar__count">{filtered.length} 条记录</span></div>
     <div className="table-surface">
       {loading ? <TableSkeleton columns={columns.length + 2} /> : error ? <EmptyState title={`${title}加载失败`} description={error} action={<Button onClick={() => void reload()}>重新加载</Button>} /> : filtered.length === 0 ? <EmptyState title={data.length ? "没有符合搜索条件的记录" : `还没有${title}`} description={data.length ? "更换搜索词后重试。" : `创建第一条${title}记录开始管理。`} action={!data.length && <Button variant="primary" onClick={showCreate}><Plus size={16} />{createLabel}</Button>} /> : (
@@ -319,6 +335,7 @@ export function UsersPage() {
     endpoint="/users"
     createLabel="添加用户或朋友"
     subscriptionActions
+    quickAccountCreation
     deletable
     disabledStatus="paused"
     protectedItem={(item) => item.role === "admin"}

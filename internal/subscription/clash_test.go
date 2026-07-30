@@ -1,6 +1,7 @@
 package subscription
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -22,6 +23,56 @@ func TestBuildClashMeta(t *testing.T) {
 		if !strings.Contains(text, expected) {
 			t.Fatalf("subscription missing %q:\n%s", expected, text)
 		}
+	}
+}
+
+func TestProxyForNodeBuildsSS2022Password(t *testing.T) {
+	tests := []struct {
+		name   string
+		cipher string
+		size   int
+	}{
+		{name: "aes-128", cipher: "2022-blake3-aes-128-gcm", size: 16},
+		{name: "aes-256", cipher: "2022-blake3-aes-256-gcm", size: 32},
+	}
+	const udid = "279d4f89-3a2c-488d-a67c-2d39a72acdde"
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			serverRaw := []byte(strings.Repeat("s", test.size))
+			serverKey := base64.StdEncoding.EncodeToString(serverRaw)
+			config, err := json.Marshal(map[string]any{
+				"cipher":     test.cipher,
+				"server_key": serverKey,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			proxy, err := proxyForNode(domain.SubscriptionNode{
+				Name: "SS2022", Host: "ss.example.com", Port: 8388, Protocol: "shadowsocks",
+				UserUUID: udid, NodeConfig: config,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			userKey := base64.StdEncoding.EncodeToString([]byte(udid[:test.size]))
+			want := serverKey + ":" + userKey
+			if got := proxy["password"]; got != want {
+				t.Fatalf("password = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+func TestProxyForNodeKeepsTraditionalShadowsocksPassword(t *testing.T) {
+	proxy, err := proxyForNode(domain.SubscriptionNode{
+		Name: "SS", Host: "ss.example.com", Port: 8388, Protocol: "shadowsocks",
+		UserUUID: "user-udid", NodeConfig: json.RawMessage(`{"cipher":"aes-128-gcm"}`),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := proxy["password"]; got != "user-udid" {
+		t.Fatalf("password = %q, want user-udid", got)
 	}
 }
 

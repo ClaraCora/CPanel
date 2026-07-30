@@ -1,6 +1,7 @@
 package subscription
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -69,12 +70,20 @@ func proxyForNode(node domain.SubscriptionNode) (map[string]any, error) {
 		proxy["password"] = node.UserUUID
 	case "shadowsocks":
 		proxy["type"] = "ss"
-		proxy["password"] = node.UserUUID
 		cipher, _ := config["cipher"].(string)
 		if cipher == "" {
 			return nil, fmt.Errorf("missing cipher")
 		}
 		proxy["cipher"] = cipher
+		proxy["password"] = node.UserUUID
+		if userKey, ok := ss2022UserKey(cipher, node.UserUUID); ok {
+			serverKey, _ := config["server_key"].(string)
+			serverKey = strings.TrimSpace(serverKey)
+			if serverKey == "" {
+				return nil, fmt.Errorf("missing SS2022 server key")
+			}
+			proxy["password"] = serverKey + ":" + userKey
+		}
 	case "hysteria", "hysteria2":
 		proxy["type"] = "hysteria2"
 		proxy["password"] = node.UserUUID
@@ -109,6 +118,21 @@ func proxyForNode(node domain.SubscriptionNode) (map[string]any, error) {
 		}
 	}
 	return proxy, nil
+}
+
+func ss2022UserKey(cipher, udid string) (string, bool) {
+	keySizes := map[string]int{
+		"2022-blake3-aes-128-gcm":       16,
+		"2022-blake3-aes-256-gcm":       32,
+		"2022-blake3-chacha20-poly1305": 32,
+	}
+	size, ok := keySizes[cipher]
+	if !ok {
+		return "", false
+	}
+	raw := make([]byte, size)
+	copy(raw, udid)
+	return base64.StdEncoding.EncodeToString(raw), true
 }
 
 func copyOptional(target map[string]any, source map[string]any, targetKey, sourceKey string) {

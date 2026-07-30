@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 
 	"cpanel/internal/domain"
@@ -182,6 +183,7 @@ func (s *Store) RecordTelemetryBatch(ctx context.Context, machineID, idempotency
 	if err != nil {
 		return false, err
 	}
+	trafficLocation := loadTrafficLocation(s.SettingString(ctx, "site", "timezone", "Asia/Shanghai"))
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return false, err
@@ -198,7 +200,7 @@ func (s *Store) RecordTelemetryBatch(ctx context.Context, machineID, idempotency
 	for _, event := range batch.Events {
 		switch event.Type {
 		case "node.telemetry":
-			if err := recordNodeTelemetry(ctx, tx, machineID, event); err != nil {
+			if err := recordNodeTelemetry(ctx, tx, machineID, event, trafficLocation); err != nil {
 				return false, err
 			}
 		case "node.devices":
@@ -256,7 +258,24 @@ func telemetryTime(value string) time.Time {
 	return time.Now().UTC()
 }
 
-func recordNodeTelemetry(ctx context.Context, tx pgx.Tx, machineID string, event telemetryEvent) error {
+func loadTrafficLocation(name string) *time.Location {
+	if location, err := time.LoadLocation(strings.TrimSpace(name)); err == nil {
+		return location
+	}
+	if location, err := time.LoadLocation("Asia/Shanghai"); err == nil {
+		return location
+	}
+	return time.FixedZone("Asia/Shanghai", 8*60*60)
+}
+
+func telemetryDay(sampledAt time.Time, location *time.Location) string {
+	if location == nil {
+		location = loadTrafficLocation("")
+	}
+	return sampledAt.In(location).Format(time.DateOnly)
+}
+
+func recordNodeTelemetry(ctx context.Context, tx pgx.Tx, machineID string, event telemetryEvent, trafficLocation *time.Location) error {
 	if event.NodeID <= 0 {
 		return fmt.Errorf("node telemetry node_id is required")
 	}
@@ -306,7 +325,7 @@ func recordNodeTelemetry(ctx context.Context, tx pgx.Tx, machineID string, event
 			)
 			UPDATE users SET traffic_used_bytes=traffic_used_bytes+$5+$6
 			WHERE id IN (SELECT user_id FROM recorded)`,
-			nodeID, machineID, userID, sampledAt.Format(time.DateOnly), traffic[0], traffic[1])
+			nodeID, machineID, userID, telemetryDay(sampledAt, trafficLocation), traffic[0], traffic[1])
 		if err != nil {
 			return err
 		}

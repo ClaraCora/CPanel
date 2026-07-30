@@ -42,3 +42,17 @@ func TestTelemetryTimeUsesUTCAndFallsBack(t *testing.T) {
 		t.Fatalf("unexpected fallback time %s", fallback)
 	}
 }
+
+func TestTelemetryDayUsesSiteTimezoneAcrossUTCMidnight(t *testing.T) {
+	sampledAt := telemetryTime("2026-07-30T16:22:18Z")
+	if got, want := telemetryDay(sampledAt, loadTrafficLocation("Asia/Shanghai")), "2026-07-31"; got != want {
+		t.Fatalf("telemetryDay = %s, want %s", got, want)
+	}
+}
+
+func TestLoadTrafficLocationFallsBackToAsiaShanghai(t *testing.T) {
+	sampledAt := telemetryTime("2026-07-30T16:22:18Z")
+	if got, want := telemetryDay(sampledAt, loadTrafficLocation("not/a-timezone")), "2026-07-31"; got != want {
+		t.Fatalf("fallback telemetryDay = %s, want %s", got, want)
+	}
+}

@@ -1,4 +1,4 @@
-import { useState, type ComponentType } from "react";
+import { useId, useState, type ComponentType } from "react";
 import {
   Activity,
   Cable,
@@ -227,6 +227,7 @@ export function NodeConfigForm({
   onProtocolChange: (value: string) => void;
   onSettingsChange: (value: NodeSettings) => void;
 }) {
+  const protocolSelectId = useId();
   const transport = stringValue(settings.transport, stringValue(settings.network, "tcp"));
   const networkSettings = objectValue(settings.network_settings ?? settings.networkSettings);
   const currentTLSMode = tlsMode(settings, protocol);
@@ -234,6 +235,9 @@ export function NodeConfigForm({
   const cert = objectValue(settings.cert_config);
   const certMode = stringValue(cert.cert_mode, "none");
   const multiplex = objectValue(settings.multiplex);
+  const currentProtocol = protocolOptions.find((option) => option.id === protocol) ?? protocolOptions[0];
+  const CurrentProtocolIcon = currentProtocol.icon;
+  const currentProtocolSupported = currentProtocol.kernels.includes(kernel);
   const cipher = stringValue(settings.cipher, "aes-128-gcm");
   const ss2022KeySize = ss2022KeySizes[cipher];
   const [realityGenerating, setRealityGenerating] = useState(false);
@@ -291,30 +295,30 @@ export function NodeConfigForm({
 
   return (
     <div className="node-config-form">
-      <div className="protocol-picker" role="group" aria-label="节点类型">
-        {protocolOptions.map((option) => {
-          const selected = option.id === protocol;
-          const supported = option.kernels.includes(kernel);
-          const Icon = option.icon;
-          return (
-            <button
-              type="button"
-              className={`protocol-option ${selected ? "protocol-option--selected" : ""}`}
-              aria-pressed={selected}
-              disabled={!supported}
-              title={supported ? `选择 ${option.label}` : `${option.label} 不支持当前内核`}
-              onClick={() => {
-                onProtocolChange(option.id);
-                update(withProtocolDefaults(settings, option.id));
-              }}
-              key={option.id}
-            >
-              <span className="protocol-option__icon"><Icon size={18} aria-hidden={true} /></span>
-              <span><strong>{option.label}</strong><small>{option.description}</small></span>
-              {!supported && <em>仅 sing-box</em>}
-            </button>
-          );
-        })}
+      <div className="protocol-selector">
+        <div className="protocol-selector__field">
+          <label htmlFor={protocolSelectId}>节点类型</label>
+          <select
+            id={protocolSelectId}
+            value={protocol}
+            aria-describedby={`${protocolSelectId}-summary`}
+            onChange={(event) => {
+              const nextProtocol = event.target.value;
+              onProtocolChange(nextProtocol);
+              update(withProtocolDefaults(settings, nextProtocol));
+            }}
+          >
+            {protocolOptions.map((option) => {
+              const supported = option.kernels.includes(kernel);
+              return <option value={option.id} disabled={!supported} key={option.id}>{option.label}{supported ? "" : "（当前内核不支持）"}</option>;
+            })}
+          </select>
+        </div>
+        <div id={`${protocolSelectId}-summary`} className={`protocol-selector__summary ${currentProtocolSupported ? "" : "protocol-selector__summary--unsupported"}`}>
+          <span className="protocol-selector__icon"><CurrentProtocolIcon size={18} aria-hidden={true} /></span>
+          <span className="protocol-selector__copy"><strong>{currentProtocol.label}</strong><small>{currentProtocol.description}</small></span>
+          <span className="protocol-selector__support">{currentProtocolSupported ? `支持 ${currentProtocol.kernels.map((item) => item === "xray" ? "Xray" : "sing-box").join("、")}` : "不支持当前内核"}</span>
+        </div>
       </div>
       {error && <div className="config-error" role="alert">{error}</div>}
 

@@ -53,6 +53,9 @@ func run(args []string) error {
 		return err
 	}
 	dataStore := store.New(pool)
+	if err := dataStore.EnsureAdminUsers(ctx); err != nil {
+		return fmt.Errorf("ensure administrator subscriptions: %w", err)
+	}
 	box, err := securebox.New(cfg.EncryptionKey)
 	if err != nil {
 		return err
@@ -177,6 +180,9 @@ func adminCommand(ctx context.Context, dataStore *store.Store, args []string) er
 	admin, err := dataStore.CreateAdmin(ctx, *email, *name, hash)
 	if err != nil {
 		return err
+	}
+	if err := dataStore.EnsureAdminUsers(ctx); err != nil {
+		return fmt.Errorf("create administrator subscription: %w", err)
 	}
 	fmt.Printf("administrator created: %s (%s)\n", admin.Name, admin.Email)
 	return nil

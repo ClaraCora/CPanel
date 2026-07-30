@@ -14,6 +14,7 @@ import (
 	"cpanel/internal/domain"
 	"cpanel/internal/store"
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 )
 
 func validOneOf(value *string, allowed ...string) bool {
@@ -433,9 +434,17 @@ func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "请填写账号名称", map[string]string{"name": "required"})
 		return
 	}
-	if !validOneOf(input.Role, "user", "friend") || !validOneOf(input.Status, "active", "paused", "expired") {
+	if !validOneOf(input.Role, "admin", "user", "friend") || !validOneOf(input.Status, "active", "paused", "expired") {
 		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "账号分类或状态无效", nil)
 		return
+	}
+	if input.UUID != nil {
+		canonical, valid := canonicalUserUUID(*input.UUID)
+		if !valid {
+			writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "UDID 格式无效", map[string]string{"uuid": "请输入标准 UUID"})
+			return
+		}
+		input.UUID = &canonical
 	}
 	if input.ExpiresAt != nil && *input.ExpiresAt != "" {
 		if _, err := time.Parse(time.RFC3339, *input.ExpiresAt); err != nil {
@@ -450,6 +459,14 @@ func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	auditUpdate(s, r, "user", item.ID, input)
 	writeData(w, r, http.StatusOK, item)
+}
+
+func canonicalUserUUID(value string) (string, bool) {
+	parsed, err := uuid.Parse(strings.TrimSpace(value))
+	if err != nil {
+		return "", false
+	}
+	return parsed.String(), true
 }
 
 func (s *Server) handleGetUserSubscription(w http.ResponseWriter, r *http.Request) {

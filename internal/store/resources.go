@@ -21,6 +21,7 @@ func (s *Store) Overview(ctx context.Context) (domain.Overview, error) {
 			(SELECT count(*) FROM machines WHERE status = 'offline'),
 			(SELECT count(*) FROM nodes WHERE status <> 'archived'),
 			(SELECT count(*) FROM nodes WHERE status = 'published'),
+			(SELECT count(*) FROM users WHERE role='admin' AND status='active'),
 			(SELECT count(*) FROM users WHERE role='user' AND status='active'),
 			(SELECT count(*) FROM users WHERE role='friend' AND status='active'),
 			COALESCE((SELECT sum(upload_bytes) FROM traffic_daily WHERE day=current_date), 0) +
@@ -29,7 +30,7 @@ func (s *Store) Overview(ctx context.Context) (domain.Overview, error) {
 			  COALESCE((SELECT sum(download_bytes) FROM imported_user_traffic_daily WHERE day=current_date), 0)
 	`).Scan(
 		&overview.MachinesTotal, &overview.MachinesOnline, &overview.MachinesOffline,
-		&overview.NodesTotal, &overview.NodesPublished, &overview.UsersActive,
+		&overview.NodesTotal, &overview.NodesPublished, &overview.AdminsActive, &overview.UsersActive,
 		&overview.FriendsActive, &overview.TrafficTodayUpload, &overview.TrafficTodayDownload,
 	)
 	if err != nil {
@@ -577,6 +578,9 @@ func (s *Store) UpdatePlan(ctx context.Context, planID string, input domain.Plan
 }
 
 func (s *Store) ListUsers(ctx context.Context) ([]domain.User, error) {
+	if err := s.EnsureAdminUsers(ctx); err != nil {
+		return nil, err
+	}
 	rows, err := s.pool.Query(ctx, `
 		SELECT u.id,u.agent_id,u.role,u.plan_id,p.name,u.access_group_override_id,u.name,u.email,u.uuid,
 		       u.subscription_token_prefix,(COALESCE(u.subscription_token_plain,'') <> ''),u.status,
@@ -641,13 +645,27 @@ func (s *Store) CreateUser(ctx context.Context, input domain.UserCreate) (domain
 }
 
 func (s *Store) UpdateUser(ctx context.Context, userID string, input domain.UserUpdate) (domain.User, error) {
+	var adminLinked bool
+	if err := s.pool.QueryRow(ctx, `SELECT admin_id IS NOT NULL FROM users
+		WHERE id=$1 AND status <> 'archived'`, userID).Scan(&adminLinked); errors.Is(err, pgx.ErrNoRows) {
+		return domain.User{}, ErrNotFound
+	} else if err != nil {
+		return domain.User{}, err
+	}
+	if adminLinked && ((input.Role != nil && *input.Role != "admin") || input.Status != nil) {
+		return domain.User{}, ErrConflict
+	}
+	if !adminLinked && input.Role != nil && *input.Role == "admin" {
+		return domain.User{}, ErrConflict
+	}
 	command, err := s.pool.Exec(ctx, `UPDATE users SET
-		role=COALESCE($2,role),plan_id=CASE WHEN $3::text IS NULL THEN plan_id ELSE NULLIF(BTRIM($3),'') END,
-		access_group_override_id=CASE WHEN $4::text IS NULL THEN access_group_override_id ELSE NULLIF(BTRIM($4),'') END,
-		name=COALESCE(NULLIF(BTRIM($5),''),name),email=CASE WHEN $6::text IS NULL THEN email ELSE NULLIF(BTRIM($6),'') END,
-		expires_at=CASE WHEN $7::text IS NULL THEN expires_at ELSE NULLIF(BTRIM($7),'')::timestamptz END,
-		notes=COALESCE($8,notes),status=COALESCE($9,status),updated_at=now()
-		WHERE id=$1 AND status <> 'archived'`, userID, input.Role, input.PlanID, input.AccessGroupOverrideID,
+		role=COALESCE($2,role),uuid=COALESCE(NULLIF(BTRIM($3),''),uuid),
+		plan_id=CASE WHEN $4::text IS NULL THEN plan_id ELSE NULLIF(BTRIM($4),'') END,
+		access_group_override_id=CASE WHEN $5::text IS NULL THEN access_group_override_id ELSE NULLIF(BTRIM($5),'') END,
+		name=COALESCE(NULLIF(BTRIM($6),''),name),email=CASE WHEN $7::text IS NULL THEN email ELSE NULLIF(BTRIM($7),'') END,
+		expires_at=CASE WHEN $8::text IS NULL THEN expires_at ELSE NULLIF(BTRIM($8),'')::timestamptz END,
+		notes=COALESCE($9,notes),status=COALESCE($10,status),updated_at=now()
+		WHERE id=$1 AND status <> 'archived'`, userID, input.Role, input.UUID, input.PlanID, input.AccessGroupOverrideID,
 		input.Name, input.Email, input.ExpiresAt, input.Notes, input.Status)
 	if err != nil {
 		return domain.User{}, mapError(err)
@@ -687,6 +705,16 @@ func (s *Store) UserSubscriptionToken(ctx context.Context, userID string) (strin
 }
 
 func (s *Store) ArchiveUser(ctx context.Context, userID string) error {
+	var adminLinked bool
+	if err := s.pool.QueryRow(ctx, `SELECT admin_id IS NOT NULL FROM users
+		WHERE id=$1 AND status <> 'archived'`, userID).Scan(&adminLinked); errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	} else if err != nil {
+		return err
+	}
+	if adminLinked {
+		return ErrConflict
+	}
 	command, err := s.pool.Exec(ctx, `UPDATE users SET status='archived',updated_at=now()
 		WHERE id=$1 AND status <> 'archived'`, userID)
 	if err != nil {

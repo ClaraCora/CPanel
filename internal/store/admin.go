@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"cpanel/internal/auth"
 	"cpanel/internal/domain"
 	"github.com/jackc/pgx/v5"
 )
@@ -16,6 +17,76 @@ func (s *Store) AdminCount(ctx context.Context) (int, error) {
 	var count int
 	err := s.pool.QueryRow(ctx, "SELECT count(*) FROM admins").Scan(&count)
 	return count, err
+}
+
+func (s *Store) EnsureAdminUsers(ctx context.Context) error {
+	rows, err := s.pool.Query(ctx, `
+		SELECT a.id,a.email,a.name,a.status,u.id
+		FROM admins a LEFT JOIN users u ON u.admin_id=a.id
+		ORDER BY a.created_at`)
+	if err != nil {
+		return err
+	}
+	type candidate struct {
+		id, email, name, status string
+		userID                  *string
+	}
+	candidates := make([]candidate, 0)
+	for rows.Next() {
+		var item candidate
+		if err := rows.Scan(&item.id, &item.email, &item.name, &item.status, &item.userID); err != nil {
+			rows.Close()
+			return err
+		}
+		candidates = append(candidates, item)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	rows.Close()
+
+	changed := false
+	for _, item := range candidates {
+		desiredStatus := "active"
+		if item.status != "active" {
+			desiredStatus = "paused"
+		}
+		if item.userID != nil {
+			command, err := s.pool.Exec(ctx, `UPDATE users SET role='admin',status=$2,updated_at=now()
+				WHERE admin_id=$1 AND (role<>'admin' OR status<>$2)`, item.id, desiredStatus)
+			if err != nil {
+				return mapError(err)
+			}
+			changed = changed || command.RowsAffected() > 0
+			continue
+		}
+
+		uuid, err := domain.NewUUID()
+		if err != nil {
+			return err
+		}
+		plain, hash, err := auth.NewSecret("cps_", 32)
+		if err != nil {
+			return err
+		}
+		command, err := s.pool.Exec(ctx, `
+			INSERT INTO users(id,admin_id,role,plan_id,name,email,uuid,subscription_token_hash,
+			                  subscription_token_prefix,subscription_token_plain,status,notes,traffic_reset_at)
+			SELECT $1,$2,'admin',(SELECT id FROM plans WHERE status='active' ORDER BY created_at,id LIMIT 1),
+			       $3,CASE WHEN EXISTS(SELECT 1 FROM users WHERE lower(email)=lower($4)) THEN NULL ELSE lower($4) END,
+			       $5,$6,$7,$8,$9,'管理员订阅账号',date_trunc('month',now()) + interval '1 month'
+			ON CONFLICT(admin_id) DO NOTHING`,
+			domain.MustID("usr"), item.id, item.name, item.email, uuid, hash, auth.Prefix(plain, 12), plain, desiredStatus)
+		if err != nil {
+			return mapError(err)
+		}
+		changed = changed || command.RowsAffected() > 0
+	}
+	if changed {
+		return s.NotifyAllPublishedNodes(ctx)
+	}
+	return nil
 }
 
 func (s *Store) CreateAdmin(ctx context.Context, email, name, passwordHash string) (domain.Admin, error) {

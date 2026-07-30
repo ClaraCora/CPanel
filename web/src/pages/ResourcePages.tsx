@@ -13,8 +13,10 @@ type FieldSpec = {
   type?: "text" | "number" | "textarea" | "select" | "multiselect" | "json" | "email" | "datetime-local";
   required?: boolean;
   helper?: string;
-  options?: { value: string; label: string }[];
+  options?: { value: string; label: string; exclusive?: boolean }[];
   placeholder?: string;
+  editOnly?: boolean;
+  lockedValue?: string;
 };
 
 type ResourcePageProps<T extends Resource> = {
@@ -32,9 +34,11 @@ type ResourcePageProps<T extends Resource> = {
   installable?: boolean;
   subscriptionActions?: boolean;
   deletable?: boolean;
+  identifierAction?: { label: string; value: (item: T) => string };
+  protectedItem?: (item: T) => boolean;
 };
 
-function ResourcePage<T extends Resource>({ title, description, endpoint, createLabel, columns, fields, defaults, transform, toValues, enabledStatus = "active", disabledStatus = "disabled", installable = false, subscriptionActions = false, deletable = false }: ResourcePageProps<T>) {
+function ResourcePage<T extends Resource>({ title, description, endpoint, createLabel, columns, fields, defaults, transform, toValues, enabledStatus = "active", disabledStatus = "disabled", installable = false, subscriptionActions = false, deletable = false, identifierAction, protectedItem }: ResourcePageProps<T>) {
   const { data, loading, error, reload } = useResource<T[]>(endpoint, []);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -44,6 +48,7 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
   const [saving, setSaving] = useState(false);
   const [changingStatus, setChangingStatus] = useState("");
   const [copying, setCopying] = useState("");
+  const [copyingIdentifier, setCopyingIdentifier] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<T | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [install, setInstall] = useState<{ name: string; command: string } | null>(null);
@@ -119,6 +124,19 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
     }
   }
 
+  async function copyIdentifier(item: T) {
+    if (!identifierAction) return;
+    setCopyingIdentifier(item.id);
+    try {
+      await writeClipboard(identifierAction.value(item));
+      toast(`${identifierAction.label} 已复制`);
+    } catch {
+      toast(`${identifierAction.label} 复制失败，请重试`, "error");
+    } finally {
+      setCopyingIdentifier("");
+    }
+  }
+
   async function deleteResource() {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -151,10 +169,10 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
   return <div className="page">
     <PageHeader title={title} description={description} actions={<Button variant="primary" onClick={showCreate}><Plus size={16} />{createLabel}</Button>} />
     <div className="toolbar"><label className="search-box"><Search size={16} /><span className="sr-only">搜索{title}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`搜索${title}`} /></label><span className="toolbar__count">{filtered.length} 条记录</span></div>
-    <div className="table-surface">{loading ? <TableSkeleton columns={columns.length + 2} /> : error ? <EmptyState title={`${title}加载失败`} description={error} action={<Button onClick={() => void reload()}>重新加载</Button>} /> : filtered.length === 0 ? <EmptyState title={data.length ? "没有符合搜索条件的记录" : `还没有${title}`} description={data.length ? "更换搜索词后重试。" : `创建第一条${title}记录开始管理。`} action={!data.length && <Button variant="primary" onClick={showCreate}><Plus size={16} />{createLabel}</Button>} /> : <div className="table-scroll"><table><thead><tr>{columns.map((column) => <th className={column.className} key={column.label}>{column.label}</th>)}<th>状态</th><th className="col-actions">操作</th></tr></thead><tbody>{filtered.map((item) => { const canCopy = !subscriptionActions || subscriptionAvailable(item); return <tr key={item.id}>{columns.map((column) => <td className={column.className} key={column.label}>{column.render(item)}</td>)}<td><StatusBadge status={item.status} /></td><td className="row-actions">{subscriptionActions && <button type="button" className="icon-button" aria-label={`复制 ${item.id} 的订阅链接`} title={canCopy ? "复制订阅链接" : "完整令牌尚未保存"} disabled={!canCopy || copying === item.id} onClick={() => void copySubscription(item)}><Link2 size={16} /></button>}<button type="button" className="icon-button" aria-label={`编辑 ${item.id}`} title="编辑" onClick={() => showEdit(item)}><Edit3 size={16} /></button><RowMenu label={`${item.id} 更多操作`}><button type="button" onClick={() => showEdit(item)}><Edit3 size={15} />编辑</button>{subscriptionActions && <button type="button" disabled={!canCopy || copying === item.id} onClick={() => void copySubscription(item)}><Link2 size={15} />{canCopy ? "复制订阅链接" : "完整令牌未保存"}</button>}{installable && <button type="button" onClick={() => void loadInstallation(item)}><Terminal size={15} />一键安装 Agent</button>}<button type="button" disabled={changingStatus === item.id} onClick={() => void toggleStatus(item)}><Power size={15} />{item.status === disabledStatus ? "恢复启用" : disabledStatus === "paused" ? "暂停" : "停用"}</button>{deletable && <button type="button" className="menu-action--danger" onClick={() => setDeleteTarget(item)}><Trash2 size={15} />删除账号</button>}</RowMenu></td></tr>; })}</tbody></table></div>}</div>
-    <Drawer open={open} title={editing ? `编辑${title}` : createLabel} description={editing ? `修改 ${editing.id} 的配置` : `创建新的${title}记录`} onClose={() => setOpen(false)}><form className="drawer-form" onSubmit={submit}>{fields.map((field) => <Field key={field.key} label={field.label} required={field.required} helper={field.helper} error={errors[field.key]}>{field.type === "textarea" || field.type === "json" ? <textarea className={field.type === "json" ? "code-editor code-editor--small" : ""} rows={field.type === "json" ? 9 : 4} value={values[field.key] ?? ""} placeholder={field.placeholder} onChange={(event) => updateValue(field.key, event.target.value)} /> : field.type === "select" ? <select value={values[field.key] ?? ""} onChange={(event) => updateValue(field.key, event.target.value)}>{field.options?.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select> : field.type === "multiselect" ? <select multiple size={Math.min(8, Math.max(3, field.options?.length ?? 3))} value={(values[field.key] ?? "").split(",").filter(Boolean)} onChange={(event) => updateValue(field.key, Array.from(event.target.selectedOptions).map((option) => option.value).join(","))}>{field.options?.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select> : <input type={field.type ?? "text"} value={values[field.key] ?? ""} placeholder={field.placeholder} onChange={(event) => updateValue(field.key, event.target.value)} />}</Field>)}<footer className="drawer__actions"><Button type="button" variant="ghost" onClick={() => setOpen(false)}>取消</Button><Button type="submit" variant="primary" loading={saving}>{editing ? "保存修改" : "创建"}</Button></footer></form></Drawer>
+    <div className="table-surface">{loading ? <TableSkeleton columns={columns.length + 2} /> : error ? <EmptyState title={`${title}加载失败`} description={error} action={<Button onClick={() => void reload()}>重新加载</Button>} /> : filtered.length === 0 ? <EmptyState title={data.length ? "没有符合搜索条件的记录" : `还没有${title}`} description={data.length ? "更换搜索词后重试。" : `创建第一条${title}记录开始管理。`} action={!data.length && <Button variant="primary" onClick={showCreate}><Plus size={16} />{createLabel}</Button>} /> : <div className="table-scroll"><table><thead><tr>{columns.map((column) => <th className={column.className} key={column.label}>{column.label}</th>)}<th>状态</th><th className="col-actions">操作</th></tr></thead><tbody>{filtered.map((item) => { const canCopy = !subscriptionActions || subscriptionAvailable(item); const protectedRow = protectedItem?.(item) ?? false; return <tr key={item.id}>{columns.map((column) => <td className={column.className} key={column.label}>{column.render(item)}</td>)}<td><StatusBadge status={item.status} /></td><td className="row-actions">{identifierAction && <button type="button" className="icon-button" aria-label={`复制 ${item.id} 的 ${identifierAction.label}`} title={`复制 ${identifierAction.label}`} disabled={copyingIdentifier === item.id} onClick={() => void copyIdentifier(item)}><Copy size={16} /></button>}{subscriptionActions && <button type="button" className="icon-button" aria-label={`复制 ${item.id} 的订阅链接`} title={canCopy ? "复制订阅链接" : "完整令牌尚未保存"} disabled={!canCopy || copying === item.id} onClick={() => void copySubscription(item)}><Link2 size={16} /></button>}<button type="button" className="icon-button" aria-label={`编辑 ${item.id}`} title="编辑" onClick={() => showEdit(item)}><Edit3 size={16} /></button><RowMenu label={`${item.id} 更多操作`}><button type="button" onClick={() => showEdit(item)}><Edit3 size={15} />编辑</button>{identifierAction && <button type="button" disabled={copyingIdentifier === item.id} onClick={() => void copyIdentifier(item)}><Copy size={15} />复制 {identifierAction.label}</button>}{subscriptionActions && <button type="button" disabled={!canCopy || copying === item.id} onClick={() => void copySubscription(item)}><Link2 size={15} />{canCopy ? "复制订阅链接" : "完整令牌未保存"}</button>}{installable && <button type="button" onClick={() => void loadInstallation(item)}><Terminal size={15} />一键安装 Agent</button>}{!protectedRow && <button type="button" disabled={changingStatus === item.id} onClick={() => void toggleStatus(item)}><Power size={15} />{item.status === disabledStatus ? "恢复启用" : disabledStatus === "paused" ? "暂停" : "停用"}</button>}{deletable && !protectedRow && <button type="button" className="menu-action--danger" onClick={() => setDeleteTarget(item)}><Trash2 size={15} />删除账号</button>}</RowMenu></td></tr>; })}</tbody></table></div>}</div>
+    <Drawer open={open} title={editing ? `编辑${title}` : createLabel} description={editing ? `修改 ${editing.id} 的配置` : `创建新的${title}记录`} onClose={() => setOpen(false)}><form className="drawer-form" onSubmit={submit}>{fields.filter((field) => !field.editOnly || editing).map((field) => <Field key={field.key} label={field.label} required={field.required} helper={field.helper} error={errors[field.key]}>{field.type === "textarea" || field.type === "json" ? <textarea className={field.type === "json" ? "code-editor code-editor--small" : ""} rows={field.type === "json" ? 9 : 4} value={values[field.key] ?? ""} placeholder={field.placeholder} onChange={(event) => updateValue(field.key, event.target.value)} /> : field.type === "select" ? <select disabled={Boolean(editing && field.lockedValue && values[field.key] === field.lockedValue)} value={values[field.key] ?? ""} onChange={(event) => updateValue(field.key, event.target.value)}>{field.options?.filter((option) => !option.exclusive || values[field.key] === option.value).map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select> : field.type === "multiselect" ? <select multiple size={Math.min(8, Math.max(3, field.options?.length ?? 3))} value={(values[field.key] ?? "").split(",").filter(Boolean)} onChange={(event) => updateValue(field.key, Array.from(event.target.selectedOptions).map((option) => option.value).join(","))}>{field.options?.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select> : <input type={field.type ?? "text"} value={values[field.key] ?? ""} placeholder={field.placeholder} onChange={(event) => updateValue(field.key, event.target.value)} />}</Field>)}<footer className="drawer__actions"><Button type="button" variant="ghost" onClick={() => setOpen(false)}>取消</Button><Button type="submit" variant="primary" loading={saving}>{editing ? "保存修改" : "创建"}</Button></footer></form></Drawer>
     <Drawer open={Boolean(install)} title="一键安装 Corade Agent" description={install ? `目标服务器：${install.name}` : undefined} onClose={() => setInstall(null)}>{install && <div className="install-command"><p>在目标服务器的 root shell 中执行以下命令。</p><textarea className="code-editor" readOnly rows={7} value={install.command} /><footer><Button variant="primary" onClick={() => void writeClipboard(install.command).then(() => toast("安装命令已复制")).catch(() => toast("复制失败，请手动选择命令", "error"))}><Copy size={16} />复制命令</Button></footer></div>}</Drawer>
-    <ConfirmDialog open={Boolean(deleteTarget)} title="删除这个账号？" description={deleteTarget ? `“${resourceName(deleteTarget)}”将从用户与朋友列表中移除，现有订阅链接会立即失效。流量与审计历史仍会保留。` : ""} confirmLabel="删除账号" loading={deleting} onClose={() => setDeleteTarget(null)} onConfirm={() => void deleteResource()} />
+    <ConfirmDialog open={Boolean(deleteTarget)} title="删除这个账号？" description={deleteTarget ? `“${resourceName(deleteTarget)}”将从订阅账号列表中移除，现有订阅链接会立即失效。流量与审计历史仍会保留。` : ""} confirmLabel="删除账号" loading={deleting} onClose={() => setDeleteTarget(null)} onConfirm={() => void deleteResource()} />
   </div>;
 }
 
@@ -193,7 +211,41 @@ export function PlansPage() {
 
 export function UsersPage() {
   const { data: plans } = useResource<Plan[]>("/plans", []);
-  return <ResourcePage<User> title="用户与朋友" description="两类账号权限相同，均只能访问订阅" endpoint="/users" createLabel="添加账号" subscriptionActions deletable disabledStatus="paused" defaults={{ role: "user", name: "", email: "", plan_id: plans[0]?.id ?? "", expires_at: "", notes: "" }} fields={[{ key: "role", label: "账号分类", type: "select", options: [{ value: "user", label: "用户" }, { value: "friend", label: "朋友" }] }, { key: "name", label: "账号名称", required: true }, { key: "email", label: "邮箱", type: "email" }, { key: "plan_id", label: "套餐", type: "select", options: [{ value: "", label: "暂不分配" }, ...plans.map((item) => ({ value: item.id, label: item.name }))] }, { key: "expires_at", label: "到期时间", type: "datetime-local" }, { key: "notes", label: "内部备注", type: "textarea" }]} transform={(v, editing) => ({ role: v.role, name: v.name, email: editing ? v.email : v.email || null, plan_id: editing ? v.plan_id : v.plan_id || null, expires_at: v.expires_at ? new Date(v.expires_at).toISOString() : editing ? "" : null, notes: v.notes })} toValues={(item) => ({ role: item.role, name: item.name, email: item.email ?? "", plan_id: item.plan_id ?? "", expires_at: localDateTime(item.expires_at), notes: item.notes ?? "" })} columns={[{ label: "账号", render: (item) => primary(item.name, item.id, item.email || item.uuid) }, { label: "分类", render: (item) => item.role === "friend" ? "朋友" : "用户" }, { label: "套餐", render: (item) => item.plan_name || "未分配" }, { label: "已用流量", render: (item) => formatBytes(item.traffic_used_bytes) }, { label: "订阅令牌", render: (item) => item.subscription_available ? <span className="mono">{item.subscription_token_prefix}…</span> : <span className="token-unavailable">未保存完整令牌</span> }, { label: "到期", render: (item) => item.expires_at ? formatDate(item.expires_at) : "长期" }]} />;
+  return <ResourcePage<User>
+    title="用户、朋友与管理员"
+    description="管理员可登录后台并使用订阅；用户与朋友仅能使用订阅"
+    endpoint="/users"
+    createLabel="添加用户或朋友"
+    subscriptionActions
+    deletable
+    disabledStatus="paused"
+    protectedItem={(item) => item.role === "admin"}
+    identifierAction={{ label: "UDID", value: (item) => item.uuid }}
+    defaults={{ role: "user", name: "", email: "", plan_id: plans[0]?.id ?? "", expires_at: "", notes: "" }}
+    fields={[
+      { key: "role", label: "账号分类", type: "select", lockedValue: "admin", options: [{ value: "admin", label: "管理员", exclusive: true }, { value: "user", label: "用户" }, { value: "friend", label: "朋友" }] },
+      { key: "uuid", label: "UDID", editOnly: true, required: true, helper: "修改后会随节点成员配置同步到 Corade" },
+      { key: "name", label: "账号名称", required: true },
+      { key: "email", label: "邮箱", type: "email" },
+      { key: "plan_id", label: "套餐", type: "select", options: [{ value: "", label: "暂不分配" }, ...plans.map((item) => ({ value: item.id, label: item.name }))] },
+      { key: "expires_at", label: "到期时间", type: "datetime-local" },
+      { key: "notes", label: "内部备注", type: "textarea" },
+    ]}
+    transform={(v, editing) => {
+      const values = { role: v.role, name: v.name, email: editing ? v.email : v.email || null, plan_id: editing ? v.plan_id : v.plan_id || null, expires_at: v.expires_at ? new Date(v.expires_at).toISOString() : editing ? "" : null, notes: v.notes };
+      return editing ? { ...values, uuid: v.uuid } : values;
+    }}
+    toValues={(item) => ({ role: item.role, uuid: item.uuid, name: item.name, email: item.email ?? "", plan_id: item.plan_id ?? "", expires_at: localDateTime(item.expires_at), notes: item.notes ?? "" })}
+    columns={[
+      { label: "账号", render: (item) => primary(item.name, item.id, item.email || item.id) },
+      { label: "分类", render: (item) => item.role === "admin" ? "管理员" : item.role === "friend" ? "朋友" : "用户" },
+      { label: "UDID", className: "col-udid", render: (item) => <span className="mono data-ellipsis" title={item.uuid}>{item.uuid}</span> },
+      { label: "套餐", render: (item) => item.plan_name || "未分配" },
+      { label: "已用流量", render: (item) => formatBytes(item.traffic_used_bytes) },
+      { label: "订阅令牌", render: (item) => item.subscription_available ? <span className="mono">{item.subscription_token_prefix}…</span> : <span className="token-unavailable">未保存完整令牌</span> },
+      { label: "到期", render: (item) => item.expires_at ? formatDate(item.expires_at) : "长期" },
+    ]}
+  />;
 }
 
 export function RoutesPage() {

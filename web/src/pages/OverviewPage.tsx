@@ -24,6 +24,7 @@ const emptyOverview: Overview = {
   machines_offline: 0,
   nodes_total: 0,
   nodes_published: 0,
+  admins_active: 0,
   users_active: 0,
   friends_active: 0,
   traffic_today_bytes: 0,
@@ -68,6 +69,18 @@ export function OverviewPage() {
         <>
           <section className="metric-band" aria-label="运行指标">
             <Metric
+              icon={ArrowUpFromLine}
+              label="今日上传"
+              value={formatBytes(data.traffic_today_upload_bytes)}
+              detail="Agent 已确认流量"
+            />
+            <Metric
+              icon={ArrowDownToLine}
+              label="今日下载"
+              value={formatBytes(data.traffic_today_download_bytes)}
+              detail={`合计 ${formatBytes(data.traffic_today_bytes)}`}
+            />
+            <Metric
               icon={Server}
               label="服务器"
               value={data.machines_total}
@@ -83,20 +96,8 @@ export function OverviewPage() {
             <Metric
               icon={Users}
               label="订阅账号"
-              value={data.users_active + data.friends_active}
-              detail={`${data.users_active} 用户 / ${data.friends_active} 朋友`}
-            />
-            <Metric
-              icon={ArrowUpFromLine}
-              label="今日上传"
-              value={formatBytes(data.traffic_today_upload_bytes)}
-              detail="Agent 已确认流量"
-            />
-            <Metric
-              icon={ArrowDownToLine}
-              label="今日下载"
-              value={formatBytes(data.traffic_today_download_bytes)}
-              detail={`合计 ${formatBytes(data.traffic_today_bytes)}`}
+              value={data.admins_active + data.users_active + data.friends_active}
+              detail={`${data.admins_active} 管理员 / ${data.users_active} 用户 / ${data.friends_active} 朋友`}
             />
           </section>
           <section className="ranking-section" aria-labelledby="traffic-ranking-title">

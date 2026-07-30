@@ -92,7 +92,7 @@ export interface Plan {
 export interface User {
   id: string;
   agent_id: number;
-  role: "user" | "friend";
+  role: "admin" | "user" | "friend";
   plan_id: string | null;
   plan_name: string | null;
   name: string;
@@ -138,6 +138,7 @@ export interface Overview {
   machines_offline: number;
   nodes_total: number;
   nodes_published: number;
+  admins_active: number;
   users_active: number;
   friends_active: number;
   traffic_today_bytes: number;

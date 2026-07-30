@@ -235,6 +235,7 @@ type UserSubscription struct {
 
 type UserUpdate struct {
 	Role                  *string `json:"role"`
+	UUID                  *string `json:"uuid"`
 	PlanID                *string `json:"plan_id"`
 	AccessGroupOverrideID *string `json:"access_group_override_id"`
 	Name                  *string `json:"name"`
@@ -290,6 +291,7 @@ type Overview struct {
 	MachinesOffline      int           `json:"machines_offline"`
 	NodesTotal           int           `json:"nodes_total"`
 	NodesPublished       int           `json:"nodes_published"`
+	AdminsActive         int           `json:"admins_active"`
 	UsersActive          int           `json:"users_active"`
 	FriendsActive        int           `json:"friends_active"`
 	TrafficToday         int64         `json:"traffic_today_bytes"`

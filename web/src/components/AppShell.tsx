@@ -32,7 +32,7 @@ const groups = [
   {
     label: "访问控制",
     items: [
-      { to: "/users", label: "用户与朋友", icon: Users },
+      { to: "/users", label: "订阅账号", icon: Users },
       { to: "/plans", label: "套餐", icon: ShieldCheck },
       { to: "/access-groups", label: "权限组", icon: Group },
     ],

@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -154,11 +155,30 @@ func (s *Server) handleMachineInstallation(w http.ResponseWriter, r *http.Reques
 	}
 	controlURL := s.store.SettingString(r.Context(), "agent", "external_url", s.cfg.ExternalURL)
 	installerURL := s.store.SettingString(r.Context(), "agent", "installer_url", "https://raw.githubusercontent.com/ClaraCora/CPanelde/main/install.sh")
-	command := fmt.Sprintf("curl -fsSL %s | sudo bash -s -- --control-url %s --communication-key %s --machine-id %s",
-		shellQuote(installerURL), shellQuote(controlURL), shellQuote(key), shellQuote(machineID))
+	panelPublicKey, err := s.agentV2.panelPublicKey(r.Context())
+	if err != nil {
+		writeError(w, r, http.StatusInternalServerError, "AGENT_IDENTITY_UNAVAILABLE", "Agent V2 面板身份无法读取", nil)
+		return
+	}
+	encodedPanelPublicKey := base64.RawURLEncoding.EncodeToString(panelPublicKey)
+	command := fmt.Sprintf("curl -fsSL %s | sudo bash -s -- --control-url %s --communication-key %s --machine-id %s --panel-public-key %s",
+		shellQuote(installerURL), shellQuote(controlURL), shellQuote(key), shellQuote(machineID), shellQuote(encodedPanelPublicKey))
 	writeData(w, r, http.StatusOK, map[string]string{
-		"machine_id": machineID, "control_url": controlURL, "installer_url": installerURL, "command": command,
+		"machine_id": machineID, "control_url": controlURL, "installer_url": installerURL,
+		"panel_public_key": encodedPanelPublicKey, "command": command,
 	})
+}
+
+func (s *Server) handleResetMachineAgentIdentity(w http.ResponseWriter, r *http.Request) {
+	machineID := chi.URLParam(r, "id")
+	if err := s.store.ResetAgentIdentity(r.Context(), machineID); err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	s.agentV2.deleteMachineSessions(machineID)
+	admin := currentAdmin(r)
+	_ = s.store.WriteAudit(r.Context(), admin.ID, "machine.agent_identity_reset", "machine", machineID, nil, clientIP(r), requestID(r))
+	writeData(w, r, http.StatusOK, map[string]any{"machine_id": machineID, "reset": true})
 }
 
 func (s *Server) handleMachineAgentUpgrade(w http.ResponseWriter, r *http.Request) {
@@ -466,6 +486,7 @@ func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleQuickCreateUser(w http.ResponseWriter, r *http.Request) {
 	role := chi.URLParam(r, "role")
+	role = map[string]string{"yh": "user", "py": "friend"}[role]
 	label := "用户"
 	if role == "friend" {
 		label = "朋友"

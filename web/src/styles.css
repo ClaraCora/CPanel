@@ -330,6 +330,8 @@ a.resource-name:hover { color: var(--primary); text-decoration: underline; }
 .account-form__heading h3 { font-size: 14px; font-weight: 650; }
 .account-form__heading p { margin-top: 3px; color: var(--secondary); font-size: 10px; line-height: 1.45; }
 .account-password-toggle { align-self: start; }
+.settings-toggle { display: inline-flex; min-height: 38px; align-items: center; gap: 10px; color: var(--text); font-size: 13px; cursor: pointer; }
+.settings-toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--primary); }
 .input-with-action { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
 .field select[multiple] { min-height: 112px; padding: 5px; }
 

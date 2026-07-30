@@ -19,9 +19,9 @@ func TestAgentArtifactServesAllowedBinary(t *testing.T) {
 	}
 	server := &Server{cfg: config.Config{AgentArtifactDir: directory}}
 	router := chi.NewRouter()
-	router.Get("/corade-downloads/{artifact}", server.handleAgentArtifact)
+	router.Get("/ca/wj/{artifact}", server.handleAgentArtifact)
 	response := httptest.NewRecorder()
-	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/corade-downloads/corade-linux-amd64", nil))
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/ca/wj/corade-linux-amd64", nil))
 
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", response.Code)
@@ -37,9 +37,9 @@ func TestAgentArtifactServesAllowedBinary(t *testing.T) {
 func TestAgentArtifactRejectsUnknownName(t *testing.T) {
 	server := &Server{cfg: config.Config{AgentArtifactDir: t.TempDir()}}
 	router := chi.NewRouter()
-	router.Get("/corade-downloads/{artifact}", server.handleAgentArtifact)
+	router.Get("/ca/wj/{artifact}", server.handleAgentArtifact)
 	response := httptest.NewRecorder()
-	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/corade-downloads/other", nil))
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/ca/wj/other", nil))
 
 	if response.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", response.Code)
@@ -54,9 +54,9 @@ func TestAgentArtifactServesChecksum(t *testing.T) {
 	}
 	server := &Server{cfg: config.Config{AgentArtifactDir: directory}}
 	router := chi.NewRouter()
-	router.Get("/corade-downloads/{artifact}", server.handleAgentArtifact)
+	router.Get("/ca/wj/{artifact}", server.handleAgentArtifact)
 	response := httptest.NewRecorder()
-	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/corade-downloads/corade-linux-amd64.sha256", nil))
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/ca/wj/corade-linux-amd64.sha256", nil))
 
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", response.Code)

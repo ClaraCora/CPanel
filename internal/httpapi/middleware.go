@@ -49,6 +49,34 @@ func recoveryMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func localHealth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		remoteHost, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil || !isLocalHealthHost(remoteHost) {
+			http.NotFound(w, r)
+			return
+		}
+		requestHost := r.Host
+		if host, _, splitErr := net.SplitHostPort(r.Host); splitErr == nil {
+			requestHost = host
+		}
+		if !isLocalHealthHost(requestHost) {
+			http.NotFound(w, r)
+			return
+		}
+		next(w, r)
+	}
+}
+
+func isLocalHealthHost(host string) bool {
+	host = strings.Trim(strings.TrimSpace(host), "[]")
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
 func (s *Server) requireAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie(sessionCookieName)

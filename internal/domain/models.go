@@ -44,6 +44,8 @@ type Machine struct {
 	AgentUpgradeTaskID       string          `json:"agent_upgrade_task_id,omitempty"`
 	AgentUpgradeRequestedAt  *time.Time      `json:"agent_upgrade_requested_at,omitempty"`
 	AgentUpgradeDispatchedAt *time.Time      `json:"agent_upgrade_dispatched_at,omitempty"`
+	AgentProtocol            string          `json:"agent_protocol"`
+	AgentV2LastSeenAt        *time.Time      `json:"agent_v2_last_seen_at"`
 	NodeCount                int             `json:"node_count"`
 	CreatedAt                time.Time       `json:"created_at"`
 	UpdatedAt                time.Time       `json:"updated_at"`

@@ -1,7 +1,7 @@
 import { demoNodes, demoResource, demoSession } from "./mock";
 import type { ApiErrorBody, Envelope, Session } from "./types";
 
-const base = "/api/ops/v1";
+const base = "/ca/ht";
 const requestTimeoutMs = 15_000;
 let csrfToken = "";
 
@@ -25,6 +25,42 @@ export function setCsrfToken(value: string) {
   csrfToken = value;
 }
 
+const resourcePaths: Record<string, string> = {
+  machines: "fwq", nodes: "jd", "access-groups": "qxz", plans: "tc", users: "yh",
+  "route-policies": "ly", outbounds: "ck",
+};
+const settingPaths: Record<string, string> = {
+  site: "zd", agent: "dl", security: "aq", node_defaults: "jdmr", certificate: "zs", subscription: "dy", retention: "bl",
+};
+const rolePaths: Record<string, string> = { admin: "gly", user: "yh", friend: "py" };
+
+function wirePath(path: string): string {
+  const segments = path.split("/").filter(Boolean);
+  if (segments.length === 0) return path;
+  if (segments[0] === "session") return "/hh";
+  if (segments[0] === "sessions") return segments[1] === "current" ? "/hh/dq" : "/hh";
+  if (segments[0] === "account") return segments[1] === "profile" ? "/zh/zl" : "/zh/mm";
+  if (segments[0] === "tools" && segments[1] === "reality-keypair") return "/gj/xsmy";
+  if (segments[0] === "overview") return "/zl";
+  if (segments[0] === "history") return "/ls";
+  if (segments[0] === "audit-events") return "/sj";
+  if (segments[0] === "settings") return `/sz/${settingPaths[segments[1]] ?? segments[1]}`;
+  const resource = resourcePaths[segments[0]];
+  if (!resource) return path;
+  const tail = segments.slice(1);
+  if (segments[0] === "machines" && tail[1] === "installation") tail[1] = "az";
+  if (segments[0] === "machines" && tail[1] === "agent-upgrade") tail[1] = "sj";
+  if (segments[0] === "machines" && tail[1] === "agent-identity") tail[1] = "sf";
+  if (segments[0] === "machines" && tail[1] === "credentials") tail[1] = "pz";
+  if (segments[0] === "nodes" && tail[1] === "publish") tail[1] = "fb";
+  if (segments[0] === "users" && tail[0] === "quick") {
+    tail[0] = "ks";
+    tail[1] = rolePaths[tail[1]] ?? tail[1];
+  }
+  if (segments[0] === "users" && tail[1] === "subscription") tail[1] = "dy";
+  return `/${resource}${tail.length ? `/${tail.join("/")}` : ""}`;
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (demoMode) return demoRequest<T>(path, init);
   const headers = new Headers(init.headers);
@@ -33,7 +69,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), requestTimeoutMs);
   try {
-    const response = await fetch(`${base}${path}`, { ...init, headers, credentials: "same-origin", signal: init.signal ?? controller.signal });
+    const response = await fetch(`${base}${wirePath(path)}`, { ...init, headers, credentials: "same-origin", signal: init.signal ?? controller.signal });
     const contentType = response.headers.get("content-type") ?? "";
     if (!contentType.includes("application/json")) {
       throw new ApiError(response.status, { code: "INVALID_RESPONSE", message: response.ok ? "服务返回了无法识别的响应" : `服务请求失败（${response.status}）` });

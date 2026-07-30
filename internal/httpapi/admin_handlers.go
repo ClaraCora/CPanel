@@ -13,15 +13,15 @@ import (
 )
 
 func (s *Server) handleLive(w http.ResponseWriter, r *http.Request) {
-	writeData(w, r, http.StatusOK, map[string]string{"status": "live"})
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.Ping(r.Context()); err != nil {
-		writeError(w, r, http.StatusServiceUnavailable, "DATABASE_UNAVAILABLE", "数据库尚未就绪", nil)
+		w.WriteHeader(http.StatusServiceUnavailable)
 		return
 	}
-	writeData(w, r, http.StatusOK, map[string]string{"status": "ready"})
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {

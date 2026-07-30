@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -30,6 +31,11 @@ func (s *Server) handleAgentHandshake(w http.ResponseWriter, r *http.Request) {
 	} else {
 		streamURL.Scheme = "ws"
 	}
+	panelPublicKey, err := s.agentV2.panelPublicKey(r.Context())
+	if err != nil {
+		writeError(w, r, http.StatusInternalServerError, "AGENT_IDENTITY_UNAVAILABLE", "Agent V2 panel identity is unavailable", nil)
+		return
+	}
 	writeData(w, r, http.StatusOK, map[string]any{
 		"protocol_version": "1.0",
 		"machine":          map[string]any{"id": machine.ID, "name": machine.Name},
@@ -40,6 +46,7 @@ func (s *Server) handleAgentHandshake(w http.ResponseWriter, r *http.Request) {
 			"fallback_pull_seconds": int(fallbackInterval.Seconds()),
 		},
 		"cursor": strconv.FormatInt(cursor, 10),
+		"aq":     map[string]string{"mbgy": base64.RawURLEncoding.EncodeToString(panelPublicKey)},
 	})
 }
 

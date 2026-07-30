@@ -27,8 +27,18 @@ var allowedSettingSections = map[string]bool{
 	"certificate": true, "subscription": true, "retention": true,
 }
 
+var settingSectionPaths = map[string]string{
+	"zd": "site", "dl": "agent", "aq": "security", "jdmr": "node_defaults",
+	"zs": "certificate", "dy": "subscription", "bl": "retention",
+}
+
+func settingSection(r *http.Request) string {
+	value := chi.URLParam(r, "section")
+	return settingSectionPaths[value]
+}
+
 func (s *Server) handleListSettings(w http.ResponseWriter, r *http.Request) {
-	section := chi.URLParam(r, "section")
+	section := settingSection(r)
 	if !allowedSettingSections[section] {
 		writeError(w, r, http.StatusNotFound, "SETTING_SECTION_NOT_FOUND", "设置分区不存在", nil)
 		return
@@ -42,7 +52,7 @@ func (s *Server) handleListSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
-	section := chi.URLParam(r, "section")
+	section := settingSection(r)
 	if !allowedSettingSections[section] {
 		writeError(w, r, http.StatusNotFound, "SETTING_SECTION_NOT_FOUND", "设置分区不存在", nil)
 		return
@@ -81,6 +91,24 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			input.Values[key] = sealed
+		}
+		if section == "agent" && key == "allow_legacy_protocol" {
+			var allowed bool
+			if err := json.Unmarshal(value, &allowed); err != nil {
+				writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "旧通讯开关必须是布尔值", map[string]string{key: "invalid_boolean"})
+				return
+			}
+			if !allowed {
+				blockers, err := s.store.LegacyAgentBlockers(r.Context())
+				if err != nil {
+					writeStoreError(w, r, err)
+					return
+				}
+				if len(blockers) > 0 {
+					writeError(w, r, http.StatusConflict, "LEGACY_AGENTS_REMAIN", "仍有服务器使用旧通讯，请先完成 V2 升级", map[string]string{"machine_ids": strings.Join(blockers, ",")})
+					return
+				}
+			}
 		}
 	}
 	admin := currentAdmin(r)

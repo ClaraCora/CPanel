@@ -163,10 +163,10 @@ EOF
 }
 
 wait_until_ready() {
-  local health_url="http://127.0.0.1${LISTEN_ADDRESS}/health/ready"
+  local health_url="http://127.0.0.1${LISTEN_ADDRESS}/ca/jk/jx"
   if [[ "$LISTEN_ADDRESS" != :* ]]; then
     local port="${LISTEN_ADDRESS##*:}"
-    health_url="http://127.0.0.1:${port}/health/ready"
+    health_url="http://127.0.0.1:${port}/ca/jk/jx"
   fi
   for _ in $(seq 1 30); do
     if systemctl is-active --quiet "$SERVICE_NAME" && curl --fail --silent "$health_url" >/dev/null 2>&1; then

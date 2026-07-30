@@ -296,7 +296,7 @@ export function MachinesPage() {
       { label: "区域", render: (item) => item.region || "未设置" },
       { label: "节点", render: (item) => <span className="mono">{item.node_count}</span> },
       { label: "资源占用", render: (item) => <MachineMetrics machine={item} /> },
-      { label: "Agent", render: (item) => <><span className="cell-primary">{item.agent_version || "未接入"}</span><span className={`resource-id ${agentUpgradeState(item) === "available" ? "text-success" : ""}`}>{agentUpgradeLabel(item)}</span></> },
+      { label: "Agent", render: (item) => <><span className="cell-primary">{item.agent_version || "未接入"}</span><span className={`resource-id ${item.agent_protocol === "v2" ? "text-success" : ""}`}>{item.agent_protocol === "v2" ? "V2 加密" : "旧通讯"} · {agentUpgradeLabel(item)}</span></> },
       { label: "最后心跳", render: (item) => formatPreciseDate(item.last_heartbeat_at) },
     ]}
   />;

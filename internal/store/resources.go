@@ -79,6 +79,7 @@ func (s *Store) ListMachines(ctx context.Context) ([]domain.Machine, error) {
 		       m.agent_version, m.kernel_type, m.capabilities, m.last_heartbeat_at,
 		       COALESCE(mm.metrics,'{}'::jsonb),mm.sampled_at,
 		       COALESCE(m.agent_upgrade_task_id,''),m.agent_upgrade_requested_at,m.agent_upgrade_dispatched_at,
+		       m.agent_protocol,m.agent_v2_last_seen_at,
 		       (SELECT count(*) FROM nodes n WHERE n.machine_id=m.id AND n.status <> 'archived'),
 		       m.created_at, m.updated_at
 		FROM machines m LEFT JOIN machine_metrics mm ON mm.machine_id=m.id
@@ -94,7 +95,7 @@ func (s *Store) ListMachines(ctx context.Context) ([]domain.Machine, error) {
 		if err := rows.Scan(&item.ID, &item.Name, &item.Region, &item.Host, &item.Labels, &item.Notes,
 			&item.Status, &item.AgentVersion, &item.KernelType, &item.Capabilities, &item.LastHeartbeat,
 			&item.Metrics, &item.MetricsSampledAt, &item.AgentUpgradeTaskID, &item.AgentUpgradeRequestedAt,
-			&item.AgentUpgradeDispatchedAt,
+			&item.AgentUpgradeDispatchedAt, &item.AgentProtocol, &item.AgentV2LastSeenAt,
 			&item.NodeCount, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}

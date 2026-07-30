@@ -35,6 +35,8 @@ export interface Machine {
   agent_upgrade_task_id?: string;
   agent_upgrade_requested_at?: string | null;
   agent_upgrade_dispatched_at?: string | null;
+  agent_protocol?: "legacy" | "v2";
+  agent_v2_last_seen_at?: string | null;
   node_count: number;
   created_at: string;
   updated_at: string;

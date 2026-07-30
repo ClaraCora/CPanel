@@ -45,6 +45,85 @@ journalctl -u cpanel -f
 
 环境配置保存在 `/etc/cpanel/cpanel.env`，运行数据和 Agent 文件保存在 `/var/lib/cpanel`。反向代理 HTTPS 后，应将 `CPANEL_EXTERNAL_URL` 设置为公开 HTTPS 地址并将 `CPANEL_COOKIE_SECURE` 设置为 `true`。
 
+## `/ca/jk/` 健康检查
+
+`/ca/jk/` 是 CPanel 面板进程的本机健康检查路径，不是 Agent 通讯接口，也不应对公网开放。Agent 使用的通讯路径是 `/ca/cc`。
+
+| 路径 | 作用 | 正常状态码 |
+| --- | --- | --- |
+| `GET /ca/jk/ch` | 存活检查：确认 CPanel 进程能够响应 HTTP 请求 | `204 No Content` |
+| `GET /ca/jk/jx` | 就绪检查：确认 CPanel 进程和 PostgreSQL 数据库均可正常工作 | `204 No Content` |
+
+当数据库尚未就绪时，`/ca/jk/jx` 返回 `503 Service Unavailable`。安装和升级脚本会在重启服务后请求此端点，只有返回成功才会判定部署完成。
+
+这两个端点同时校验请求来源和 `Host`：仅接受来自本机回环地址，且 `Host` 为 `127.0.0.1`、`::1` 或 `localhost` 的请求。其他请求固定返回 `404 Not Found`。请勿把它们作为公网监控地址；如需健康监控，应在面板主机本机执行。
+
+## 新部署后的操作
+
+1. 确认服务已启动，并在面板主机本机检查存活和就绪状态：
+
+```bash
+systemctl status cpanel --no-pager
+curl -i http://127.0.0.1:8256/ca/jk/ch
+curl -i http://127.0.0.1:8256/ca/jk/jx
+```
+
+两个 `curl` 请求均应返回 `204 No Content`。如果 `/ca/jk/jx` 返回 `503`，使用 `journalctl -u cpanel -n 100 --no-pager` 检查面板或数据库启动错误，不要继续配置公网入口。
+
+2. 在 `/etc/cpanel/cpanel.env` 中设置正式域名，然后重启 CPanel：
+
+```dotenv
+CPANEL_ADDR=127.0.0.1:8256
+CPANEL_EXTERNAL_URL=https://panel.example.com
+CPANEL_COOKIE_SECURE=true
+```
+
+```bash
+systemctl restart cpanel
+```
+
+3. 配置 HTTPS 反向代理。公网代理必须先屏蔽整个 `/ca/jk/`，再把其他请求转发至 `127.0.0.1:8256`。
+
+Nginx 的 `server` 配置示例：
+
+```nginx
+location ^~ /ca/jk/ {
+    return 404;
+}
+
+location / {
+    proxy_pass http://127.0.0.1:8256;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_read_timeout 3600s;
+    proxy_send_timeout 3600s;
+}
+```
+
+Caddy 配置示例：
+
+```caddy
+panel.example.com {
+    @private_health path /ca/jk/*
+    respond @private_health 404
+    reverse_proxy 127.0.0.1:8256
+}
+```
+
+4. 重载反向代理后，从另一台机器验证公网无法访问健康检查路径：
+
+```bash
+curl -o /dev/null -s -w '%{http_code}\n' https://panel.example.com/ca/jk/ch
+curl -o /dev/null -s -w '%{http_code}\n' https://panel.example.com/ca/jk/jx
+```
+
+两个请求均应输出 `404`。随后访问正式域名登录后台，在“系统设置”中确认外部控制地址和统一通讯密钥，再到“服务器”页面复制该服务器生成的 Agent 安装命令。不要手工拼接 Agent 参数，页面生成的命令会包含服务器 ID、首次登记通讯密钥和面板公钥。
+
 已确认的产品范围记录在 [项目详情.md](./项目详情.md)。
 
 ## Development prerequisites

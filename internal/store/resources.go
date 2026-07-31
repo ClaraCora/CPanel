@@ -391,11 +391,18 @@ func (s *Store) ArchiveNode(ctx context.Context, nodeID string) error {
 		return err
 	}
 	if _, err := tx.Exec(ctx, `INSERT INTO control_changes(machine_id,node_id,event_type,revision,payload)
-		VALUES($1,$2,'machine.nodes.replace',$3,jsonb_build_object('node_id',$4))`,
-		machineID, nodeID, revision, agentID); err != nil {
+		VALUES($1,$2,'machine.nodes.replace',$3,$4::jsonb)`,
+		machineID, nodeID, revision, machineNodesReplacePayload(agentID)); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
+}
+
+func machineNodesReplacePayload(agentID int64) json.RawMessage {
+	payload, _ := json.Marshal(struct {
+		NodeID int64 `json:"node_id"`
+	}{NodeID: agentID})
+	return payload
 }
 
 func (s *Store) UpdateNode(ctx context.Context, nodeID string, input domain.NodeUpdate) (domain.Node, error) {
@@ -465,14 +472,14 @@ func (s *Store) UpdateNode(ctx context.Context, nodeID string, input domain.Node
 	}
 	if originalMachineID != item.MachineID || originalStatus != item.Status {
 		if _, err := tx.Exec(ctx, `INSERT INTO control_changes(machine_id,node_id,event_type,revision,payload)
-			VALUES($1,$2,'machine.nodes.replace',$3,jsonb_build_object('node_id',$4))`,
-			originalMachineID, nodeID, item.CurrentRevision, item.AgentID); err != nil {
+			VALUES($1,$2,'machine.nodes.replace',$3,$4::jsonb)`,
+			originalMachineID, nodeID, item.CurrentRevision, machineNodesReplacePayload(item.AgentID)); err != nil {
 			return domain.Node{}, err
 		}
 		if originalMachineID != item.MachineID {
 			if _, err := tx.Exec(ctx, `INSERT INTO control_changes(machine_id,node_id,event_type,revision,payload)
-				VALUES($1,$2,'machine.nodes.replace',$3,jsonb_build_object('node_id',$4))`,
-				item.MachineID, nodeID, item.CurrentRevision, item.AgentID); err != nil {
+				VALUES($1,$2,'machine.nodes.replace',$3,$4::jsonb)`,
+				item.MachineID, nodeID, item.CurrentRevision, machineNodesReplacePayload(item.AgentID)); err != nil {
 				return domain.Node{}, err
 			}
 		}

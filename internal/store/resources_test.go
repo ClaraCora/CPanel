@@ -1,6 +1,7 @@
 package store
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -26,5 +27,17 @@ func TestMapNodeErrorIdentifiesPortConflict(t *testing.T) {
 		if !errors.Is(err, ErrNodePortInUse) {
 			t.Fatalf("constraint %q mapped to %v, want ErrNodePortInUse", constraint, err)
 		}
+	}
+}
+
+func TestMachineNodesReplacePayload(t *testing.T) {
+	var payload struct {
+		NodeID int64 `json:"node_id"`
+	}
+	if err := json.Unmarshal(machineNodesReplacePayload(11), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.NodeID != 11 {
+		t.Fatalf("node_id = %d, want 11", payload.NodeID)
 	}
 }

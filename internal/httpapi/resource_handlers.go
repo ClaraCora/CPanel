@@ -161,12 +161,16 @@ func (s *Server) handleMachineInstallation(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	encodedPanelPublicKey := base64.RawURLEncoding.EncodeToString(panelPublicKey)
-	command := fmt.Sprintf("curl -fsSL %s | sudo bash -s -- --control-url %s --communication-key %s --machine-id %s --panel-public-key %s",
-		shellQuote(installerURL), shellQuote(controlURL), shellQuote(key), shellQuote(machineID), shellQuote(encodedPanelPublicKey))
+	command := agentInstallCommand(installerURL, controlURL, key, machineID, encodedPanelPublicKey)
 	writeData(w, r, http.StatusOK, map[string]string{
 		"machine_id": machineID, "control_url": controlURL, "installer_url": installerURL,
 		"panel_public_key": encodedPanelPublicKey, "command": command,
 	})
+}
+
+func agentInstallCommand(installerURL, controlURL, key, machineID, panelPublicKey string) string {
+	return fmt.Sprintf("curl -fsSL %s | sudo sh -s -- --control-url %s --communication-key %s --machine-id %s --panel-public-key %s",
+		shellQuote(installerURL), shellQuote(controlURL), shellQuote(key), shellQuote(machineID), shellQuote(panelPublicKey))
 }
 
 func (s *Server) handleResetMachineAgentIdentity(w http.ResponseWriter, r *http.Request) {

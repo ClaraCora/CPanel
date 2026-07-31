@@ -306,6 +306,7 @@ a.resource-name:hover { color: var(--primary); text-decoration: underline; }
 .confirm-dialog footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
 
 .settings-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); min-height: 640px; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; }
+.settings-layout--standalone { grid-template-columns: minmax(0, 1fr); }
 .settings-nav { padding: 8px; background: #f2f2f7; border-right: 1px solid var(--border); }
 .settings-nav button { display: flex; width: 100%; min-height: 58px; align-items: flex-start; flex-direction: column; padding: 10px; color: #4d5660; background: transparent; border: 0; border-radius: 6px; text-align: left; }
 .settings-nav button:hover { background: #e8e8ed; }

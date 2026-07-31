@@ -11,6 +11,7 @@ import {
   LogOut,
   Menu,
   Network,
+  Rss,
   Route,
   Server,
   Settings,
@@ -36,6 +37,7 @@ const groups = [
       { to: "/users", label: "订阅账号", icon: Users },
       { to: "/plans", label: "套餐", icon: ShieldCheck },
       { to: "/access-groups", label: "权限组", icon: Group },
+      { to: "/subscription", label: "订阅", icon: Rss },
     ],
   },
   {

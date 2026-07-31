@@ -126,7 +126,7 @@ curl -o /dev/null -s -w '%{http_code}\n' https://panel.example.com/ca/jk/jx
 
 ## 订阅访问控制
 
-“系统设置 → 订阅”提供常规浏览器拦截开关、UA 白名单和最近 200 条订阅拉取记录。拦截默认关闭，开启后 Chrome、Safari、Firefox、Edge 等常规浏览器 UA 会收到 `404 Not Found`；Clash、sing-box、Shadowrocket 等非浏览器客户端不受影响。UA 白名单按行配置，使用不区分大小写的关键字匹配。
+“访问控制 → 订阅”提供常规浏览器拦截开关、UA 白名单和最近 200 条订阅拉取记录。拦截默认关闭，开启后 Chrome、Safari、Firefox、Edge 等常规浏览器 UA 会收到 `404 Not Found`；Clash、sing-box、Shadowrocket 等非浏览器客户端不受影响。UA 白名单按行配置，使用不区分大小写的关键字匹配。
 
 拉取记录包含匹配到的订阅账号、结果、HTTP 状态、客户端 IP、User-Agent 和精确时间，不保存订阅令牌。记录默认保留 30 天，可在“系统设置 → 数据保留”中修改。
 

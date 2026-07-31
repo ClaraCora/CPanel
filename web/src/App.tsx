@@ -18,7 +18,7 @@ import { HistoryPage } from "./pages/HistoryPage";
 import { NodeEditorPage } from "./pages/NodeEditorPage";
 import { NodesPage } from "./pages/NodesPage";
 import { OverviewPage } from "./pages/OverviewPage";
-import { SettingsPage } from "./pages/SettingsPage";
+import { SettingsPage, SubscriptionPage } from "./pages/SettingsPage";
 import type { Session } from "./types";
 
 export default function App() {
@@ -81,6 +81,7 @@ export default function App() {
             <Route path="/access-groups" component={AccessGroupsPage} />
             <Route path="/plans" component={PlansPage} />
             <Route path="/users" component={UsersPage} />
+            <Route path="/subscription" component={SubscriptionPage} />
             <Route path="/routes" component={RoutesPage} />
             <Route path="/outbounds" component={OutboundsPage} />
             <Route path="/history" component={HistoryPage} />

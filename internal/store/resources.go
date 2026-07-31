@@ -15,6 +15,9 @@ import (
 
 func (s *Store) Overview(ctx context.Context) (domain.Overview, error) {
 	var overview domain.Overview
+	if _, err := s.ReconcileMachinePresence(ctx); err != nil {
+		return overview, err
+	}
 	err := s.pool.QueryRow(ctx, `
 		SELECT
 			(SELECT count(*) FROM machines WHERE status <> 'archived'),
@@ -74,6 +77,10 @@ func (s *Store) trafficRanking(ctx context.Context, query string) ([]domain.Traf
 }
 
 func (s *Store) ListMachines(ctx context.Context) ([]domain.Machine, error) {
+	threshold := s.machineOfflineThreshold(ctx)
+	if _, err := s.reconcileMachinePresence(ctx, threshold); err != nil {
+		return nil, err
+	}
 	rows, err := s.pool.Query(ctx, `
 		SELECT m.id, m.name, m.region, m.host, m.labels, m.notes, m.status,
 		       m.agent_version, m.kernel_type, m.capabilities, m.last_heartbeat_at,
@@ -90,6 +97,7 @@ func (s *Store) ListMachines(ctx context.Context) ([]domain.Machine, error) {
 	}
 	defer rows.Close()
 	items := make([]domain.Machine, 0)
+	now := time.Now()
 	for rows.Next() {
 		var item domain.Machine
 		if err := rows.Scan(&item.ID, &item.Name, &item.Region, &item.Host, &item.Labels, &item.Notes,
@@ -99,9 +107,40 @@ func (s *Store) ListMachines(ctx context.Context) ([]domain.Machine, error) {
 			&item.NodeCount, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
+		item.Status = effectiveMachineStatus(item.Status, item.LastHeartbeat, now, threshold)
 		items = append(items, item)
 	}
 	return items, rows.Err()
+}
+
+func (s *Store) machineOfflineThreshold(ctx context.Context) time.Duration {
+	seconds := s.SettingInt(ctx, "agent", "offline_threshold_seconds", 180, 10)
+	return time.Duration(seconds) * time.Second
+}
+
+func (s *Store) ReconcileMachinePresence(ctx context.Context) (int64, error) {
+	return s.reconcileMachinePresence(ctx, s.machineOfflineThreshold(ctx))
+}
+
+func (s *Store) reconcileMachinePresence(ctx context.Context, threshold time.Duration) (int64, error) {
+	tag, err := s.pool.Exec(ctx, `UPDATE machines SET status='offline',updated_at=now()
+		WHERE status='online'
+		  AND (last_heartbeat_at IS NULL OR last_heartbeat_at < now() - ($1::bigint * interval '1 second'))`,
+		int64(threshold/time.Second))
+	if err != nil {
+		return 0, err
+	}
+	return tag.RowsAffected(), nil
+}
+
+func effectiveMachineStatus(status string, lastHeartbeat *time.Time, now time.Time, threshold time.Duration) string {
+	if status != "online" {
+		return status
+	}
+	if lastHeartbeat == nil || lastHeartbeat.Before(now.Add(-threshold)) {
+		return "offline"
+	}
+	return status
 }
 
 func (s *Store) RequestMachineAgentUpgrade(ctx context.Context, machineID, latestVersion string) (domain.AgentUpgradeTask, error) {

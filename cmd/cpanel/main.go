@@ -98,6 +98,7 @@ func serve(cfg config.Config, dataStore *store.Store, box *securebox.Box) error 
 	maintenanceCtx, stopMaintenance := context.WithCancel(context.Background())
 	defer stopMaintenance()
 	go maintainHistoricalData(maintenanceCtx, dataStore)
+	go maintainMachinePresence(maintenanceCtx, dataStore)
 	server := &http.Server{Addr: cfg.Addr, Handler: httpapi.New(cfg, dataStore, box).Handler(), ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
 	errCh := make(chan error, 1)
 	go func() { slog.Info("cpanel listening", "addr", cfg.Addr); errCh <- server.ListenAndServe() }()
@@ -113,6 +114,32 @@ func serve(cfg config.Config, dataStore *store.Store, box *securebox.Box) error 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	return server.Shutdown(ctx)
+}
+
+func maintainMachinePresence(ctx context.Context, dataStore *store.Store) {
+	reconcile := func() {
+		count, err := dataStore.ReconcileMachinePresence(ctx)
+		if err != nil {
+			if !errors.Is(err, context.Canceled) {
+				slog.Error("machine presence reconciliation failed", "error", err)
+			}
+			return
+		}
+		if count > 0 {
+			slog.Info("machines marked offline", "count", count)
+		}
+	}
+	reconcile()
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			reconcile()
+		}
+	}
 }
 
 func maintainHistoricalData(ctx context.Context, dataStore *store.Store) {

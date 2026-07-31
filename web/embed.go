@@ -32,7 +32,10 @@ func Handler() http.Handler {
 		if assetPath != "" {
 			info, statErr := fs.Stat(dist, assetPath)
 			if statErr == nil && !info.IsDir() {
-				if strings.HasPrefix(assetPath, "assets/") {
+				if strings.HasPrefix(assetPath, "assets/secure/") {
+					w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
+					w.Header().Add("Vary", "Cookie")
+				} else if strings.HasPrefix(assetPath, "assets/") {
 					w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 				}
 				files.ServeHTTP(w, r)

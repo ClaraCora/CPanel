@@ -1,52 +1,30 @@
-import { useEffect, useState } from "react";
-import { Redirect, Route, Router, Switch } from "wouter";
-import { api, demoMode, setCsrfToken } from "./api";
-import { AppShell } from "./components/AppShell";
-import { EmptyState, ToastProvider } from "./components/ui";
-import { demoSession } from "./mock";
-import {
-  AccessGroupsPage,
-  MachinesPage,
-  OutboundsPage,
-  PlansPage,
-  RoutesPage,
-  UsersPage,
-} from "./pages/ResourcePages";
-import { AuditPage } from "./pages/AuditPage";
+import { Component, Suspense, lazy, useEffect, useState, type ReactNode } from "react";
+import { authApi, demoMode } from "./auth";
+import { ToastProvider } from "./components/ui";
 import { LoginPage } from "./pages/LoginPage";
-import { HistoryPage } from "./pages/HistoryPage";
-import { NodeEditorPage } from "./pages/NodeEditorPage";
-import { NodesPage } from "./pages/NodesPage";
-import { OverviewPage } from "./pages/OverviewPage";
-import { SettingsPage, SubscriptionPage } from "./pages/SettingsPage";
 import type { Session } from "./types";
 
+const AuthenticatedApp = lazy(() => import("./AuthenticatedApp"));
+
 export default function App() {
-  const [session, setSession] = useState<Session | null>(
-    demoMode ? demoSession : null,
-  );
+  const [session, setSession] = useState<Session | null>(null);
   const [checking, setChecking] = useState(!demoMode);
 
   useEffect(() => {
-    if (demoMode) {
-      setCsrfToken(demoSession.csrf_token);
-      return;
-    }
-    api
-      .get<Session>("/session")
-      .then((value) => {
-        setCsrfToken(value.csrf_token);
-        setSession(value);
-      })
+    if (demoMode) return;
+    authApi
+      .current()
+      .then(setSession)
       .catch(() => setSession(null))
       .finally(() => setChecking(false));
   }, []);
 
   async function logout() {
     try {
-      await api.delete("/sessions/current");
+      await authApi.logout();
     } finally {
       setSession(null);
+      window.location.reload();
     }
   }
 
@@ -65,47 +43,40 @@ export default function App() {
     );
 
   return (
-    <Router>
-      <ToastProvider>
-        <AppShell
-          admin={session.admin}
-          demo={demoMode}
+    <AuthenticatedLoadBoundary>
+      <Suspense fallback={<BootScreen label="正在加载管理后台…" />}>
+        <AuthenticatedApp
+          session={session}
+          onAdminChange={(admin) => setSession((current) => current ? { ...current, admin } : current)}
           onLogout={() => void logout()}
-        >
-          <Switch>
-            <Route path="/" component={OverviewPage} />
-            <Route path="/machines" component={MachinesPage} />
-            <Route path="/nodes" component={NodesPage} />
-            <Route path="/nodes/new" component={NodeEditorPage} />
-            <Route path="/nodes/:id/edit" component={NodeEditorPage} />
-            <Route path="/access-groups" component={AccessGroupsPage} />
-            <Route path="/plans" component={PlansPage} />
-            <Route path="/users" component={UsersPage} />
-            <Route path="/subscription" component={SubscriptionPage} />
-            <Route path="/routes" component={RoutesPage} />
-            <Route path="/outbounds" component={OutboundsPage} />
-            <Route path="/history" component={HistoryPage} />
-            <Route path="/settings">
-              <SettingsPage
-                admin={session.admin}
-                onAdminChange={(admin) => setSession((current) => current ? { ...current, admin } : current)}
-              />
-            </Route>
-            <Route path="/audit" component={AuditPage} />
-            <Route path="/404">
-              <div className="page">
-                <EmptyState
-                  title="页面不存在"
-                  description="该地址没有对应的管理页面。"
-                />
-              </div>
-            </Route>
-            <Route>
-              <Redirect to="/404" replace />
-            </Route>
-          </Switch>
-        </AppShell>
-      </ToastProvider>
-    </Router>
+        />
+      </Suspense>
+    </AuthenticatedLoadBoundary>
   );
+}
+
+function BootScreen({ label }: { label: string }) {
+  return <main className="boot-screen">
+    <div className="brand__mark">C</div>
+    <span>{label}</span>
+  </main>;
+}
+
+class AuthenticatedLoadBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    if (this.state.failed) {
+      return <main className="boot-screen">
+        <div className="brand__mark">C</div>
+        <span>管理后台加载失败</span>
+        <button type="button" className="button button--secondary" onClick={() => window.location.reload()}>重新加载</button>
+      </main>;
+    }
+    return this.props.children;
+  }
 }

@@ -45,3 +45,15 @@ func TestLegacyPublicPathsReturnNotFound(t *testing.T) {
 		}
 	}
 }
+
+func TestProtectedWebAssetsRequireAdmin(t *testing.T) {
+	handler := (&Server{}).Handler()
+	request := httptest.NewRequest(http.MethodGet, "/assets/secure/AuthenticatedApp-example.js", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("protected asset status = %d, want 401", response.Code)
+	}
+}

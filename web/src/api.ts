@@ -1,30 +1,11 @@
 import { demoNodes, demoResource, demoSession } from "./mock";
-import type { ApiErrorBody, Envelope, Session } from "./types";
+import { ApiError, demoMode, getCsrfToken } from "./auth";
+import type { Envelope } from "./types";
+
+export { ApiError, demoMode } from "./auth";
 
 const base = "/ca/ht";
 const requestTimeoutMs = 15_000;
-let csrfToken = "";
-
-export const demoMode = new URLSearchParams(window.location.search).get("demo") === "1";
-
-export class ApiError extends Error {
-  readonly status: number;
-  readonly code: string;
-  readonly fields: Record<string, string>;
-
-  constructor(status: number, body: ApiErrorBody) {
-    super(body.message);
-    this.name = "ApiError";
-    this.status = status;
-    this.code = body.code;
-    this.fields = body.fields ?? {};
-  }
-}
-
-export function setCsrfToken(value: string) {
-  csrfToken = value;
-}
-
 const resourcePaths: Record<string, string> = {
   machines: "fwq", nodes: "jd", "access-groups": "qxz", plans: "tc", users: "yh",
   "route-policies": "ly", outbounds: "ck",
@@ -66,7 +47,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (demoMode) return demoRequest<T>(path, init);
   const headers = new Headers(init.headers);
   if (init.body) headers.set("Content-Type", "application/json");
-  if (init.method && !["GET", "HEAD"].includes(init.method)) headers.set("X-CSRF-Token", csrfToken);
+  if (init.method && !["GET", "HEAD"].includes(init.method)) headers.set("X-CSRF-Token", getCsrfToken());
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), requestTimeoutMs);
   try {
@@ -132,9 +113,4 @@ export const api = {
   post: <T>(path: string, body?: unknown) => request<T>(path, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) }),
   patch: <T>(path: string, body: unknown) => request<T>(path, { method: "PATCH", body: JSON.stringify(body) }),
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
-  login: async (email: string, password: string) => {
-    const session = await request<Session>("/sessions", { method: "POST", body: JSON.stringify({ email, password }) });
-    setCsrfToken(session.csrf_token);
-    return session;
-  },
 };

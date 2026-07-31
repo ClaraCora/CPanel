@@ -108,7 +108,9 @@ func (s *Server) Handler() http.Handler {
 		control.Get("/td", s.handleAgentStreamEntry)
 	})
 
-	router.NotFound(webui.Handler().ServeHTTP)
+	webHandler := webui.Handler()
+	router.With(s.requireAdmin).Handle("/assets/secure/*", webHandler)
+	router.NotFound(webHandler.ServeHTTP)
 
 	return router
 }

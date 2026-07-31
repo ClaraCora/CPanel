@@ -104,6 +104,7 @@ func (s *Store) PruneHistoricalData(ctx context.Context) error {
 	devicesDays := s.SettingInt(ctx, "retention", "devices_days", 30, 1)
 	trafficDays := s.SettingInt(ctx, "retention", "traffic_days", 90, 1)
 	auditDays := s.SettingInt(ctx, "retention", "audit_days", 180, 1)
+	subscriptionAccessDays := s.SettingInt(ctx, "retention", "subscription_access_days", 30, 1)
 	queries := []struct {
 		query string
 		days  int
@@ -113,6 +114,7 @@ func (s *Store) PruneHistoricalData(ctx context.Context) error {
 		{`DELETE FROM imported_node_traffic_daily WHERE day < current_date - $1::int`, trafficDays},
 		{`DELETE FROM imported_user_traffic_daily WHERE day < current_date - $1::int`, trafficDays},
 		{`DELETE FROM audit_events WHERE created_at < now() - ($1::int * interval '1 day')`, auditDays},
+		{`DELETE FROM subscription_access_events WHERE created_at < now() - ($1::int * interval '1 day')`, subscriptionAccessDays},
 	}
 	for _, item := range queries {
 		if _, err := s.pool.Exec(ctx, item.query, item.days); err != nil {

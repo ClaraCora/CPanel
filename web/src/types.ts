@@ -213,6 +213,17 @@ export interface Setting {
   updated_at: string;
 }
 
+export interface SubscriptionAccessEvent {
+  id: string;
+  user_id: string | null;
+  user_name: string;
+  ip_address: string;
+  user_agent: string;
+  outcome: "allowed" | "blocked" | "not_found" | "failed";
+  status_code: number;
+  created_at: string;
+}
+
 export interface ApiErrorBody {
   code: string;
   message: string;

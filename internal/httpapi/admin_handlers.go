@@ -2,10 +2,12 @@ package httpapi
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/mail"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"cpanel/internal/auth"
 	"cpanel/internal/domain"
@@ -120,12 +122,13 @@ func (s *Server) handleUpdateAdminPassword(w http.ResponseWriter, r *http.Reques
 	if !decodeJSON(w, r, &input) {
 		return
 	}
+	minimumLength := s.store.SettingInt(r.Context(), "security", "password_min_length", 8, 8)
 	fields := map[string]string{}
 	if input.CurrentPassword == "" {
 		fields["current_password"] = "请输入当前密码"
 	}
-	if len(input.NewPassword) < 12 {
-		fields["new_password"] = "新密码至少需要 12 个字符"
+	if utf8.RuneCountInString(input.NewPassword) < minimumLength {
+		fields["new_password"] = fmt.Sprintf("新密码至少需要 %d 个字符", minimumLength)
 	}
 	if input.NewPassword != input.ConfirmPassword {
 		fields["confirm_password"] = "两次输入的新密码不一致"
@@ -150,7 +153,7 @@ func (s *Server) handleUpdateAdminPassword(w http.ResponseWriter, r *http.Reques
 	}
 	hash, err := auth.HashPassword(input.NewPassword)
 	if err != nil {
-		writeError(w, r, http.StatusUnprocessableEntity, "PASSWORD_INVALID", "新密码不符合安全要求", map[string]string{"new_password": "新密码至少需要 12 个字符"})
+		writeError(w, r, http.StatusUnprocessableEntity, "PASSWORD_INVALID", "新密码不符合安全要求", map[string]string{"new_password": fmt.Sprintf("新密码至少需要 %d 个字符", minimumLength)})
 		return
 	}
 	session, _ := r.Context().Value(sessionKey).(domain.AdminSession)

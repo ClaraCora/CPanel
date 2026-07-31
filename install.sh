@@ -213,7 +213,7 @@ if [ -z "$ADMIN_PASSWORD" ]; then
   ADMIN_PASSWORD=$(openssl rand -hex 12)
   GENERATED_ADMIN_PASSWORD=true
 fi
-[ "${#ADMIN_PASSWORD}" -ge 12 ] || fail "CPANEL_ADMIN_PASSWORD must contain at least 12 characters"
+[ "${#ADMIN_PASSWORD}" -ge 8 ] || fail "CPANEL_ADMIN_PASSWORD must contain at least 8 characters"
 
 if ! runuser -u postgres -- psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='cpanel'" | grep -q 1; then
   runuser -u postgres -- psql -v ON_ERROR_STOP=1 -c "CREATE ROLE cpanel LOGIN PASSWORD '${DB_PASSWORD}'" >/dev/null

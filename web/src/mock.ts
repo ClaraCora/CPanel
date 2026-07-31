@@ -9,6 +9,7 @@ import type {
   RoutePolicy,
   Session,
   Setting,
+  SubscriptionAccessEvent,
   User,
 } from "./types";
 
@@ -77,8 +78,17 @@ export const demoSettings: Record<string, Setting[]> = {
     { key: "heartbeat_seconds", value: 60, sensitive: false, version: 1, updated_at: now },
     { key: "offline_threshold_seconds", value: 180, sensitive: false, version: 1, updated_at: now },
   ],
-  security: [], node_defaults: [], certificate: [], subscription: [], retention: [],
+  security: [{ key: "password_min_length", value: 8, sensitive: false, version: 1, updated_at: now }], node_defaults: [], certificate: [],
+  subscription: [
+    { key: "block_browser_access", value: true, sensitive: false, version: 1, updated_at: now },
+    { key: "ua_whitelist", value: "Clash\nShadowrocket\nsing-box", sensitive: false, version: 1, updated_at: now },
+  ], retention: [],
 };
+
+export const demoSubscriptionAccess: SubscriptionAccessEvent[] = [
+  { id: "sac_demo_01", user_id: "usr_1001", user_name: "li.ming", ip_address: "203.0.113.8", user_agent: "ClashMetaForAndroid/2.11.13.Meta", outcome: "allowed", status_code: 200, created_at: now },
+  { id: "sac_demo_02", user_id: "usr_1002", user_name: "chen", ip_address: "198.51.100.24", user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.5 Safari/605.1.15", outcome: "blocked", status_code: 404, created_at: "2026-07-31T06:31:00Z" },
+];
 
 export const demoAuditEvents = [
   { id: "aud_01", admin_id: "adm_demo", admin_name: "管理员", action: "node.publish", resource_type: "node", resource_id: "nod_1042", changes: { revision: 31 }, ip_address: "127.0.0.1", request_id: "req_demo_01", created_at: now },
@@ -98,6 +108,7 @@ export function demoResource(path: string): unknown {
   if (path === "/users") return demoUsers;
   if (path === "/route-policies") return demoRoutes;
   if (path === "/outbounds") return demoOutbounds;
+  if (path === "/settings/subscription/access-log") return demoSubscriptionAccess;
   if (path.startsWith("/settings/")) return demoSettings[path.split("/")[2]] ?? [];
   if (path === "/audit-events") return demoAuditEvents;
   return null;

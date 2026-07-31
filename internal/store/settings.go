@@ -73,6 +73,26 @@ func (s *Store) SettingInt(ctx context.Context, section, key string, fallback, m
 	return decoded
 }
 
+func (s *Store) SettingBool(ctx context.Context, section, key string, fallback bool) bool {
+	value, err := s.RawSetting(ctx, section, key)
+	if err != nil {
+		return fallback
+	}
+	var decoded bool
+	if json.Unmarshal(value, &decoded) == nil {
+		return decoded
+	}
+	var text string
+	if json.Unmarshal(value, &text) != nil {
+		return fallback
+	}
+	decoded, err = strconv.ParseBool(text)
+	if err != nil {
+		return fallback
+	}
+	return decoded
+}
+
 func (s *Store) SetAgentSharedCredential(ctx context.Context, adminID string, tokenHash []byte, prefix string) error {
 	_, err := s.pool.Exec(ctx, `INSERT INTO agent_shared_credentials(singleton,token_hash,token_prefix,updated_by)
 		VALUES(1,$1,$2,$3) ON CONFLICT(singleton) DO UPDATE SET

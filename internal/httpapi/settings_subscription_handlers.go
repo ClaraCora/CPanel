@@ -3,6 +3,7 @@ package httpapi
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"sort"
 	"strings"
@@ -20,6 +21,15 @@ func (s *Server) handleHistoricalData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeData(w, r, http.StatusOK, data)
+}
+
+func (s *Server) handleListSubscriptionAccess(w http.ResponseWriter, r *http.Request) {
+	items, err := s.store.ListSubscriptionAccess(r.Context(), 200)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	writeData(w, r, http.StatusOK, items)
 }
 
 var allowedSettingSections = map[string]bool{
@@ -92,6 +102,33 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 			}
 			input.Values[key] = sealed
 		}
+		if section == "subscription" && key == "block_browser_access" {
+			var enabled bool
+			if err := json.Unmarshal(value, &enabled); err != nil {
+				writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "浏览器拦截开关必须是布尔值", map[string]string{key: "请选择启用或关闭"})
+				return
+			}
+		}
+		if section == "subscription" && key == "ua_whitelist" {
+			var configured string
+			if err := json.Unmarshal(value, &configured); err != nil {
+				writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "UA 白名单格式无效", map[string]string{key: "请每行填写一个 UA 关键字"})
+				return
+			}
+			normalized, err := normalizeUAWhitelist(configured)
+			if err != nil {
+				writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "UA 白名单最多 100 条，每条最多 256 个字符", map[string]string{key: "请精简白名单记录"})
+				return
+			}
+			input.Values[key], _ = json.Marshal(normalized)
+		}
+		if section == "security" && key == "password_min_length" {
+			var minimum int
+			if err := json.Unmarshal(value, &minimum); err != nil || minimum < 8 || minimum > 128 {
+				writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "密码最小长度必须是 8 到 128", map[string]string{key: "请输入 8 到 128 之间的整数"})
+				return
+			}
+		}
 		if section == "agent" && key == "allow_legacy_protocol" {
 			var allowed bool
 			if err := json.Unmarshal(value, &allowed); err != nil {
@@ -133,22 +170,41 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSubscription(w http.ResponseWriter, r *http.Request) {
+	userAgent := sanitizeUserAgent(r.UserAgent())
+	ipAddress := resolvedClientIP(r, s.store.SettingString(r.Context(), "security", "trusted_proxy_cidrs", ""))
+	recordAccess := func(userID *string, userName, outcome string, statusCode int) {
+		if err := s.store.RecordSubscriptionAccess(r.Context(), userID, userName, ipAddress, userAgent, outcome, statusCode); err != nil {
+			slog.Warn("record subscription access failed", "request_id", requestID(r), "error", err)
+		}
+	}
 	token := strings.TrimSpace(chi.URLParam(r, "token"))
 	if token == "" {
+		recordAccess(nil, "", "not_found", http.StatusNotFound)
 		http.NotFound(w, r)
 		return
 	}
 	data, err := s.store.SubscriptionByToken(r.Context(), auth.HashSecret(token))
 	if errors.Is(err, store.ErrNotFound) {
+		recordAccess(nil, "", "not_found", http.StatusNotFound)
 		http.NotFound(w, r)
 		return
 	}
 	if err != nil {
+		recordAccess(nil, "", "failed", http.StatusServiceUnavailable)
 		http.Error(w, "subscription unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	userID := data.UserID
+	if s.store.SettingBool(r.Context(), "subscription", "block_browser_access", false) &&
+		isConventionalBrowserUA(userAgent) &&
+		!uaWhitelistMatches(userAgent, s.store.SettingString(r.Context(), "subscription", "ua_whitelist", "")) {
+		recordAccess(&userID, data.UserName, "blocked", http.StatusNotFound)
+		http.NotFound(w, r)
 		return
 	}
 	output, err := subscription.BuildClashMeta(data)
 	if err != nil {
+		recordAccess(&userID, data.UserName, "failed", http.StatusUnprocessableEntity)
 		http.Error(w, "subscription configuration unavailable", http.StatusUnprocessableEntity)
 		return
 	}
@@ -156,6 +212,7 @@ func (s *Server) handleSubscription(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", `inline; filename="cpanel.yaml"`)
 	w.Header().Set("Cache-Control", "private, no-store")
 	w.Header().Set("Profile-Title", "CPanel")
+	recordAccess(&userID, data.UserName, "allowed", http.StatusOK)
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(output)
 }

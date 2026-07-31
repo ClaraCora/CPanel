@@ -44,6 +44,7 @@ function wirePath(path: string): string {
   if (segments[0] === "overview") return "/zl";
   if (segments[0] === "history") return "/ls";
   if (segments[0] === "audit-events") return "/sj";
+  if (segments[0] === "settings" && segments[1] === "subscription" && segments[2] === "access-log") return "/sz/dy/jl";
   if (segments[0] === "settings") return `/sz/${settingPaths[segments[1]] ?? segments[1]}`;
   const resource = resourcePaths[segments[0]];
   if (!resource) return path;

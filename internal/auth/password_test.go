@@ -16,7 +16,13 @@ func TestPasswordRoundTrip(t *testing.T) {
 }
 
 func TestPasswordMinimumLength(t *testing.T) {
-	if _, err := HashPassword("too-short"); err == nil {
-		t.Fatal("expected short password to fail")
+	if _, err := HashPassword("1234567"); err == nil {
+		t.Fatal("expected seven-character password to fail")
+	}
+	if _, err := HashPassword("12345678"); err != nil {
+		t.Fatalf("expected eight-character password to pass: %v", err)
+	}
+	if _, err := HashPassword("密码测试八个字符"); err != nil {
+		t.Fatalf("expected eight-or-more Unicode characters to pass: %v", err)
 	}
 }

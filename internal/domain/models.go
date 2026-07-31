@@ -416,6 +416,17 @@ type Setting struct {
 	UpdatedAt time.Time       `json:"updated_at"`
 }
 
+type SubscriptionAccessEvent struct {
+	ID         string    `json:"id"`
+	UserID     *string   `json:"user_id"`
+	UserName   string    `json:"user_name"`
+	IPAddress  string    `json:"ip_address"`
+	UserAgent  string    `json:"user_agent"`
+	Outcome    string    `json:"outcome"`
+	StatusCode int       `json:"status_code"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
 type AuditEvent struct {
 	ID           string          `json:"id"`
 	AdminID      *string         `json:"admin_id"`

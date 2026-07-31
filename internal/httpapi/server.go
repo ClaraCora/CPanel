@@ -84,6 +84,7 @@ func (s *Server) Handler() http.Handler {
 		ops.Get("/ck", s.handleListOutbounds)
 		ops.Post("/ck", s.handleCreateOutbound)
 		ops.Patch("/ck/{id}", s.handleUpdateOutbound)
+		ops.Get("/sz/dy/jl", s.handleListSubscriptionAccess)
 		ops.Get("/sz/{section}", s.handleListSettings)
 		ops.Patch("/sz/{section}", s.handleUpdateSettings)
 		ops.Get("/sj", s.handleListAuditEvents)

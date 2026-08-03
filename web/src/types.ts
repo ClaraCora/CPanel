@@ -140,6 +140,7 @@ export interface RoutePolicyRule {
   match: {
     domains?: string[];
     domain_suffixes?: string[];
+    domain_regexes?: string[];
     ip_cidrs?: string[];
     ports?: string[];
     networks?: string[];

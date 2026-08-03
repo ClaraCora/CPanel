@@ -3,9 +3,10 @@ import type { Outbound, RoutePolicyRule } from "../types";
 
 type MatchKey = keyof RoutePolicyRule["match"];
 
-const matchOptions: { value: MatchKey; label: string; placeholder: string }[] = [
+const matchOptions: { value: MatchKey; label: string; placeholder: string; multiline?: boolean }[] = [
   { value: "domains", label: "精确域名", placeholder: "api.example.com, cdn.example.com" },
   { value: "domain_suffixes", label: "域名后缀", placeholder: "example.com, example.net" },
+  { value: "domain_regexes", label: "域名正则", placeholder: "每行一条，可直接粘贴 regexp: 开头的 Xray 规则", multiline: true },
   { value: "ip_cidrs", label: "目标 IP/CIDR", placeholder: "10.0.0.0/8, 2001:db8::/32" },
   { value: "ports", label: "目标端口", placeholder: "443, 8000-9000" },
   { value: "networks", label: "网络协议", placeholder: "" },
@@ -17,7 +18,7 @@ const emptyRule = (): RoutePolicyRule => ({ name: "", match: { domain_suffixes: 
 
 export function RouteRulesEditor({ value, outbounds, onChange }: { value: string; outbounds: Outbound[]; onChange: (value: string) => void }) {
   const rules = parseRouteRules(value);
-  const availableOutbounds = outbounds.filter((item) => item.status === "active" && !["direct", "block"].includes(item.protocol) && item.kernel_support.includes("xray") && item.kernel_support.includes("singbox"));
+  const availableOutbounds = outbounds.filter((item) => item.status === "active" && !["direct", "block"].includes(item.protocol) && item.kernel_support.includes("xray"));
 
   function commit(next: RoutePolicyRule[]) {
     onChange(JSON.stringify(next));
@@ -55,11 +56,11 @@ export function RouteRulesEditor({ value, outbounds, onChange }: { value: string
         <div className="route-rule__body">
           <section className="route-rule__matches">
             <h4>匹配条件</h4>
-            {matchOptions.filter((option) => option.value in rule.match).map((option) => <div className="route-match-row" key={option.value}>
+            {matchOptions.filter((option) => option.value in rule.match).map((option) => <div className={`route-match-row ${option.multiline ? "route-match-row--multiline" : ""}`} key={option.value}>
               <span>{option.label}</span>
               {option.value === "networks" ? <div className="route-network-options">
                 {["tcp", "udp"].map((network) => <label key={network}><input type="checkbox" checked={(rule.match.networks ?? []).includes(network)} onChange={() => updateRule(index, (current) => ({ ...current, match: { ...current.match, networks: toggleValue(current.match.networks ?? [], network) } }))} /><span>{network.toUpperCase()}</span></label>)}
-              </div> : <input value={(rule.match[option.value] ?? []).join(", ")} placeholder={option.placeholder} onChange={(event) => updateRule(index, (current) => ({ ...current, match: { ...current.match, [option.value]: splitValues(event.target.value) } }))} />}
+              </div> : option.multiline ? <textarea rows={6} spellCheck={false} value={(rule.match[option.value] ?? []).join("\n")} placeholder={option.placeholder} onChange={(event) => updateRule(index, (current) => ({ ...current, match: { ...current.match, [option.value]: splitRegexValues(event.target.value) } }))} /> : <input value={(rule.match[option.value] ?? []).join(", ")} placeholder={option.placeholder} onChange={(event) => updateRule(index, (current) => ({ ...current, match: { ...current.match, [option.value]: splitValues(event.target.value) } }))} />}
               <button type="button" className="icon-button" aria-label={`移除${option.label}`} title="移除条件" onClick={() => updateRule(index, (current) => {
                 const match = { ...current.match };
                 delete match[option.value];
@@ -74,7 +75,7 @@ export function RouteRulesEditor({ value, outbounds, onChange }: { value: string
           <section className="route-rule__action">
             <h4>执行动作</h4>
             <div className="route-action-options" role="group" aria-label="执行动作">
-              {([{"value":"direct","label":"直连"},{"value":"block","label":"阻断"},{"value":"route","label":"指定出站"}] as const).map((action) => <button type="button" className={rule.action.type === action.value ? "active" : ""} aria-pressed={rule.action.type === action.value} disabled={action.value === "route" && availableOutbounds.length === 0} title={action.value === "route" && availableOutbounds.length === 0 ? "请先添加同时支持 Xray 与 sing-box 的出站" : undefined} onClick={() => updateRule(index, (current) => ({ ...current, action: { type: action.value, ...(action.value === "route" && availableOutbounds[0] ? { target: availableOutbounds[0].tag } : {}) } }))} key={action.value}>{action.label}</button>)}
+              {([{"value":"direct","label":"直连"},{"value":"block","label":"阻断"},{"value":"route","label":"指定出站"}] as const).map((action) => <button type="button" className={rule.action.type === action.value ? "active" : ""} aria-pressed={rule.action.type === action.value} disabled={action.value === "route" && availableOutbounds.length === 0} title={action.value === "route" && availableOutbounds.length === 0 ? "请先添加可用于 Xray 的出站" : undefined} onClick={() => updateRule(index, (current) => ({ ...current, action: { type: action.value, ...(action.value === "route" && availableOutbounds[0] ? { target: availableOutbounds[0].tag } : {}) } }))} key={action.value}>{action.label}</button>)}
             </div>
             {rule.action.type === "route" && <label className="route-outbound-select"><span>出站目标</span><select value={rule.action.target ?? ""} onChange={(event) => updateRule(index, (current) => ({ ...current, action: { type: "route", target: event.target.value } }))}><option value="">请选择出站</option>{availableOutbounds.map((item) => <option value={item.tag} key={item.id}>{item.name} · {item.tag}</option>)}</select></label>}
           </section>
@@ -106,6 +107,10 @@ function parseRouteRules(value: string): RoutePolicyRule[] {
 
 function splitValues(value: string): string[] {
   return value.split(/[,，\n]/).map((item) => item.trim()).filter(Boolean);
+}
+
+function splitRegexValues(value: string): string[] {
+  return value.split(/\r?\n/).map((item) => item.trim().replace(/^regexp:\s*/i, "").replace(/\\\\/g, "\\")).filter(Boolean);
 }
 
 function toggleValue(values: string[], value: string): string[] {

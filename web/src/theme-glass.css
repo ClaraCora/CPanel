@@ -951,7 +951,8 @@ a.resource-name:hover {
 }
 
 .node-picker,
-.route-builder {
+.route-builder,
+.outbound-builder {
   background: rgba(5, 9, 15, 0.4);
   border-color: var(--border);
 }
@@ -974,7 +975,8 @@ a.resource-name:hover {
 
 .node-picker__search input { color: var(--foreground); }
 .node-picker__commands,
-.route-builder__header { background: rgba(255, 255, 255, 0.025); }
+.route-builder__header,
+.outbound-protocol-selector { background: rgba(255, 255, 255, 0.025); border-color: var(--border); }
 .node-picker__commands button { color: var(--primary); }
 .node-picker__list > label { background: rgba(255, 255, 255, 0.012); }
 .node-picker__list > label:hover { background: rgba(64, 217, 255, 0.045); }

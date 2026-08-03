@@ -108,7 +108,7 @@ func mergeAgentRoutingSettings(settings, rawRules, rawOutbounds json.RawMessage,
 			return nil, fmt.Errorf("decode route policy rules: %w", err)
 		}
 	}
-	config["custom_route_rules"] = rules
+	config["custom_route_rules"] = routeRulesForAgent(rules)
 
 	allOutbounds := make([]map[string]any, 0)
 	if len(rawOutbounds) > 0 {
@@ -125,6 +125,26 @@ func mergeAgentRoutingSettings(settings, rawRules, rawOutbounds json.RawMessage,
 		return nil, fmt.Errorf("encode node routing settings: %w", err)
 	}
 	return encoded, nil
+}
+
+func routeRulesForAgent(rules []domain.RoutePolicyRule) []domain.RoutePolicyRule {
+	result := make([]domain.RoutePolicyRule, len(rules))
+	copy(result, rules)
+	for index := range result {
+		result[index].Match.Domains = append([]string{}, rules[index].Match.Domains...)
+		for _, expression := range rules[index].Match.DomainRegexes {
+			expression = strings.TrimSpace(expression)
+			if expression == "" {
+				continue
+			}
+			if !strings.HasPrefix(strings.ToLower(expression), "regexp:") {
+				expression = "regexp:" + expression
+			}
+			result[index].Match.Domains = append(result[index].Match.Domains, expression)
+		}
+		result[index].Match.DomainRegexes = nil
+	}
+	return result
 }
 
 func selectRouteOutbounds(rules []domain.RoutePolicyRule, all []map[string]any) []map[string]any {

@@ -1073,7 +1073,7 @@ func (s *Store) validateRoutePolicyTargets(ctx context.Context, rules []domain.R
 	}
 	rows, err := s.pool.Query(ctx, `SELECT lower(tag) FROM outbounds
 		WHERE status='active' AND protocol NOT IN ('direct','block')
-		  AND kernel_support @> ARRAY['singbox','xray']::text[]`)
+		  AND 'xray'=ANY(kernel_support)`)
 	if err != nil {
 		return err
 	}
@@ -1131,7 +1131,7 @@ func (s *Store) CreateOutbound(ctx context.Context, input domain.Outbound) (doma
 		input.Settings = json.RawMessage(`{}`)
 	}
 	if len(input.KernelSupport) == 0 {
-		input.KernelSupport = []string{"singbox", "xray"}
+		input.KernelSupport = []string{"xray"}
 	}
 	err := s.pool.QueryRow(ctx, `
 		INSERT INTO outbounds(id,name,tag,protocol,settings,proxy_tag,kernel_support)
@@ -1144,7 +1144,12 @@ func (s *Store) CreateOutbound(ctx context.Context, input domain.Outbound) (doma
 }
 
 func (s *Store) UpdateOutbound(ctx context.Context, outboundID string, input domain.OutboundUpdate) (domain.Outbound, error) {
-	command, err := s.pool.Exec(ctx, `UPDATE outbounds SET
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return domain.Outbound{}, err
+	}
+	defer tx.Rollback(ctx)
+	command, err := tx.Exec(ctx, `UPDATE outbounds SET
 		name=COALESCE(NULLIF(BTRIM($2),''),name),tag=COALESCE(NULLIF(BTRIM($3),''),tag),
 		protocol=COALESCE($4,protocol),settings=COALESCE($5,settings),proxy_tag=COALESCE($6,proxy_tag),
 		kernel_support=COALESCE($7,kernel_support),status=COALESCE($8,status),updated_at=now()
@@ -1156,6 +1161,14 @@ func (s *Store) UpdateOutbound(ctx context.Context, outboundID string, input dom
 	if command.RowsAffected() == 0 {
 		return domain.Outbound{}, ErrNotFound
 	}
+	if outboundUpdateAffectsNodeSpecs(input) {
+		if err := notifyAllPublishedNodeSpecs(ctx, tx); err != nil {
+			return domain.Outbound{}, err
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return domain.Outbound{}, err
+	}
 	items, err := s.ListOutbounds(ctx)
 	if err != nil {
 		return domain.Outbound{}, err
@@ -1166,6 +1179,23 @@ func (s *Store) UpdateOutbound(ctx context.Context, outboundID string, input dom
 		}
 	}
 	return domain.Outbound{}, ErrNotFound
+}
+
+func outboundUpdateAffectsNodeSpecs(input domain.OutboundUpdate) bool {
+	return input.Tag != nil || input.Protocol != nil || input.Settings != nil || input.ProxyTag != nil ||
+		input.KernelSupport != nil || input.Status != nil
+}
+
+func notifyAllPublishedNodeSpecs(ctx context.Context, tx pgx.Tx) error {
+	_, err := tx.Exec(ctx, `WITH changed AS (
+		UPDATE nodes SET current_revision=current_revision+1,updated_at=now()
+		WHERE status='published'
+		RETURNING id,agent_id,machine_id,current_revision
+	)
+	INSERT INTO control_changes(machine_id,node_id,event_type,revision,payload)
+	SELECT machine_id,id,'node.spec.replace',current_revision,jsonb_build_object('node_id',agent_id)
+	FROM changed`)
+	return err
 }
 
 func (s *Store) NotifyAllPublishedNodes(ctx context.Context) error {

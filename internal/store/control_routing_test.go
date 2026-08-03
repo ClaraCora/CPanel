@@ -3,6 +3,8 @@ package store
 import (
 	"encoding/json"
 	"testing"
+
+	"cpanel/internal/domain"
 )
 
 func TestMergeAgentRoutingSettingsIncludesRulesAndOutboundChain(t *testing.T) {
@@ -52,5 +54,38 @@ func TestMergeAgentRoutingSettingsClearsRulesForDisabledPolicy(t *testing.T) {
 	}
 	if rules, ok := decoded["custom_route_rules"].([]any); !ok || len(rules) != 0 {
 		t.Fatalf("disabled policy should emit an empty rule set: %s", merged)
+	}
+}
+
+func TestMergeAgentRoutingSettingsCompilesDomainRegexForXray(t *testing.T) {
+	rules := json.RawMessage(`[{"name":"blocked","match":{"domain_regexes":["^(.+\\.)?example\\.com$"]},"action":{"type":"block"}}]`)
+	merged, err := mergeAgentRoutingSettings(json.RawMessage(`{}`), rules, json.RawMessage(`[]`), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded struct {
+		Rules []struct {
+			Match map[string][]string `json:"match"`
+		} `json:"custom_route_rules"`
+	}
+	if err := json.Unmarshal(merged, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if len(decoded.Rules) != 1 || len(decoded.Rules[0].Match["domains"]) != 1 || decoded.Rules[0].Match["domains"][0] != `regexp:^(.+\.)?example\.com$` {
+		t.Fatalf("domain regex was not compiled for Agent: %s", merged)
+	}
+	if _, exists := decoded.Rules[0].Match["domain_regexes"]; exists {
+		t.Fatalf("Agent payload must not contain panel-only domain_regexes: %s", merged)
+	}
+}
+
+func TestOutboundUpdateAffectsNodeSpecs(t *testing.T) {
+	name := "display only"
+	settings := json.RawMessage(`{"servers":[{"address":"127.0.0.1","port":1080}]}`)
+	if outboundUpdateAffectsNodeSpecs(domain.OutboundUpdate{Name: &name}) {
+		t.Fatal("renaming an outbound should not replace every published node spec")
+	}
+	if !outboundUpdateAffectsNodeSpecs(domain.OutboundUpdate{Settings: &settings}) {
+		t.Fatal("changing outbound settings must replace published node specs")
 	}
 }

@@ -10,6 +10,7 @@ func TestValidateRoutePolicyRulesNormalizesValues(t *testing.T) {
 		Name: "  media  ",
 		Match: RoutePolicyMatch{
 			DomainSuffixes: []string{" Example.COM ", "example.com"},
+			DomainRegexes:  []string{" regexp:^(.+\\.)?Example\\.COM$ ", "^(.+\\.)?Example\\.COM$", `^.*(\\.torrent|announce\\.php\\?passkey=).*$`},
 			Ports:          []string{"443", "8000-9000"},
 			Networks:       []string{" TCP ", "udp"},
 		},
@@ -24,6 +25,9 @@ func TestValidateRoutePolicyRulesNormalizesValues(t *testing.T) {
 	if got := rules[0].Match.DomainSuffixes; len(got) != 1 || got[0] != "example.com" {
 		t.Fatalf("domain suffixes were not normalized: %#v", got)
 	}
+	if got := rules[0].Match.DomainRegexes; len(got) != 2 || got[0] != `^(.+\.)?Example\.COM$` || got[1] != `^.*(\.torrent|announce\.php\?passkey=).*$` {
+		t.Fatalf("domain regexes were not normalized or preserved case: %#v", got)
+	}
 }
 
 func TestValidateRoutePolicyRulesRejectsInvalidRule(t *testing.T) {
@@ -35,6 +39,7 @@ func TestValidateRoutePolicyRulesRejectsInvalidRule(t *testing.T) {
 		{name: "empty match", rule: RoutePolicyRule{Action: RoutePolicyAction{Type: "direct"}}, want: "至少需要一个匹配条件"},
 		{name: "invalid cidr", rule: RoutePolicyRule{Match: RoutePolicyMatch{IPCIDRs: []string{"10.0.0.1"}}, Action: RoutePolicyAction{Type: "direct"}}, want: "无效的 IP/CIDR"},
 		{name: "invalid port range", rule: RoutePolicyRule{Match: RoutePolicyMatch{Ports: []string{"9000-8000"}}, Action: RoutePolicyAction{Type: "direct"}}, want: "无效端口"},
+		{name: "invalid domain regex", rule: RoutePolicyRule{Match: RoutePolicyMatch{DomainRegexes: []string{"regexp:("}}, Action: RoutePolicyAction{Type: "block"}}, want: "无效域名正则"},
 		{name: "missing outbound", rule: RoutePolicyRule{Match: RoutePolicyMatch{Domains: []string{"example.com"}}, Action: RoutePolicyAction{Type: "route"}}, want: "请选择出站目标"},
 	}
 	for _, test := range tests {

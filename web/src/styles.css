@@ -354,6 +354,9 @@ a.resource-name:hover { color: var(--primary); text-decoration: underline; }
 .route-match-row { display: grid; grid-template-columns: 90px minmax(0, 1fr) 30px; align-items: center; gap: 7px; margin-top: 7px; }
 .route-match-row > span { color: var(--secondary); font-size: 9px; }
 .route-match-row input { min-height: 34px; font-size: 10px; }
+.route-match-row textarea { min-height: 132px; resize: vertical; font-family: "Cascadia Mono", Consolas, monospace; font-size: 10px; line-height: 1.55; }
+.route-match-row--multiline { align-items: start; }
+.route-match-row--multiline > span { padding-top: 10px; }
 .route-match-row .icon-button { width: 30px; height: 30px; }
 .route-network-options { display: flex; min-height: 34px; align-items: center; gap: 6px; }
 .route-network-options label { display: flex; min-height: 28px; align-items: center; gap: 5px; padding: 0 8px; background: #f2f2f7; border-radius: 5px; font-size: 9px; cursor: pointer; }
@@ -365,6 +368,12 @@ a.resource-name:hover { color: var(--primary); text-decoration: underline; }
 .route-action-options button.active { color: white; background: var(--primary); }
 .route-outbound-select { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; color: var(--secondary); font-size: 9px; }
 .route-outbound-select select { min-height: 36px; }
+.outbound-builder { overflow: hidden; border: 1px solid var(--border); border-radius: 8px; }
+.outbound-protocol-selector { align-items: end; background: #f7f7fa; border-bottom: 1px solid var(--border); }
+.outbound-builder .config-group:first-of-type { border-top: 0; }
+.outbound-builder .input-with-action .button { min-width: 82px; }
+.outbound-builder textarea { min-height: 82px; resize: vertical; }
+.outbound-chain { padding-bottom: 0; }
 .install-command { display: flex; min-height: 100%; flex-direction: column; gap: 14px; padding: 18px; }
 .install-command > p { color: var(--secondary); font-size: 12px; line-height: 1.55; }
 .install-command .code-editor { min-height: 180px; }

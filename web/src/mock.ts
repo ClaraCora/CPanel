@@ -54,8 +54,7 @@ export const demoUsers: User[] = [
 ];
 
 export const demoOutbounds: Outbound[] = [
-  { id: "out_direct", name: "默认直连", tag: "direct", protocol: "direct", settings: {}, proxy_tag: "", kernel_support: ["singbox", "xray"], status: "active", created_at: now, updated_at: now },
-  { id: "out_sg", name: "新加坡代理", tag: "sg-proxy", protocol: "vless", settings: { server: "10.4.2.12", port: 443 }, proxy_tag: "", kernel_support: ["singbox", "xray"], status: "active", created_at: now, updated_at: now },
+  { id: "out_sg", name: "新加坡代理", tag: "sg-proxy", protocol: "vless", settings: { vnext: [{ address: "10.4.2.12", port: 443, users: [{ id: "c6b6f019-0523-43ab-980b-30a251bac363", encryption: "none" }] }] }, proxy_tag: "", kernel_support: ["xray"], status: "active", created_at: now, updated_at: now },
 ];
 
 export const demoOverview: Overview = { machines_total: 3, machines_online: 2, machines_offline: 1, nodes_total: 4, nodes_published: 2, admins_active: 1, users_active: 1284, friends_active: 28, traffic_today_bytes: 7237010223104, traffic_today_upload_bytes: 1546188226560, traffic_today_download_bytes: 5690821996544, node_traffic_ranking: [{ id: "nod_1042", name: "香港 VLESS 主入口", upload_bytes: 824633720832, download_bytes: 2748779069440, total_bytes: 3573412790272 }], user_traffic_ranking: [{ id: "usr_1001", name: "li.ming", upload_bytes: 5368709120, download_bytes: 7516192768, total_bytes: 12884901888 }] };

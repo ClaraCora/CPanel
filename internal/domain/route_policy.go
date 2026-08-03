@@ -3,6 +3,7 @@ package domain
 import (
 	"fmt"
 	"net/netip"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -36,6 +37,11 @@ func ValidateRoutePolicyRules(rules []RoutePolicyRule) error {
 				return fmt.Errorf("第 %d 条规则的网络类型必须是 TCP 或 UDP", index+1)
 			}
 		}
+		for _, expression := range rule.Match.DomainRegexes {
+			if _, err := regexp.Compile(expression); err != nil {
+				return fmt.Errorf("第 %d 条规则包含无效域名正则：%s", index+1, expression)
+			}
+		}
 		switch rule.Action.Type {
 		case "direct", "block":
 			if rule.Action.Target != "" {
@@ -55,11 +61,35 @@ func ValidateRoutePolicyRules(rules []RoutePolicyRule) error {
 func normalizeRouteMatch(match *RoutePolicyMatch) {
 	match.Domains = normalizeRouteValues(match.Domains, true)
 	match.DomainSuffixes = normalizeRouteValues(match.DomainSuffixes, true)
+	match.DomainRegexes = normalizeRouteRegexes(match.DomainRegexes)
 	match.IPCIDRs = normalizeRouteValues(match.IPCIDRs, false)
 	match.Ports = normalizeRouteValues(match.Ports, true)
 	match.Networks = normalizeRouteValues(match.Networks, true)
 	match.SourceCIDRs = normalizeRouteValues(match.SourceCIDRs, false)
 	match.SourcePorts = normalizeRouteValues(match.SourcePorts, true)
+}
+
+func normalizeRouteRegexes(values []string) []string {
+	result := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if len(value) >= len("regexp:") && strings.EqualFold(value[:len("regexp:")], "regexp:") {
+			value = strings.TrimSpace(value[len("regexp:"):])
+		}
+		// Rules copied from JSON often contain escaped backslashes. Domain names
+		// cannot contain a backslash, so normalize those expressions for Xray.
+		value = strings.ReplaceAll(value, `\\`, `\`)
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	return result
 }
 
 func normalizeRouteValues(values []string, lower bool) []string {
@@ -83,7 +113,7 @@ func normalizeRouteValues(values []string, lower bool) []string {
 }
 
 func routeMatchEmpty(match RoutePolicyMatch) bool {
-	return len(match.Domains)+len(match.DomainSuffixes)+len(match.IPCIDRs)+len(match.Ports)+
+	return len(match.Domains)+len(match.DomainSuffixes)+len(match.DomainRegexes)+len(match.IPCIDRs)+len(match.Ports)+
 		len(match.Networks)+len(match.SourceCIDRs)+len(match.SourcePorts) == 0
 }
 

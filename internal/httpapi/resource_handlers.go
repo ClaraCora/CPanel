@@ -683,7 +683,11 @@ func (s *Server) handleCreateOutbound(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "出站设置不是有效 JSON", nil)
 		return
 	}
-	input.Tag = strings.ToLower(input.Tag)
+	input.Tag = strings.ToLower(strings.TrimSpace(input.Tag))
+	if err := domain.ValidateOutbound(input.Tag, input.Protocol, input.Settings); err != nil {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", err.Error(), map[string]string{"settings": err.Error()})
+		return
+	}
 	item, err := s.store.CreateOutbound(r.Context(), input)
 	if err != nil {
 		writeStoreError(w, r, err)
@@ -706,6 +710,12 @@ func (s *Server) handleUpdateOutbound(w http.ResponseWriter, r *http.Request) {
 	if input.Tag != nil {
 		value := strings.ToLower(strings.TrimSpace(*input.Tag))
 		input.Tag = &value
+	}
+	if input.Tag != nil && input.Protocol != nil && input.Settings != nil {
+		if err := domain.ValidateOutbound(*input.Tag, *input.Protocol, *input.Settings); err != nil {
+			writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", err.Error(), map[string]string{"settings": err.Error()})
+			return
+		}
 	}
 	if !validOneOf(input.Status, "active", "disabled") {
 		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "出站状态无效", nil)

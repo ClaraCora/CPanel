@@ -4,10 +4,11 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Boxes,
+  LoaderCircle,
   Server,
-  ShieldCheck,
   Users,
 } from "lucide-react";
+import { useState } from "react";
 import { Link } from "wouter";
 import { useResource } from "../hooks";
 import type { Overview, TrafficRank } from "../types";
@@ -35,10 +36,13 @@ const emptyOverview: Overview = {
 };
 
 export function OverviewPage() {
+  const [period, setPeriod] = useState<"today" | "yesterday" | "7d">("today");
   const { data, loading, error, reload } = useResource<Overview>(
-    "/overview",
+    `/overview?period=${period}`,
     emptyOverview,
   );
+	const hasLoaded = data !== emptyOverview;
+	const periodLabel = period === "today" ? "今日" : period === "yesterday" ? "昨日" : "近七天";
   return (
     <div className="page">
       <PageHeader
@@ -50,7 +54,7 @@ export function OverviewPage() {
           </Link>
         }
       />
-      {error ? (
+      {error && !hasLoaded ? (
         <EmptyState
           title="总览加载失败"
           description={error}
@@ -63,7 +67,7 @@ export function OverviewPage() {
             </button>
           }
         />
-      ) : loading ? (
+      ) : loading && !hasLoaded ? (
         <TableSkeleton columns={4} rows={2} />
       ) : (
         <>
@@ -103,13 +107,18 @@ export function OverviewPage() {
           <section className="ranking-section" aria-labelledby="traffic-ranking-title">
             <div className="section-heading">
               <div>
-                <h2 id="traffic-ranking-title">今日流量排行</h2>
+                <h2 id="traffic-ranking-title">{periodLabel}流量排行</h2>
                 <p>按上传与下载合计排序，最多显示 10 条。</p>
               </div>
+				<div className="ranking-period" role="group" aria-label="流量排行时间范围">
+					{([{"value":"today","label":"今日"},{"value":"yesterday","label":"昨日"},{"value":"7d","label":"近七天"}] as const).map((item) => <button type="button" className={period === item.value ? "active" : ""} aria-pressed={period === item.value} onClick={() => setPeriod(item.value)} key={item.value}>{item.label}</button>)}
+					{loading && <LoaderCircle className="spin ranking-period__loading" size={15} aria-label="正在更新排行" />}
+				</div>
             </div>
-            <div className="ranking-grid">
-              <TrafficRanking title="节点流量排行" items={data.node_traffic_ranking} empty="今天还没有节点流量" />
-              <TrafficRanking title="用户流量排行" items={data.user_traffic_ranking} empty="今天还没有用户流量" />
+			{error && <div className="ranking-error" role="alert"><span>{error}</span><button type="button" onClick={() => void reload()}>重新加载</button></div>}
+            <div className={`ranking-grid ${loading ? "is-loading" : ""}`}>
+              <TrafficRanking title="节点流量排行" items={data.node_traffic_ranking} empty={`${periodLabel}还没有节点流量`} />
+              <TrafficRanking title="用户流量排行" items={data.user_traffic_ranking} empty={`${periodLabel}还没有用户流量`} />
             </div>
           </section>
           <section className="overview-section">
@@ -151,32 +160,6 @@ export function OverviewPage() {
                 )}
               </div>
             )}
-          </section>
-          <section className="quick-links">
-            <Link to="/nodes/new">
-              <Boxes size={18} />
-              <span>
-                <strong>添加节点</strong>
-                <small>创建新的入站服务配置</small>
-              </span>
-              <ArrowRight size={16} />
-            </Link>
-            <Link to="/users">
-              <Users size={18} />
-              <span>
-                <strong>添加账号</strong>
-                <small>分配套餐和订阅权限</small>
-              </span>
-              <ArrowRight size={16} />
-            </Link>
-            <Link to="/settings">
-              <ShieldCheck size={18} />
-              <span>
-                <strong>系统设置</strong>
-                <small>站点、安全与 Agent 参数</small>
-              </span>
-              <ArrowRight size={16} />
-            </Link>
           </section>
         </>
       )}

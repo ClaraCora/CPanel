@@ -16,6 +16,13 @@ const settingPaths: Record<string, string> = {
 const rolePaths: Record<string, string> = { admin: "gly", user: "yh", friend: "py" };
 
 function wirePath(path: string): string {
+	const queryIndex = path.indexOf("?");
+	const query = queryIndex >= 0 ? path.slice(queryIndex) : "";
+	const pathname = queryIndex >= 0 ? path.slice(0, queryIndex) : path;
+	return `${wirePathname(pathname)}${query}`;
+}
+
+function wirePathname(path: string): string {
   const segments = path.split("/").filter(Boolean);
   if (segments.length === 0) return path;
   if (segments[0] === "session") return "/hh";

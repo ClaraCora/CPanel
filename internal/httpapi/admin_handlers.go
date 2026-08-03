@@ -178,7 +178,15 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
-	value, err := s.store.Overview(r.Context())
+	period := r.URL.Query().Get("period")
+	if period == "" {
+		period = "today"
+	}
+	if period != "today" && period != "yesterday" && period != "7d" {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "流量排行时间范围无效", nil)
+		return
+	}
+	value, err := s.store.Overview(r.Context(), period)
 	if err != nil {
 		writeStoreError(w, r, err)
 		return

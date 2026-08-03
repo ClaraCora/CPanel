@@ -33,7 +33,7 @@ export function TableSkeleton({ columns = 6, rows = 6 }: { columns?: number; row
   return <div className="table-skeleton" aria-label="正在加载"><div className="skeleton-row" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>{Array.from({ length: columns }).map((_, i) => <i key={i} />)}</div>{Array.from({ length: rows }).map((_, row) => <div className="skeleton-row" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }} key={row}>{Array.from({ length: columns }).map((_, col) => <i key={col} />)}</div>)}</div>;
 }
 
-export function Drawer({ open, title, description, children, onClose }: { open: boolean; title: string; description?: string; children: ReactNode; onClose: () => void }) {
+export function Drawer({ open, wide = false, title, description, children, onClose }: { open: boolean; wide?: boolean; title: string; description?: string; children: ReactNode; onClose: () => void }) {
   const titleID = useId();
   useEffect(() => {
     if (!open) return;
@@ -43,7 +43,7 @@ export function Drawer({ open, title, description, children, onClose }: { open: 
     return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
   }, [open, onClose]);
   if (!open) return null;
-  return createPortal(<div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose} /><aside className="drawer" role="dialog" aria-modal="true" aria-labelledby={titleID}><header className="drawer__header"><div><h2 id={titleID}>{title}</h2>{description && <p>{description}</p>}</div><button className="icon-button" aria-label="关闭" title="关闭" onClick={onClose}><X size={19} /></button></header><div className="drawer__body">{children}</div></aside></div>, document.body);
+  return createPortal(<div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose} /><aside className={`drawer ${wide ? "drawer--wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby={titleID}><header className="drawer__header"><div><h2 id={titleID}>{title}</h2>{description && <p>{description}</p>}</div><button className="icon-button" aria-label="关闭" title="关闭" onClick={onClose}><X size={19} /></button></header><div className="drawer__body">{children}</div></aside></div>, document.body);
 }
 
 export function RowMenu({ label, children }: { label: string; children: ReactNode }) {
@@ -111,8 +111,9 @@ export function ConfirmDialog({ open, title, description, confirmLabel = "确认
   return createPortal(<div className="confirm-layer"><button type="button" className="confirm-backdrop" aria-label="取消并关闭" onClick={() => { if (!loading) onClose(); }} /><section className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby={titleID} aria-describedby={descriptionID}><h2 id={titleID}>{title}</h2><p id={descriptionID}>{description}</p><footer><button ref={cancelRef} type="button" className="button button--secondary" onClick={onClose} disabled={loading}>取消</button><Button type="button" variant={confirmVariant} loading={loading} onClick={onConfirm}>{confirmLabel}</Button></footer></section></div>, document.body);
 }
 
-export function Field({ label, required, error, helper, children }: { label: string; required?: boolean; error?: string; helper?: string; children: ReactNode }) {
-  return <label className={`field ${error ? "field--error" : ""}`}><span className="field__label">{label}{required && <b aria-hidden="true"> *</b>}</span>{children}{error ? <span className="field__error" role="alert">{error}</span> : helper ? <span className="field__helper">{helper}</span> : null}</label>;
+export function Field({ label, required, error, helper, group = false, children }: { label: string; required?: boolean; error?: string; helper?: string; group?: boolean; children: ReactNode }) {
+  const content = <><span className="field__label">{label}{required && <b aria-hidden="true"> *</b>}</span>{children}{error ? <span className="field__error" role="alert">{error}</span> : helper ? <span className="field__helper">{helper}</span> : null}</>;
+  return group ? <div className={`field ${error ? "field--error" : ""}`}>{content}</div> : <label className={`field ${error ? "field--error" : ""}`}>{content}</label>;
 }
 
 type ToastItem = { id: number; tone: "success" | "error"; message: string };

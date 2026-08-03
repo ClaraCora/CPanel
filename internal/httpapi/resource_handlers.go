@@ -603,8 +603,9 @@ func (s *Server) handleListRoutePolicies(w http.ResponseWriter, r *http.Request)
 
 func (s *Server) handleCreateRoutePolicy(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Name  string `json:"name"`
-		Notes string `json:"notes"`
+		Name  string                   `json:"name"`
+		Notes string                   `json:"notes"`
+		Rules []domain.RoutePolicyRule `json:"rules"`
 	}
 	if !decodeJSON(w, r, &input) {
 		return
@@ -613,7 +614,12 @@ func (s *Server) handleCreateRoutePolicy(w http.ResponseWriter, r *http.Request)
 		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "请填写路由策略名称", nil)
 		return
 	}
-	item, err := s.store.CreateRoutePolicy(r.Context(), input.Name, input.Notes)
+	if err := domain.ValidateRoutePolicyRules(input.Rules); err != nil {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", err.Error(), map[string]string{"rules": err.Error()})
+		return
+	}
+	admin := currentAdmin(r)
+	item, err := s.store.CreateRoutePolicy(r.Context(), input.Name, input.Notes, admin.ID, input.Rules)
 	if err != nil {
 		writeStoreError(w, r, err)
 		return
@@ -635,7 +641,14 @@ func (s *Server) handleUpdateRoutePolicy(w http.ResponseWriter, r *http.Request)
 		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "路由策略状态无效", nil)
 		return
 	}
-	item, err := s.store.UpdateRoutePolicy(r.Context(), chi.URLParam(r, "id"), input)
+	if input.Rules != nil {
+		if err := domain.ValidateRoutePolicyRules(*input.Rules); err != nil {
+			writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", err.Error(), map[string]string{"rules": err.Error()})
+			return
+		}
+	}
+	admin := currentAdmin(r)
+	item, err := s.store.UpdateRoutePolicy(r.Context(), chi.URLParam(r, "id"), admin.ID, input)
 	if err != nil {
 		writeStoreError(w, r, err)
 		return

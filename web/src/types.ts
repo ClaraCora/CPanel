@@ -115,6 +115,7 @@ export interface User {
   subscription_available: boolean;
   status: string;
   traffic_used_bytes: number;
+  traffic_limit_bytes: number;
   expires_at: string | null;
   notes?: string;
   created_at: string;
@@ -126,10 +127,29 @@ export interface RoutePolicy {
   name: string;
   status: string;
   current_revision: number;
+  rules: RoutePolicyRule[];
   notes?: string;
   node_count: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface RoutePolicyRule {
+  name?: string;
+  disabled?: boolean;
+  match: {
+    domains?: string[];
+    domain_suffixes?: string[];
+    ip_cidrs?: string[];
+    ports?: string[];
+    networks?: string[];
+    source_cidrs?: string[];
+    source_ports?: string[];
+  };
+  action: {
+    type: "direct" | "block" | "route";
+    target?: string;
+  };
 }
 
 export interface Outbound {

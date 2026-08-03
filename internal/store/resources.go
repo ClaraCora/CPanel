@@ -13,8 +13,10 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-func (s *Store) Overview(ctx context.Context) (domain.Overview, error) {
+func (s *Store) Overview(ctx context.Context, rankingPeriod string) (domain.Overview, error) {
 	var overview domain.Overview
+	currentDay := time.Now().In(loadTrafficLocation(s.SettingString(ctx, "site", "timezone", "Asia/Shanghai"))).Format(time.DateOnly)
+	startOffset, endOffset := rankingDateOffsets(rankingPeriod)
 	if _, err := s.ReconcileMachinePresence(ctx); err != nil {
 		return overview, err
 	}
@@ -28,11 +30,11 @@ func (s *Store) Overview(ctx context.Context) (domain.Overview, error) {
 			(SELECT count(*) FROM users WHERE role='admin' AND status='active'),
 			(SELECT count(*) FROM users WHERE role='user' AND status='active'),
 			(SELECT count(*) FROM users WHERE role='friend' AND status='active'),
-			COALESCE((SELECT sum(upload_bytes) FROM traffic_daily WHERE day=current_date), 0) +
-			  COALESCE((SELECT sum(upload_bytes) FROM imported_user_traffic_daily WHERE day=current_date), 0),
-			COALESCE((SELECT sum(download_bytes) FROM traffic_daily WHERE day=current_date), 0) +
-			  COALESCE((SELECT sum(download_bytes) FROM imported_user_traffic_daily WHERE day=current_date), 0)
-	`).Scan(
+			COALESCE((SELECT sum(upload_bytes) FROM traffic_daily WHERE day=$1::date), 0) +
+			  COALESCE((SELECT sum(upload_bytes) FROM imported_user_traffic_daily WHERE day=$1::date), 0),
+			COALESCE((SELECT sum(download_bytes) FROM traffic_daily WHERE day=$1::date), 0) +
+			  COALESCE((SELECT sum(download_bytes) FROM imported_user_traffic_daily WHERE day=$1::date), 0)
+	`, currentDay).Scan(
 		&overview.MachinesTotal, &overview.MachinesOnline, &overview.MachinesOffline,
 		&overview.NodesTotal, &overview.NodesPublished, &overview.AdminsActive, &overview.UsersActive,
 		&overview.FriendsActive, &overview.TrafficTodayUpload, &overview.TrafficTodayDownload,
@@ -42,25 +44,40 @@ func (s *Store) Overview(ctx context.Context) (domain.Overview, error) {
 	}
 	overview.TrafficToday = overview.TrafficTodayUpload + overview.TrafficTodayDownload
 	overview.NodeTrafficRanking, err = s.trafficRanking(ctx, `WITH combined AS (
-		SELECT node_id,upload_bytes,download_bytes FROM traffic_daily WHERE day=current_date
-		UNION ALL SELECT node_id,upload_bytes,download_bytes FROM imported_node_traffic_daily WHERE day=current_date)
+		SELECT node_id,upload_bytes,download_bytes FROM traffic_daily
+		WHERE day >= $1::date + $2::int AND day < $1::date + $3::int
+		UNION ALL SELECT node_id,upload_bytes,download_bytes FROM imported_node_traffic_daily
+		WHERE day >= $1::date + $2::int AND day < $1::date + $3::int)
 		SELECT n.id,n.name,sum(t.upload_bytes),sum(t.download_bytes),sum(t.upload_bytes+t.download_bytes)
 		FROM combined t JOIN nodes n ON n.id=t.node_id GROUP BY n.id,n.name
-		ORDER BY sum(t.upload_bytes+t.download_bytes) DESC,n.name LIMIT 10`)
+		ORDER BY sum(t.upload_bytes+t.download_bytes) DESC,n.name LIMIT 10`, currentDay, startOffset, endOffset)
 	if err != nil {
 		return overview, err
 	}
 	overview.UserTrafficRanking, err = s.trafficRanking(ctx, `WITH combined AS (
-		SELECT user_id,upload_bytes,download_bytes FROM traffic_daily WHERE day=current_date
-		UNION ALL SELECT user_id,upload_bytes,download_bytes FROM imported_user_traffic_daily WHERE day=current_date)
+		SELECT user_id,upload_bytes,download_bytes FROM traffic_daily
+		WHERE day >= $1::date + $2::int AND day < $1::date + $3::int
+		UNION ALL SELECT user_id,upload_bytes,download_bytes FROM imported_user_traffic_daily
+		WHERE day >= $1::date + $2::int AND day < $1::date + $3::int)
 		SELECT u.id,u.name,sum(t.upload_bytes),sum(t.download_bytes),sum(t.upload_bytes+t.download_bytes)
 		FROM combined t JOIN users u ON u.id=t.user_id GROUP BY u.id,u.name
-		ORDER BY sum(t.upload_bytes+t.download_bytes) DESC,u.name LIMIT 10`)
+		ORDER BY sum(t.upload_bytes+t.download_bytes) DESC,u.name LIMIT 10`, currentDay, startOffset, endOffset)
 	return overview, err
 }
 
-func (s *Store) trafficRanking(ctx context.Context, query string) ([]domain.TrafficRank, error) {
-	rows, err := s.pool.Query(ctx, query)
+func rankingDateOffsets(period string) (int, int) {
+	switch period {
+	case "yesterday":
+		return -1, 0
+	case "7d":
+		return -6, 1
+	default:
+		return 0, 1
+	}
+}
+
+func (s *Store) trafficRanking(ctx context.Context, query string, args ...any) ([]domain.TrafficRank, error) {
+	rows, err := s.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -771,7 +788,9 @@ func (s *Store) ListUsers(ctx context.Context) ([]domain.User, error) {
 		SELECT u.id,u.agent_id,u.role,u.plan_id,p.name,u.access_group_override_id,u.name,u.email,u.uuid,
 		       u.subscription_token_prefix,(COALESCE(u.subscription_token_plain,'') <> ''),u.status,
 		       u.traffic_limit_override_bytes,u.speed_limit_override_mbps,
-		       u.device_limit_override,u.traffic_used_bytes,u.traffic_reset_at,u.expires_at,u.notes,u.created_at,u.updated_at
+		       u.device_limit_override,u.traffic_used_bytes,
+		       COALESCE(u.traffic_limit_override_bytes,p.traffic_limit_bytes,0),
+		       u.traffic_reset_at,u.expires_at,u.notes,u.created_at,u.updated_at
 		FROM users u LEFT JOIN plans p ON p.id=u.plan_id
 		WHERE u.status <> 'archived' ORDER BY u.created_at DESC`)
 	if err != nil {
@@ -784,7 +803,7 @@ func (s *Store) ListUsers(ctx context.Context) ([]domain.User, error) {
 		if err := rows.Scan(&item.ID, &item.AgentID, &item.Role, &item.PlanID, &item.PlanName,
 			&item.AccessGroupOverrideID, &item.Name, &item.Email, &item.UUID, &item.SubscriptionTokenPrefix,
 			&item.SubscriptionAvailable, &item.Status, &item.TrafficLimitOverrideBytes, &item.SpeedLimitOverrideMbps,
-			&item.DeviceLimitOverride, &item.TrafficUsedBytes, &item.TrafficResetAt, &item.ExpiresAt,
+			&item.DeviceLimitOverride, &item.TrafficUsedBytes, &item.TrafficLimitBytes, &item.TrafficResetAt, &item.ExpiresAt,
 			&item.Notes, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
@@ -914,7 +933,10 @@ func (s *Store) ArchiveUser(ctx context.Context, userID string) error {
 
 func (s *Store) ListRoutePolicies(ctx context.Context) ([]domain.RoutePolicy, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT r.id,r.name,r.status,r.current_revision,r.notes,
+		SELECT r.id,r.name,r.status,r.current_revision,
+		       COALESCE((SELECT rr.rules FROM route_policy_revisions rr
+		                 WHERE rr.route_policy_id=r.id ORDER BY rr.revision DESC LIMIT 1),'[]'::jsonb),
+		       r.notes,
 		       (SELECT count(*) FROM nodes n WHERE n.route_policy_id=r.id AND n.status <> 'archived'),
 		       r.created_at,r.updated_at
 		FROM route_policies r WHERE r.status <> 'archived' ORDER BY r.created_at DESC`)
@@ -925,8 +947,12 @@ func (s *Store) ListRoutePolicies(ctx context.Context) ([]domain.RoutePolicy, er
 	items := make([]domain.RoutePolicy, 0)
 	for rows.Next() {
 		var item domain.RoutePolicy
-		if err := rows.Scan(&item.ID, &item.Name, &item.Status, &item.CurrentRevision, &item.Notes,
+		var rawRules []byte
+		if err := rows.Scan(&item.ID, &item.Name, &item.Status, &item.CurrentRevision, &rawRules, &item.Notes,
 			&item.NodeCount, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(rawRules, &item.Rules); err != nil {
 			return nil, err
 		}
 		items = append(items, item)
@@ -934,13 +960,32 @@ func (s *Store) ListRoutePolicies(ctx context.Context) ([]domain.RoutePolicy, er
 	return items, rows.Err()
 }
 
-func (s *Store) CreateRoutePolicy(ctx context.Context, name, notes string) (domain.RoutePolicy, error) {
-	item := domain.RoutePolicy{ID: domain.MustID("rte")}
-	err := s.pool.QueryRow(ctx, `INSERT INTO route_policies(id,name,notes,status) VALUES($1,$2,$3,'published')
+func (s *Store) CreateRoutePolicy(ctx context.Context, name, notes, adminID string, rules []domain.RoutePolicyRule) (domain.RoutePolicy, error) {
+	if err := s.validateRoutePolicyTargets(ctx, rules); err != nil {
+		return domain.RoutePolicy{}, err
+	}
+	rawRules, err := json.Marshal(rules)
+	if err != nil {
+		return domain.RoutePolicy{}, err
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return domain.RoutePolicy{}, err
+	}
+	defer tx.Rollback(ctx)
+	item := domain.RoutePolicy{ID: domain.MustID("rte"), Rules: rules}
+	err = tx.QueryRow(ctx, `INSERT INTO route_policies(id,name,notes,status,current_revision) VALUES($1,$2,$3,'published',1)
 		RETURNING name,status,current_revision,notes,created_at,updated_at`,
 		item.ID, strings.TrimSpace(name), strings.TrimSpace(notes),
 	).Scan(&item.Name, &item.Status, &item.CurrentRevision, &item.Notes, &item.CreatedAt, &item.UpdatedAt)
-	return item, mapError(err)
+	if err != nil {
+		return domain.RoutePolicy{}, mapError(err)
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO route_policy_revisions(id,route_policy_id,revision,rules,published_by)
+		VALUES($1,$2,1,$3,$4)`, domain.MustID("rrv"), item.ID, rawRules, adminID); err != nil {
+		return domain.RoutePolicy{}, mapError(err)
+	}
+	return item, tx.Commit(ctx)
 }
 
 func (s *Store) ArchiveRoutePolicy(ctx context.Context, routeID string) error {
@@ -961,15 +1006,48 @@ func (s *Store) ArchiveRoutePolicy(ctx context.Context, routeID string) error {
 	return err
 }
 
-func (s *Store) UpdateRoutePolicy(ctx context.Context, routeID string, input domain.RoutePolicyUpdate) (domain.RoutePolicy, error) {
-	command, err := s.pool.Exec(ctx, `UPDATE route_policies SET
+func (s *Store) UpdateRoutePolicy(ctx context.Context, routeID, adminID string, input domain.RoutePolicyUpdate) (domain.RoutePolicy, error) {
+	if input.Rules != nil {
+		if err := s.validateRoutePolicyTargets(ctx, *input.Rules); err != nil {
+			return domain.RoutePolicy{}, err
+		}
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return domain.RoutePolicy{}, err
+	}
+	defer tx.Rollback(ctx)
+	var currentRevision int
+	err = tx.QueryRow(ctx, `UPDATE route_policies SET
 		name=COALESCE(NULLIF(BTRIM($2),''),name),notes=COALESCE($3,notes),status=COALESCE($4,status),updated_at=now()
-		WHERE id=$1 AND status <> 'archived'`, routeID, input.Name, input.Notes, input.Status)
+		WHERE id=$1 AND status <> 'archived' RETURNING current_revision`, routeID, input.Name, input.Notes, input.Status).Scan(&currentRevision)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.RoutePolicy{}, ErrNotFound
+	}
 	if err != nil {
 		return domain.RoutePolicy{}, mapError(err)
 	}
-	if command.RowsAffected() == 0 {
-		return domain.RoutePolicy{}, ErrNotFound
+	if input.Rules != nil {
+		rawRules, err := json.Marshal(*input.Rules)
+		if err != nil {
+			return domain.RoutePolicy{}, err
+		}
+		currentRevision++
+		if _, err := tx.Exec(ctx, `UPDATE route_policies SET current_revision=$2 WHERE id=$1`, routeID, currentRevision); err != nil {
+			return domain.RoutePolicy{}, err
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO route_policy_revisions(id,route_policy_id,revision,rules,published_by)
+			VALUES($1,$2,$3,$4,$5)`, domain.MustID("rrv"), routeID, currentRevision, rawRules, adminID); err != nil {
+			return domain.RoutePolicy{}, mapError(err)
+		}
+	}
+	if input.Rules != nil || input.Status != nil {
+		if err := notifyRoutePolicyNodes(ctx, tx, routeID); err != nil {
+			return domain.RoutePolicy{}, err
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return domain.RoutePolicy{}, err
 	}
 	items, err := s.ListRoutePolicies(ctx)
 	if err != nil {
@@ -981,6 +1059,51 @@ func (s *Store) UpdateRoutePolicy(ctx context.Context, routeID string, input dom
 		}
 	}
 	return domain.RoutePolicy{}, ErrNotFound
+}
+
+func (s *Store) validateRoutePolicyTargets(ctx context.Context, rules []domain.RoutePolicyRule) error {
+	targets := make(map[string]struct{})
+	for _, rule := range rules {
+		if rule.Action.Type == "route" {
+			targets[strings.ToLower(strings.TrimSpace(rule.Action.Target))] = struct{}{}
+		}
+	}
+	if len(targets) == 0 {
+		return nil
+	}
+	rows, err := s.pool.Query(ctx, `SELECT lower(tag) FROM outbounds
+		WHERE status='active' AND protocol NOT IN ('direct','block')
+		  AND kernel_support @> ARRAY['singbox','xray']::text[]`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var tag string
+		if err := rows.Scan(&tag); err != nil {
+			return err
+		}
+		delete(targets, tag)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if len(targets) > 0 {
+		return ErrRouteOutboundUnavailable
+	}
+	return nil
+}
+
+func notifyRoutePolicyNodes(ctx context.Context, tx pgx.Tx, routeID string) error {
+	_, err := tx.Exec(ctx, `WITH changed AS (
+		UPDATE nodes SET current_revision=current_revision+1,updated_at=now()
+		WHERE route_policy_id=$1 AND status='published'
+		RETURNING id,agent_id,machine_id,current_revision
+	)
+	INSERT INTO control_changes(machine_id,node_id,event_type,revision,payload)
+	SELECT machine_id,id,'node.spec.replace',current_revision,jsonb_build_object('node_id',agent_id)
+	FROM changed`, routeID)
+	return err
 }
 
 func (s *Store) ListOutbounds(ctx context.Context) ([]domain.Outbound, error) {

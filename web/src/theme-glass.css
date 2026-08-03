@@ -760,25 +760,38 @@ a.resource-name:hover {
 .quick-links small { color: var(--secondary); }
 
 .history-tabs,
+.ranking-period,
 .segmented-control {
   background: rgba(5, 9, 15, 0.58);
   border-color: var(--border);
 }
 
 .history-tabs button,
+.ranking-period button,
 .segmented-control button { color: var(--secondary); }
 
 .history-tabs button:hover,
+.ranking-period button:hover,
 .segmented-control button:hover {
   color: var(--foreground);
   background: rgba(255, 255, 255, 0.055);
 }
 
 .history-tabs button.active,
+.ranking-period button.active,
 .segmented-control button.active {
   color: #061119;
   background: linear-gradient(125deg, #58e4ff, #82aaff);
   box-shadow: 0 7px 18px rgba(64, 184, 255, 0.19), inset 0 1px rgba(255, 255, 255, 0.42);
+}
+
+.ranking-grid { transition-timing-function: var(--ease-out); }
+.ranking-period__loading { color: var(--primary); }
+.ranking-error {
+  color: #ffc0cf;
+  background: rgba(255, 111, 145, 0.075);
+  border-color: rgba(255, 111, 145, 0.2);
+  border-radius: 8px;
 }
 
 .table-surface--standalone { border-radius: 0 0 10px 10px; }
@@ -936,6 +949,63 @@ a.resource-name:hover {
   animation-duration: 240ms;
   animation-timing-function: var(--ease-out);
 }
+
+.node-picker,
+.route-builder {
+  background: rgba(5, 9, 15, 0.4);
+  border-color: var(--border);
+}
+
+.node-picker__toolbar,
+.node-picker__commands,
+.node-picker__list > label,
+.route-builder__header,
+.route-rule__header {
+  border-color: var(--border);
+}
+
+.node-picker__search,
+.node-picker__count,
+.node-picker__copy small,
+.route-builder__header span,
+.route-rule__toggle,
+.route-match-row > span,
+.route-outbound-select { color: var(--secondary); }
+
+.node-picker__search input { color: var(--foreground); }
+.node-picker__commands,
+.route-builder__header { background: rgba(255, 255, 255, 0.025); }
+.node-picker__commands button { color: var(--primary); }
+.node-picker__list > label { background: rgba(255, 255, 255, 0.012); }
+.node-picker__list > label:hover { background: rgba(64, 217, 255, 0.045); }
+.node-picker__list > label.is-selected { background: linear-gradient(100deg, rgba(64, 217, 255, 0.095), rgba(79, 124, 255, 0.045)); }
+.node-picker__check { border-color: #667386; }
+.node-picker__list .is-selected .node-picker__check { color: #061119; background: var(--primary); border-color: var(--primary); box-shadow: 0 0 14px rgba(64, 217, 255, 0.16); }
+.node-picker__copy strong,
+.route-builder__header strong,
+.route-rule__body h4 { color: var(--foreground); }
+
+.traffic-usage small { color: var(--secondary); }
+.traffic-usage__track { background: rgba(190, 214, 255, 0.1); }
+.traffic-usage__track i { background: linear-gradient(90deg, #40d9ff, #82aaff); box-shadow: 0 0 10px rgba(64, 217, 255, 0.2); }
+
+.route-builder__empty { color: var(--secondary); }
+.route-builder__empty button,
+.route-add-match { color: var(--primary); }
+.route-rule {
+  background: rgba(12, 17, 27, 0.72);
+  border-color: var(--border);
+  box-shadow: 0 9px 24px rgba(0, 0, 0, 0.16);
+}
+.route-rule__header { background: rgba(255, 255, 255, 0.018); }
+.route-rule__index { color: #a9eefe; background: rgba(64, 217, 255, 0.08); border: 1px solid rgba(64, 217, 255, 0.13); }
+.route-rule__matches { border-color: var(--border); }
+.route-network-options label,
+.route-action-options { color: var(--secondary); background: rgba(5, 9, 15, 0.58); border-color: var(--border); }
+.route-action-options button { color: var(--secondary); }
+.route-action-options button:hover { color: var(--foreground); background: rgba(255, 255, 255, 0.055); }
+.route-action-options button.active { color: #061119; background: linear-gradient(125deg, #58e4ff, #82aaff); box-shadow: 0 7px 18px rgba(64, 184, 255, 0.19); }
+.route-add-match select { color: var(--primary); }
 
 .drawer__header { border-bottom-color: var(--border); }
 .drawer__header h2 { color: var(--foreground); }

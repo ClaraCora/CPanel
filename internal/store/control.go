@@ -68,14 +68,127 @@ func (s *Store) AgentNodes(ctx context.Context, machineID string) ([]domain.Agen
 
 func (s *Store) AgentNodeSpec(ctx context.Context, machineID string, agentNodeID int64) (domain.AgentNodeSpec, error) {
 	var item domain.AgentNodeSpec
-	err := s.pool.QueryRow(ctx, `SELECT agent_id,current_revision,protocol,listen_ip,server_port,kernel_type,config FROM nodes
-		WHERE machine_id=$1 AND agent_id=$2 AND status='published'`, machineID, agentNodeID).Scan(
+	var policyAttached, policyPublished bool
+	var rawRules, rawOutbounds []byte
+	err := s.pool.QueryRow(ctx, `SELECT n.agent_id,n.current_revision,n.protocol,n.listen_ip,n.server_port,n.kernel_type,n.config,
+		       n.route_policy_id IS NOT NULL,COALESCE(r.status='published',false),
+		       COALESCE((SELECT rr.rules FROM route_policy_revisions rr
+		                 WHERE rr.route_policy_id=r.id ORDER BY rr.revision DESC LIMIT 1),'[]'::jsonb),
+		       COALESCE((SELECT jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+		                 'tag',o.tag,'protocol',o.protocol,'settings',o.settings,'proxy_tag',NULLIF(o.proxy_tag,''))) ORDER BY o.created_at)
+		                 FROM outbounds o WHERE o.status='active' AND o.protocol NOT IN ('direct','block')
+		                   AND n.kernel_type=ANY(o.kernel_support)),'[]'::jsonb)
+		FROM nodes n LEFT JOIN route_policies r ON r.id=n.route_policy_id
+		WHERE n.machine_id=$1 AND n.agent_id=$2 AND n.status='published'`, machineID, agentNodeID).Scan(
 		&item.NodeID, &item.Revision, &item.Protocol, &item.ListenIP, &item.ServerPort, &item.KernelType, &item.Settings,
+		&policyAttached, &policyPublished, &rawRules, &rawOutbounds,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.AgentNodeSpec{}, ErrNotFound
 	}
+	if err != nil {
+		return domain.AgentNodeSpec{}, err
+	}
+	if policyAttached {
+		item.Settings, err = mergeAgentRoutingSettings(item.Settings, rawRules, rawOutbounds, policyPublished)
+	}
 	return item, err
+}
+
+func mergeAgentRoutingSettings(settings, rawRules, rawOutbounds json.RawMessage, policyPublished bool) (json.RawMessage, error) {
+	config := make(map[string]any)
+	if len(settings) > 0 {
+		if err := json.Unmarshal(settings, &config); err != nil {
+			return nil, fmt.Errorf("decode node settings: %w", err)
+		}
+	}
+	rules := make([]domain.RoutePolicyRule, 0)
+	if policyPublished && len(rawRules) > 0 {
+		if err := json.Unmarshal(rawRules, &rules); err != nil {
+			return nil, fmt.Errorf("decode route policy rules: %w", err)
+		}
+	}
+	config["custom_route_rules"] = rules
+
+	allOutbounds := make([]map[string]any, 0)
+	if len(rawOutbounds) > 0 {
+		if err := json.Unmarshal(rawOutbounds, &allOutbounds); err != nil {
+			return nil, fmt.Errorf("decode route outbounds: %w", err)
+		}
+	}
+	selected := selectRouteOutbounds(rules, allOutbounds)
+	if len(selected) > 0 {
+		config["custom_outbounds"] = mergeRouteOutbounds(config["custom_outbounds"], selected)
+	}
+	encoded, err := json.Marshal(config)
+	if err != nil {
+		return nil, fmt.Errorf("encode node routing settings: %w", err)
+	}
+	return encoded, nil
+}
+
+func selectRouteOutbounds(rules []domain.RoutePolicyRule, all []map[string]any) []map[string]any {
+	byTag := make(map[string]map[string]any, len(all))
+	for _, outbound := range all {
+		tag, _ := outbound["tag"].(string)
+		if tag != "" {
+			byTag[strings.ToLower(strings.TrimSpace(tag))] = outbound
+		}
+	}
+	wanted := make(map[string]struct{})
+	var include func(string)
+	include = func(tag string) {
+		key := strings.ToLower(strings.TrimSpace(tag))
+		if key == "" {
+			return
+		}
+		if _, exists := wanted[key]; exists {
+			return
+		}
+		outbound, exists := byTag[key]
+		if !exists {
+			return
+		}
+		wanted[key] = struct{}{}
+		if proxyTag, _ := outbound["proxy_tag"].(string); proxyTag != "" {
+			include(proxyTag)
+		}
+	}
+	for _, rule := range rules {
+		if !rule.Disabled && rule.Action.Type == "route" {
+			include(rule.Action.Target)
+		}
+	}
+	selected := make([]map[string]any, 0, len(wanted))
+	for _, outbound := range all {
+		tag, _ := outbound["tag"].(string)
+		if _, exists := wanted[strings.ToLower(strings.TrimSpace(tag))]; exists {
+			selected = append(selected, outbound)
+		}
+	}
+	return selected
+}
+
+func mergeRouteOutbounds(existing any, managed []map[string]any) []map[string]any {
+	managedTags := make(map[string]struct{}, len(managed))
+	for _, outbound := range managed {
+		tag, _ := outbound["tag"].(string)
+		managedTags[strings.ToLower(strings.TrimSpace(tag))] = struct{}{}
+	}
+	result := make([]map[string]any, 0, len(managed))
+	if current, ok := existing.([]any); ok {
+		for _, value := range current {
+			outbound, ok := value.(map[string]any)
+			if !ok {
+				continue
+			}
+			tag, _ := outbound["tag"].(string)
+			if _, replaced := managedTags[strings.ToLower(strings.TrimSpace(tag))]; !replaced {
+				result = append(result, outbound)
+			}
+		}
+	}
+	return append(result, managed...)
 }
 
 func (s *Store) AgentNodeUsers(ctx context.Context, machineID string, agentNodeID int64) ([]domain.AgentUser, error) {

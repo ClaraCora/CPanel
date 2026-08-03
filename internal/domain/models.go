@@ -224,6 +224,7 @@ type User struct {
 	SpeedLimitOverrideMbps    *int       `json:"speed_limit_override_mbps"`
 	DeviceLimitOverride       *int       `json:"device_limit_override"`
 	TrafficUsedBytes          int64      `json:"traffic_used_bytes"`
+	TrafficLimitBytes         int64      `json:"traffic_limit_bytes"`
 	TrafficResetAt            *time.Time `json:"traffic_reset_at"`
 	ExpiresAt                 *time.Time `json:"expires_at"`
 	Notes                     string     `json:"notes,omitempty"`
@@ -266,9 +267,10 @@ type UserUpdate struct {
 }
 
 type RoutePolicyUpdate struct {
-	Name   *string `json:"name"`
-	Notes  *string `json:"notes"`
-	Status *string `json:"status"`
+	Name   *string            `json:"name"`
+	Notes  *string            `json:"notes"`
+	Status *string            `json:"status"`
+	Rules  *[]RoutePolicyRule `json:"rules"`
 }
 
 type OutboundUpdate struct {
@@ -282,14 +284,37 @@ type OutboundUpdate struct {
 }
 
 type RoutePolicy struct {
-	ID              string    `json:"id"`
-	Name            string    `json:"name"`
-	Status          string    `json:"status"`
-	CurrentRevision int       `json:"current_revision"`
-	Notes           string    `json:"notes,omitempty"`
-	NodeCount       int       `json:"node_count"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ID              string            `json:"id"`
+	Name            string            `json:"name"`
+	Status          string            `json:"status"`
+	CurrentRevision int               `json:"current_revision"`
+	Rules           []RoutePolicyRule `json:"rules"`
+	Notes           string            `json:"notes,omitempty"`
+	NodeCount       int               `json:"node_count"`
+	CreatedAt       time.Time         `json:"created_at"`
+	UpdatedAt       time.Time         `json:"updated_at"`
+}
+
+type RoutePolicyRule struct {
+	Name     string            `json:"name,omitempty"`
+	Disabled bool              `json:"disabled,omitempty"`
+	Match    RoutePolicyMatch  `json:"match"`
+	Action   RoutePolicyAction `json:"action"`
+}
+
+type RoutePolicyMatch struct {
+	Domains        []string `json:"domains,omitempty"`
+	DomainSuffixes []string `json:"domain_suffixes,omitempty"`
+	IPCIDRs        []string `json:"ip_cidrs,omitempty"`
+	Ports          []string `json:"ports,omitempty"`
+	Networks       []string `json:"networks,omitempty"`
+	SourceCIDRs    []string `json:"source_cidrs,omitempty"`
+	SourcePorts    []string `json:"source_ports,omitempty"`
+}
+
+type RoutePolicyAction struct {
+	Type   string `json:"type"`
+	Target string `json:"target,omitempty"`
 }
 
 type Outbound struct {

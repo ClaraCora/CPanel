@@ -1,0 +1,55 @@
+package domain
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestValidateRoutePolicyRulesNormalizesValues(t *testing.T) {
+	rules := []RoutePolicyRule{{
+		Name: "  media  ",
+		Match: RoutePolicyMatch{
+			DomainSuffixes: []string{" Example.COM ", "example.com"},
+			Ports:          []string{"443", "8000-9000"},
+			Networks:       []string{" TCP ", "udp"},
+		},
+		Action: RoutePolicyAction{Type: " DIRECT "},
+	}}
+	if err := ValidateRoutePolicyRules(rules); err != nil {
+		t.Fatal(err)
+	}
+	if rules[0].Name != "media" || rules[0].Action.Type != "direct" {
+		t.Fatalf("rule was not normalized: %+v", rules[0])
+	}
+	if got := rules[0].Match.DomainSuffixes; len(got) != 1 || got[0] != "example.com" {
+		t.Fatalf("domain suffixes were not normalized: %#v", got)
+	}
+}
+
+func TestValidateRoutePolicyRulesRejectsInvalidRule(t *testing.T) {
+	tests := []struct {
+		name string
+		rule RoutePolicyRule
+		want string
+	}{
+		{name: "empty match", rule: RoutePolicyRule{Action: RoutePolicyAction{Type: "direct"}}, want: "至少需要一个匹配条件"},
+		{name: "invalid cidr", rule: RoutePolicyRule{Match: RoutePolicyMatch{IPCIDRs: []string{"10.0.0.1"}}, Action: RoutePolicyAction{Type: "direct"}}, want: "无效的 IP/CIDR"},
+		{name: "invalid port range", rule: RoutePolicyRule{Match: RoutePolicyMatch{Ports: []string{"9000-8000"}}, Action: RoutePolicyAction{Type: "direct"}}, want: "无效端口"},
+		{name: "missing outbound", rule: RoutePolicyRule{Match: RoutePolicyMatch{Domains: []string{"example.com"}}, Action: RoutePolicyAction{Type: "route"}}, want: "请选择出站目标"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := ValidateRoutePolicyRules([]RoutePolicyRule{test.rule})
+			if err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("got %v, want error containing %q", err, test.want)
+			}
+		})
+	}
+}
+
+func TestValidateRoutePolicyRulesAllowsIncompleteDisabledRule(t *testing.T) {
+	rules := []RoutePolicyRule{{Disabled: true}}
+	if err := ValidateRoutePolicyRules(rules); err != nil {
+		t.Fatalf("disabled rules should not block publishing: %v", err)
+	}
+}

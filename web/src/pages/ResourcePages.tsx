@@ -2,6 +2,8 @@ import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Copy, Edit3, Link2, Plus, Power, RefreshCw, Search, Terminal, Trash2, UserPlus, UsersRound } from "lucide-react";
 import { ApiError, api } from "../api";
 import { Button, ConfirmDialog, Drawer, EmptyState, Field, PageHeader, RowMenu, StatusBadge, TableSkeleton, formatBytes, formatDate, formatDateWithYear, formatPreciseDate, useToast } from "../components/ui";
+import { NodeMultiSelect, type MultiSelectOption } from "../components/NodeMultiSelect";
+import { RouteRulesEditor, validateRouteRulesValue } from "../components/RouteRulesEditor";
 import { useResource } from "../hooks";
 import type { AccessGroup, Machine, Node, Outbound, Plan, RoutePolicy, User } from "../types";
 
@@ -10,10 +12,11 @@ type Column<T> = { label: string; render: (item: T) => ReactNode; className?: st
 type FieldSpec = {
   key: string;
   label: string;
-  type?: "text" | "number" | "textarea" | "select" | "multiselect" | "json" | "email" | "datetime-local";
+  type?: "text" | "number" | "textarea" | "select" | "node-picker" | "route-rules" | "json" | "email" | "datetime-local";
   required?: boolean;
   helper?: string;
-  options?: { value: string; label: string; exclusive?: boolean }[];
+  options?: (MultiSelectOption & { exclusive?: boolean })[];
+	routeOutbounds?: Outbound[];
   placeholder?: string;
   editOnly?: boolean;
   lockedValue?: string;
@@ -92,6 +95,10 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
       if (field.type === "json" && values[field.key]) {
         try { JSON.parse(values[field.key]); } catch { next[field.key] = `${field.label}必须是有效 JSON`; }
       }
+		if (field.type === "route-rules") {
+			const message = validateRouteRulesValue(values[field.key] ?? "[]");
+			if (message) next[field.key] = message;
+		}
     });
     setErrors(next);
     setFormError("");
@@ -240,7 +247,7 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
         })}</tbody></table></div>
       )}
     </div>
-    <Drawer open={open} title={editing ? `编辑${title}` : createLabel} description={editing ? `修改 ${editing.id} 的配置` : `创建新的${title}记录`} onClose={() => { if (!saving) setOpen(false); }}><form className="drawer-form" onSubmit={submit} aria-busy={saving} noValidate>{formError && <div className="form-error" role="alert">{formError}</div>}{fields.filter((field) => !field.editOnly || editing).map((field) => <Field key={field.key} label={field.label} required={field.required} helper={field.helper} error={errors[field.key]}>{field.type === "textarea" || field.type === "json" ? <textarea className={field.type === "json" ? "code-editor code-editor--small" : ""} rows={field.type === "json" ? 9 : 4} value={values[field.key] ?? ""} placeholder={field.placeholder} onChange={(event) => updateValue(field.key, event.target.value)} /> : field.type === "select" ? <select disabled={Boolean(editing && field.lockedValue && values[field.key] === field.lockedValue)} value={values[field.key] ?? ""} onChange={(event) => updateValue(field.key, event.target.value)}>{field.options?.filter((option) => !option.exclusive || values[field.key] === option.value).map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select> : field.type === "multiselect" ? <select multiple size={Math.min(8, Math.max(3, field.options?.length ?? 3))} value={(values[field.key] ?? "").split(",").filter(Boolean)} onChange={(event) => updateValue(field.key, Array.from(event.target.selectedOptions).map((option) => option.value).join(","))}>{field.options?.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select> : <input type={field.type ?? "text"} value={values[field.key] ?? ""} placeholder={field.placeholder} onChange={(event) => updateValue(field.key, event.target.value)} />}</Field>)}<footer className="drawer__actions"><Button type="button" variant="ghost" disabled={saving} onClick={() => setOpen(false)}>取消</Button><Button type="button" variant="primary" loading={saving} onClick={() => void save()}>{saving ? editing ? "保存中…" : "创建中…" : editing ? "保存修改" : "创建"}</Button></footer></form></Drawer>
+    <Drawer wide={fields.some((field) => field.type === "route-rules")} open={open} title={editing ? `编辑${title}` : createLabel} description={editing ? `修改 ${editing.id} 的配置` : `创建新的${title}记录`} onClose={() => { if (!saving) setOpen(false); }}><form className="drawer-form" onSubmit={submit} aria-busy={saving} noValidate>{formError && <div className="form-error" role="alert">{formError}</div>}{fields.filter((field) => !field.editOnly || editing).map((field) => <Field group={field.type === "node-picker" || field.type === "route-rules"} key={field.key} label={field.label} required={field.required} helper={field.helper} error={errors[field.key]}>{field.type === "textarea" || field.type === "json" ? <textarea className={field.type === "json" ? "code-editor code-editor--small" : ""} rows={field.type === "json" ? 9 : 4} value={values[field.key] ?? ""} placeholder={field.placeholder} onChange={(event) => updateValue(field.key, event.target.value)} /> : field.type === "select" ? <select disabled={Boolean(editing && field.lockedValue && values[field.key] === field.lockedValue)} value={values[field.key] ?? ""} onChange={(event) => updateValue(field.key, event.target.value)}>{field.options?.filter((option) => !option.exclusive || values[field.key] === option.value).map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select> : field.type === "node-picker" ? <NodeMultiSelect value={values[field.key] ?? ""} options={field.options ?? []} onChange={(value) => updateValue(field.key, value)} /> : field.type === "route-rules" ? <RouteRulesEditor value={values[field.key] ?? "[]"} outbounds={field.routeOutbounds ?? []} onChange={(value) => updateValue(field.key, value)} /> : <input type={field.type ?? "text"} value={values[field.key] ?? ""} placeholder={field.placeholder} onChange={(event) => updateValue(field.key, event.target.value)} />}</Field>)}<footer className="drawer__actions"><Button type="button" variant="ghost" disabled={saving} onClick={() => setOpen(false)}>取消</Button><Button type="button" variant="primary" loading={saving} onClick={() => void save()}>{saving ? editing ? "保存中…" : "创建中…" : editing ? "保存修改" : "创建"}</Button></footer></form></Drawer>
     <Drawer open={Boolean(install)} title="一键安装 Corade Agent" description={install ? `目标服务器：${install.name}` : undefined} onClose={() => setInstall(null)}>{install && <div className="install-command"><p>在目标服务器的 root shell 中执行以下命令。</p><textarea className="code-editor" readOnly rows={7} value={install.command} /><footer><Button variant="primary" onClick={() => void writeClipboard(install.command).then(() => toast("安装命令已复制")).catch(() => toast("复制失败，请手动选择命令", "error"))}><Copy size={16} />复制命令</Button></footer></div>}</Drawer>
     <ConfirmDialog open={Boolean(deleteTarget)} title={`删除${subscriptionActions ? "这个账号" : `这条${title}记录`}？`} description={deleteTarget ? subscriptionActions ? `“${resourceName(deleteTarget)}”将从订阅账号列表中移除，现有订阅链接会立即失效。流量与审计历史仍会保留。` : `“${resourceName(deleteTarget)}”将从${title}列表中移除。存在关联资源时系统会阻止删除，审计历史仍会保留。` : ""} confirmLabel="确认删除" loading={deleting} onClose={() => setDeleteTarget(null)} onConfirm={() => void deleteResource()} />
     <ConfirmDialog open={Boolean(upgradeTarget)} title="升级 Agent" description={upgradeTarget ? `将在 ${resourceName(upgradeTarget)} 的下一次心跳中领取升级任务，并从 GitHub 更新至 ${latestAgentVersion(upgradeTarget)}。当前 Agent 会在独立任务中重启。` : ""} confirmLabel="下发升级任务" confirmVariant="primary" loading={upgrading} onClose={() => { if (!upgrading) setUpgradeTarget(null); }} onConfirm={() => void requestUpgrade()} />
@@ -321,6 +328,14 @@ function formatPercent(value?: number) {
   return typeof value === "number" && Number.isFinite(value) ? `${value.toLocaleString("zh-CN", { maximumFractionDigits: 1 })}%` : "--";
 }
 
+function TrafficUsage({ used, limit }: { used: number; limit: number }) {
+  const percent = limit > 0 ? Math.min(100, Math.max(0, used / limit * 100)) : 0;
+  return <div className="traffic-usage">
+    <span><strong>{formatBytes(used)}</strong><small>/ {limit > 0 ? formatBytes(limit) : "不限"}</small></span>
+    {limit > 0 && <span className="traffic-usage__track" role="progressbar" aria-label="流量使用比例" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(percent)}><i style={{ width: `${percent}%` }} /></span>}
+  </div>;
+}
+
 function agentUpgradeLabel(machine: Machine) {
   const state = agentUpgradeState(machine);
   if (state === "available") return `可更新至 ${machine.latest_agent_version}`;
@@ -329,7 +344,7 @@ function agentUpgradeLabel(machine: Machine) {
 
 export function AccessGroupsPage() {
   const { data: nodes } = useResource<Node[]>("/nodes", []);
-  return <ResourcePage<AccessGroup> title="权限组" description="控制用户和朋友可以访问的节点范围" endpoint="/access-groups" createLabel="添加权限组" defaults={{ name: "", notes: "", node_ids: "" }} fields={[{ key: "name", label: "权限组名称", required: true, placeholder: "例如：标准线路" }, { key: "node_ids", label: "可访问节点", type: "multiselect", helper: "可按住 Ctrl 或 Command 选择多个节点", options: nodes.map((item) => ({ value: item.id, label: `${item.name} · ${item.protocol}:${item.server_port}` })) }, { key: "notes", label: "备注", type: "textarea" }]} transform={(v) => ({ name: v.name, notes: v.notes, node_ids: v.node_ids.split(",").filter(Boolean) })} toValues={(item) => ({ name: item.name, notes: item.notes ?? "", node_ids: (item.node_ids ?? []).join(",") })} columns={[{ label: "权限组", render: (item) => primary(item.name, item.id, item.notes) }, { label: "节点数", render: (item) => <span className="mono">{item.node_count}</span> }, { label: "账号数", render: (item) => <span className="mono">{item.user_count}</span> }, { label: "更新时间", render: (item) => formatDate(item.updated_at) }]} />;
+  return <ResourcePage<AccessGroup> title="权限组" description="控制用户和朋友可以访问的节点范围" endpoint="/access-groups" createLabel="添加权限组" defaults={{ name: "", notes: "", node_ids: "" }} fields={[{ key: "name", label: "权限组名称", required: true, placeholder: "例如：标准线路" }, { key: "node_ids", label: "可访问节点", type: "node-picker", options: nodes.map((item) => ({ value: item.id, label: item.name, detail: `${item.protocol.toUpperCase()} · ${item.machine_name} · 端口 ${item.server_port}`, keywords: `${item.id} ${item.machine_name} ${item.protocol} ${item.server_port}` })) }, { key: "notes", label: "备注", type: "textarea", placeholder: "选填，仅管理员可见" }]} transform={(v) => ({ name: v.name, notes: v.notes, node_ids: v.node_ids.split(",").filter(Boolean) })} toValues={(item) => ({ name: item.name, notes: item.notes ?? "", node_ids: (item.node_ids ?? []).join(",") })} columns={[{ label: "权限组", render: (item) => primary(item.name, item.id, item.notes) }, { label: "节点数", render: (item) => <span className="mono">{item.node_count}</span> }, { label: "账号数", render: (item) => <span className="mono">{item.user_count}</span> }, { label: "更新时间", render: (item) => formatDate(item.updated_at) }]} />;
 }
 
 export function PlansPage() {
@@ -349,7 +364,6 @@ export function UsersPage() {
     deletable
     disabledStatus="paused"
     protectedItem={(item) => item.role === "admin"}
-    identifierAction={{ label: "UDID", value: (item) => item.uuid }}
     defaults={{ role: "user", name: "", email: "", plan_id: plans[0]?.id ?? "", expires_at: "", notes: "" }}
     fields={[
       { key: "role", label: "账号分类", type: "select", lockedValue: "admin", options: [{ value: "admin", label: "管理员", exclusive: true }, { value: "user", label: "用户" }, { value: "friend", label: "朋友" }] },
@@ -369,17 +383,17 @@ export function UsersPage() {
     columns={[
       { label: "账号", render: (item) => primary(item.name, item.id, item.email || item.id) },
       { label: "分类", render: (item) => item.role === "admin" ? "管理员" : item.role === "friend" ? "朋友" : "用户" },
-      { label: "UDID", className: "col-udid", render: (item) => <span className="mono data-ellipsis" title={item.uuid}>{item.uuid}</span> },
       { label: "套餐", render: (item) => item.plan_name || "未分配" },
-      { label: "已用流量", render: (item) => formatBytes(item.traffic_used_bytes) },
-      { label: "订阅令牌", render: (item) => item.subscription_available ? <span className="mono">{item.subscription_token_prefix}…</span> : <span className="token-unavailable">未保存完整令牌</span> },
+      { label: "流量用量", render: (item) => <TrafficUsage used={item.traffic_used_bytes} limit={item.traffic_limit_bytes} /> },
       { label: "到期", render: (item) => item.expires_at ? formatDateWithYear(item.expires_at) : "长期" },
     ]}
   />;
 }
 
 export function RoutesPage() {
-  return <ResourcePage<RoutePolicy> title="路由策略" description="维护可复用的匹配规则与出站动作" endpoint="/route-policies" createLabel="添加路由策略" enabledStatus="draft" defaults={{ name: "", notes: "" }} fields={[{ key: "name", label: "策略名称", required: true }, { key: "notes", label: "备注", type: "textarea" }]} transform={(v) => ({ name: v.name, notes: v.notes })} toValues={(item) => ({ name: item.name, notes: item.notes ?? "" })} columns={[{ label: "策略", render: (item) => primary(item.name, item.id, item.notes) }, { label: "当前版本", render: (item) => <span className="mono">rev {item.current_revision}</span> }, { label: "绑定节点", render: (item) => <span className="mono">{item.node_count}</span> }, { label: "更新时间", render: (item) => formatDate(item.updated_at) }]} />;
+  const { data: outbounds } = useResource<Outbound[]>("/outbounds", []);
+  const initialRules = JSON.stringify([{ name: "", match: { domain_suffixes: [] }, action: { type: "direct" } }]);
+  return <ResourcePage<RoutePolicy> title="路由策略" description="按顺序匹配域名、IP、端口与网络协议，并执行直连、阻断或指定出站" endpoint="/route-policies" createLabel="添加路由策略" defaults={{ name: "", notes: "", rules: initialRules }} fields={[{ key: "name", label: "策略名称", required: true, placeholder: "例如：流媒体直连" }, { key: "notes", label: "策略备注", type: "textarea", placeholder: "选填，例如适用区域或变更原因" }, { key: "rules", label: "规则编排", type: "route-rules", routeOutbounds: outbounds }]} transform={(v) => ({ name: v.name.trim(), notes: v.notes.trim(), rules: JSON.parse(v.rules || "[]") })} toValues={(item) => ({ name: item.name, notes: item.notes ?? "", rules: JSON.stringify(item.rules ?? []) })} columns={[{ label: "策略", render: (item) => primary(item.name, item.id, item.notes) }, { label: "规则", render: (item) => <span className="mono">{item.rules?.length ?? 0}</span> }, { label: "当前版本", render: (item) => <span className="mono">rev {item.current_revision}</span> }, { label: "绑定节点", render: (item) => <span className="mono">{item.node_count}</span> }, { label: "更新时间", render: (item) => formatDate(item.updated_at) }]} />;
 }
 
 export function OutboundsPage() {

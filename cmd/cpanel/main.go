@@ -100,6 +100,7 @@ func serve(cfg config.Config, dataStore *store.Store, box *securebox.Box) error 
 	defer stopMaintenance()
 	go maintainHistoricalData(maintenanceCtx, dataStore)
 	go maintainMachinePresence(maintenanceCtx, dataStore)
+	go maintainTrafficUsage(maintenanceCtx, dataStore)
 	telegramBot := tgbot.New(dataStore, box)
 	go telegramBot.Run(maintenanceCtx)
 	server := &http.Server{Addr: cfg.Addr, Handler: httpapi.New(cfg, dataStore, box, telegramBot).Handler(), ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
@@ -117,6 +118,32 @@ func serve(cfg config.Config, dataStore *store.Store, box *securebox.Box) error 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	return server.Shutdown(ctx)
+}
+
+func maintainTrafficUsage(ctx context.Context, dataStore *store.Store) {
+	reconcile := func() {
+		count, err := dataStore.ReconcileTrafficUsage(ctx)
+		if err != nil {
+			if !errors.Is(err, context.Canceled) {
+				slog.Error("traffic usage reconciliation failed", "error", err)
+			}
+			return
+		}
+		if count > 0 {
+			slog.Info("traffic usage reconciled", "users", count)
+		}
+	}
+	reconcile()
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			reconcile()
+		}
+	}
 }
 
 func maintainMachinePresence(ctx context.Context, dataStore *store.Store) {

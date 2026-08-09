@@ -354,7 +354,33 @@ export function AccessGroupsPage() {
 
 export function PlansPage() {
   const { data: groups } = useResource<AccessGroup[]>("/access-groups", []);
-  return <ResourcePage<Plan> title="套餐" description="定义流量、速率、设备数和默认访问范围" endpoint="/plans" createLabel="添加套餐" defaults={{ name: "", access_group_id: groups[0]?.id ?? "", traffic_gb: "500", speed_limit_mbps: "100", device_limit: "3", default_valid_days: "30", notes: "" }} fields={[{ key: "name", label: "套餐名称", required: true }, { key: "access_group_id", label: "默认权限组", type: "select", required: true, options: [{ value: "", label: "请选择权限组" }, ...groups.map((item) => ({ value: item.id, label: item.name }))] }, { key: "traffic_gb", label: "每月流量（GB）", type: "number", required: true }, { key: "speed_limit_mbps", label: "速率限制（Mbps）", type: "number" }, { key: "device_limit", label: "同时在线设备数", type: "number" }, { key: "default_valid_days", label: "默认有效天数", type: "number" }, { key: "notes", label: "备注", type: "textarea" }]} transform={(v) => ({ name: v.name, access_group_id: v.access_group_id, traffic_limit_bytes: Number(v.traffic_gb) * 1024 ** 3, speed_limit_mbps: Number(v.speed_limit_mbps || 0), device_limit: Number(v.device_limit || 0), default_valid_days: Number(v.default_valid_days || 0), notes: v.notes })} toValues={(item) => ({ name: item.name, access_group_id: item.access_group_id, traffic_gb: String(item.traffic_limit_bytes / 1024 ** 3), speed_limit_mbps: String(item.speed_limit_mbps), device_limit: String(item.device_limit), default_valid_days: String(item.default_valid_days), notes: item.notes ?? "" })} columns={[{ label: "套餐", render: (item) => primary(item.name, item.id, item.access_group_name) }, { label: "流量", render: (item) => formatBytes(item.traffic_limit_bytes) }, { label: "速率", render: (item) => `${item.speed_limit_mbps || "不限"}${item.speed_limit_mbps ? " Mbps" : ""}` }, { label: "设备", render: (item) => item.device_limit || "不限" }, { label: "账号数", render: (item) => <span className="mono">{item.user_count}</span> }, { label: "重置", render: () => "自然月" }]} />;
+  return <ResourcePage<Plan>
+    title="套餐"
+    description="定义流量、重置周期、速率、设备数和默认访问范围"
+    endpoint="/plans"
+    createLabel="添加套餐"
+    defaults={{ name: "", access_group_id: groups[0]?.id ?? "", traffic_gb: "500", speed_limit_mbps: "100", device_limit: "3", reset_strategy: "calendar_month", default_valid_days: "30", notes: "" }}
+    fields={[
+      { key: "name", label: "套餐名称", required: true },
+      { key: "access_group_id", label: "默认权限组", type: "select", required: true, options: [{ value: "", label: "请选择权限组" }, ...groups.map((item) => ({ value: item.id, label: item.name }))] },
+      { key: "traffic_gb", label: "套餐流量（GB）", type: "number", required: true },
+      { key: "reset_strategy", label: "流量重置", type: "select", required: true, helper: "自然月按站点时区每月 1 日 00:00 归零；不自动重置会从当前用量继续累计", options: [{ value: "calendar_month", label: "自然月重置" }, { value: "never", label: "不自动重置（持续累计）" }] },
+      { key: "speed_limit_mbps", label: "速率限制（Mbps）", type: "number" },
+      { key: "device_limit", label: "同时在线设备数", type: "number" },
+      { key: "default_valid_days", label: "默认有效天数", type: "number" },
+      { key: "notes", label: "备注", type: "textarea" },
+    ]}
+    transform={(v) => ({ name: v.name, access_group_id: v.access_group_id, traffic_limit_bytes: Number(v.traffic_gb) * 1024 ** 3, speed_limit_mbps: Number(v.speed_limit_mbps || 0), device_limit: Number(v.device_limit || 0), reset_strategy: v.reset_strategy, default_valid_days: Number(v.default_valid_days || 0), notes: v.notes })}
+    toValues={(item) => ({ name: item.name, access_group_id: item.access_group_id, traffic_gb: String(item.traffic_limit_bytes / 1024 ** 3), speed_limit_mbps: String(item.speed_limit_mbps), device_limit: String(item.device_limit), reset_strategy: item.reset_strategy, default_valid_days: String(item.default_valid_days), notes: item.notes ?? "" })}
+    columns={[
+      { label: "套餐", render: (item) => primary(item.name, item.id, item.access_group_name) },
+      { label: "流量", render: (item) => formatBytes(item.traffic_limit_bytes) },
+      { label: "速率", render: (item) => `${item.speed_limit_mbps || "不限"}${item.speed_limit_mbps ? " Mbps" : ""}` },
+      { label: "设备", render: (item) => item.device_limit || "不限" },
+      { label: "账号数", render: (item) => <span className="mono">{item.user_count}</span> },
+      { label: "重置", render: (item) => item.reset_strategy === "never" ? "不自动重置" : "自然月" },
+    ]}
+  />;
 }
 
 export function UsersPage() {

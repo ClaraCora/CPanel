@@ -754,14 +754,17 @@ func (s *Store) ListPlans(ctx context.Context) ([]domain.Plan, error) {
 }
 
 func (s *Store) CreatePlan(ctx context.Context, input domain.PlanCreate) (domain.Plan, error) {
-	item := domain.Plan{ID: domain.MustID("pln"), ResetStrategy: "calendar_month"}
+	if input.ResetStrategy == "" {
+		input.ResetStrategy = "calendar_month"
+	}
+	item := domain.Plan{ID: domain.MustID("pln"), ResetStrategy: input.ResetStrategy}
 	err := s.pool.QueryRow(ctx, `
-		INSERT INTO plans(id,access_group_id,name,traffic_limit_bytes,speed_limit_mbps,device_limit,default_valid_days,notes)
-		VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+		INSERT INTO plans(id,access_group_id,name,traffic_limit_bytes,speed_limit_mbps,device_limit,reset_strategy,default_valid_days,notes)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)
 		RETURNING name,status,traffic_limit_bytes,speed_limit_mbps,device_limit,reset_strategy,
 		          default_valid_days,notes,created_at,updated_at`,
 		item.ID, input.AccessGroupID, strings.TrimSpace(input.Name), input.TrafficLimitBytes,
-		input.SpeedLimitMbps, input.DeviceLimit, input.DefaultValidDays, strings.TrimSpace(input.Notes),
+		input.SpeedLimitMbps, input.DeviceLimit, input.ResetStrategy, input.DefaultValidDays, strings.TrimSpace(input.Notes),
 	).Scan(&item.Name, &item.Status, &item.TrafficLimitBytes, &item.SpeedLimitMbps, &item.DeviceLimit,
 		&item.ResetStrategy, &item.DefaultValidDays, &item.Notes, &item.CreatedAt, &item.UpdatedAt)
 	item.AccessGroupID = input.AccessGroupID
@@ -772,15 +775,19 @@ func (s *Store) UpdatePlan(ctx context.Context, planID string, input domain.Plan
 	command, err := s.pool.Exec(ctx, `UPDATE plans SET
 		access_group_id=COALESCE(NULLIF(BTRIM($2),''),access_group_id),name=COALESCE(NULLIF(BTRIM($3),''),name),
 		traffic_limit_bytes=COALESCE($4,traffic_limit_bytes),speed_limit_mbps=COALESCE($5,speed_limit_mbps),
-		device_limit=COALESCE($6,device_limit),default_valid_days=COALESCE($7,default_valid_days),
-		notes=COALESCE($8,notes),status=COALESCE($9,status),updated_at=now()
+		device_limit=COALESCE($6,device_limit),reset_strategy=COALESCE($7,reset_strategy),
+		default_valid_days=COALESCE($8,default_valid_days),notes=COALESCE($9,notes),
+		status=COALESCE($10,status),updated_at=now()
 		WHERE id=$1 AND status <> 'archived'`, planID, input.AccessGroupID, input.Name, input.TrafficLimitBytes,
-		input.SpeedLimitMbps, input.DeviceLimit, input.DefaultValidDays, input.Notes, input.Status)
+		input.SpeedLimitMbps, input.DeviceLimit, input.ResetStrategy, input.DefaultValidDays, input.Notes, input.Status)
 	if err != nil {
 		return domain.Plan{}, mapError(err)
 	}
 	if command.RowsAffected() == 0 {
 		return domain.Plan{}, ErrNotFound
+	}
+	if _, err := s.ReconcileTrafficUsage(ctx); err != nil {
+		return domain.Plan{}, err
 	}
 	if err := s.NotifyAllPublishedNodes(ctx); err != nil {
 		return domain.Plan{}, err
@@ -799,6 +806,9 @@ func (s *Store) UpdatePlan(ctx context.Context, planID string, input domain.Plan
 
 func (s *Store) ListUsers(ctx context.Context) ([]domain.User, error) {
 	if err := s.EnsureAdminUsers(ctx); err != nil {
+		return nil, err
+	}
+	if _, err := s.ReconcileTrafficUsage(ctx); err != nil {
 		return nil, err
 	}
 	rows, err := s.pool.Query(ctx, `

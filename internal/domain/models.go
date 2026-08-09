@@ -192,6 +192,7 @@ type PlanCreate struct {
 	TrafficLimitBytes int64  `json:"traffic_limit_bytes"`
 	SpeedLimitMbps    int    `json:"speed_limit_mbps"`
 	DeviceLimit       int    `json:"device_limit"`
+	ResetStrategy     string `json:"reset_strategy"`
 	DefaultValidDays  int    `json:"default_valid_days"`
 	Notes             string `json:"notes"`
 }
@@ -202,6 +203,7 @@ type PlanUpdate struct {
 	TrafficLimitBytes *int64  `json:"traffic_limit_bytes"`
 	SpeedLimitMbps    *int    `json:"speed_limit_mbps"`
 	DeviceLimit       *int    `json:"device_limit"`
+	ResetStrategy     *string `json:"reset_strategy"`
 	DefaultValidDays  *int    `json:"default_valid_days"`
 	Notes             *string `json:"notes"`
 	Status            *string `json:"status"`

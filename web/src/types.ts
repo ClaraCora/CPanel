@@ -94,7 +94,7 @@ export interface Plan {
   traffic_limit_bytes: number;
   speed_limit_mbps: number;
   device_limit: number;
-  reset_strategy: string;
+  reset_strategy: "calendar_month" | "never";
   default_valid_days: number;
   notes?: string;
   user_count: number;

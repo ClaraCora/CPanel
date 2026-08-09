@@ -90,3 +90,16 @@ func TestRankingDateOffsetsForMonth(t *testing.T) {
 		})
 	}
 }
+
+func TestTrafficMonthBoundsUsesSiteTimezone(t *testing.T) {
+	location := time.FixedZone("CST", 8*60*60)
+	now := time.Date(2026, 7, 31, 16, 30, 0, 0, time.UTC)
+	start, end, nextReset := trafficMonthBounds(now, location)
+	if start != "2026-08-01" || end != "2026-09-01" {
+		t.Fatalf("trafficMonthBounds() = (%q, %q), want (2026-08-01, 2026-09-01)", start, end)
+	}
+	wantReset := time.Date(2026, 9, 1, 0, 0, 0, 0, location)
+	if !nextReset.Equal(wantReset) {
+		t.Fatalf("next reset = %s, want %s", nextReset, wantReset)
+	}
+}

@@ -31,6 +31,10 @@ func validOneOf(value *string, allowed ...string) bool {
 	return false
 }
 
+func validPlanResetStrategy(value string) bool {
+	return value == "calendar_month" || value == "never"
+}
+
 func validNodeEndpoints(items []domain.NodeEndpoint, fields map[string]string) {
 	for index, item := range items {
 		prefix := fmt.Sprintf("endpoints.%d", index)
@@ -420,6 +424,14 @@ func (s *Server) handleCreatePlan(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "套餐名称和权限组必填", nil)
 		return
 	}
+	input.ResetStrategy = strings.TrimSpace(input.ResetStrategy)
+	if input.ResetStrategy == "" {
+		input.ResetStrategy = "calendar_month"
+	}
+	if !validPlanResetStrategy(input.ResetStrategy) {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "套餐流量重置策略无效", map[string]string{"reset_strategy": "请选择有效的流量重置策略"})
+		return
+	}
 	item, err := s.store.CreatePlan(r.Context(), input)
 	if err != nil {
 		writeStoreError(w, r, err)
@@ -443,6 +455,14 @@ func (s *Server) handleUpdatePlan(w http.ResponseWriter, r *http.Request) {
 	if !validOneOf(input.Status, "active", "disabled") {
 		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "套餐状态无效", nil)
 		return
+	}
+	if input.ResetStrategy != nil {
+		strategy := strings.TrimSpace(*input.ResetStrategy)
+		input.ResetStrategy = &strategy
+		if !validPlanResetStrategy(strategy) {
+			writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "套餐流量重置策略无效", map[string]string{"reset_strategy": "请选择有效的流量重置策略"})
+			return
+		}
 	}
 	item, err := s.store.UpdatePlan(r.Context(), chi.URLParam(r, "id"), input)
 	if err != nil {

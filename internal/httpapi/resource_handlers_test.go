@@ -20,3 +20,16 @@ func TestAgentInstallCommandUsesPOSIXShell(t *testing.T) {
 		t.Fatalf("install command must not require bash: %q", command)
 	}
 }
+
+func TestValidPlanResetStrategy(t *testing.T) {
+	for _, value := range []string{"calendar_month", "never"} {
+		if !validPlanResetStrategy(value) {
+			t.Errorf("validPlanResetStrategy(%q) = false, want true", value)
+		}
+	}
+	for _, value := range []string{"", "month", "daily", "CALENDAR_MONTH"} {
+		if validPlanResetStrategy(value) {
+			t.Errorf("validPlanResetStrategy(%q) = true, want false", value)
+		}
+	}
+}

@@ -96,11 +96,11 @@ func formatTrafficSummaryTable(summary domain.TrafficSummary) string {
 
 func renderRankingTable(items []domain.TrafficRank, maximum int) string {
 	columns := []tableColumn{
-		{Title: "#", Width: 3, Right: true},
-		{Title: "名称", Width: 18},
-		{Title: "上传", Width: 10, Right: true},
-		{Title: "下载", Width: 10, Right: true},
-		{Title: "合计", Width: 10, Right: true},
+		{Title: "#", Width: 2, Right: true},
+		{Title: "名称", Width: 12},
+		{Title: "上传", Width: 6, Right: true},
+		{Title: "下载", Width: 6, Right: true},
+		{Title: "合计", Width: 6, Right: true},
 	}
 	limit := len(items)
 	if limit > maximum {
@@ -109,8 +109,8 @@ func renderRankingTable(items []domain.TrafficRank, maximum int) string {
 	rows := make([][]string, 0, limit)
 	for index, item := range items[:limit] {
 		rows = append(rows, []string{
-			fmt.Sprint(index + 1), cleanLabel(item.Name), formatBytes(item.UploadBytes),
-			formatBytes(item.DownloadBytes), formatBytes(item.TotalBytes),
+			fmt.Sprint(index + 1), cleanLabel(item.Name), formatBytesCompact(item.UploadBytes),
+			formatBytesCompact(item.DownloadBytes), formatBytesCompact(item.TotalBytes),
 		})
 	}
 	if len(rows) == 0 {
@@ -261,6 +261,29 @@ func formatBytes(value int64) string {
 		return fmt.Sprintf("%d %s", value, units[unit])
 	}
 	return fmt.Sprintf("%.2f %s", size, units[unit])
+}
+
+func formatBytesCompact(value int64) string {
+	if value < 0 {
+		value = 0
+	}
+	units := []string{"B", "K", "M", "G", "T", "P", "E"}
+	size := float64(value)
+	unit := 0
+	for size >= 1024 && unit < len(units)-1 {
+		size /= 1024
+		unit++
+	}
+	if unit == 0 {
+		return fmt.Sprintf("%dB", value)
+	}
+	if size >= 100 {
+		return fmt.Sprintf("%.0f%s", size, units[unit])
+	}
+	if size >= 10 {
+		return fmt.Sprintf("%.1f%s", size, units[unit])
+	}
+	return fmt.Sprintf("%.2f%s", size, units[unit])
 }
 
 func cleanLabel(value string) string {

@@ -2,6 +2,7 @@ package tgbot
 
 import (
 	"html"
+	"math"
 	"strings"
 	"testing"
 
@@ -57,5 +58,39 @@ func TestFormatUserRankingOmitsNodeTable(t *testing.T) {
 	}
 	if strings.Contains(message, "节点 Top") {
 		t.Fatalf("message unexpectedly contains node table: %s", message)
+	}
+}
+
+func TestRankingTableFitsTelegramMobileWidth(t *testing.T) {
+	table := renderRankingTable([]domain.TrafficRank{{
+		Name:          "很长的中英文 mixed user name",
+		UploadBytes:   1023 * 1024 * 1024,
+		DownloadBytes: 12 * 1024 * 1024 * 1024,
+		TotalBytes:    math.MaxInt64,
+	}}, 5)
+	lines := strings.Split(table, "\n")
+	for index, line := range lines {
+		if width := displayWidth(line); width != 36 {
+			t.Fatalf("line %d width = %d, want 36: %q", index, width, line)
+		}
+	}
+	for _, value := range []string{"1023M", "12.0G", "8.00E"} {
+		if !strings.Contains(table, value) {
+			t.Fatalf("compact ranking table missing %q:\n%s", value, table)
+		}
+	}
+}
+
+func TestFormatBytesCompact(t *testing.T) {
+	tests := map[int64]string{
+		-1:               "0B",
+		0:                "0B",
+		1024:             "1.00K",
+		10 * 1024 * 1024: "10.0M",
+	}
+	for value, want := range tests {
+		if got := formatBytesCompact(value); got != want {
+			t.Errorf("formatBytesCompact(%d) = %q, want %q", value, got, want)
+		}
 	}
 }

@@ -44,3 +44,18 @@ func TestFormatRankingEscapesNamesAndUsesPreformattedTables(t *testing.T) {
 		}
 	}
 }
+
+func TestFormatUserRankingOmitsNodeTable(t *testing.T) {
+	message := formatUserRanking("本月用户使用量", domain.TrafficSummary{}, []domain.TrafficRank{{Name: "用户一"}})
+	if count := strings.Count(message, "<pre>"); count != 2 {
+		t.Fatalf("preformatted table count = %d, want 2", count)
+	}
+	for _, label := range []string{"本月用户使用量", "用户 Top 10", "用户一"} {
+		if !strings.Contains(message, label) {
+			t.Fatalf("message missing %q: %s", label, message)
+		}
+	}
+	if strings.Contains(message, "节点 Top") {
+		t.Fatalf("message unexpectedly contains node table: %s", message)
+	}
+}

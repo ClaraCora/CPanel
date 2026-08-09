@@ -73,7 +73,18 @@ func formatMachines(items []domain.Machine, location *time.Location) string {
 }
 
 func formatRanking(title string, summary domain.TrafficSummary, nodes, users []domain.TrafficRank) string {
-	summaryTable := renderTable([]tableColumn{
+	return wrapTable(title, formatTrafficSummaryTable(summary)) + "\n" +
+		wrapTable("节点 Top 5", renderRankingTable(nodes, 5)) + "\n" +
+		wrapTable("用户 Top 5", renderRankingTable(users, 5))
+}
+
+func formatUserRanking(title string, summary domain.TrafficSummary, users []domain.TrafficRank) string {
+	return wrapTable(title, formatTrafficSummaryTable(summary)) + "\n" +
+		wrapTable("用户 Top 10", renderRankingTable(users, 10))
+}
+
+func formatTrafficSummaryTable(summary domain.TrafficSummary) string {
+	return renderTable([]tableColumn{
 		{Title: "方向", Width: 10},
 		{Title: "流量", Width: 16, Right: true},
 	}, [][]string{
@@ -81,12 +92,9 @@ func formatRanking(title string, summary domain.TrafficSummary, nodes, users []d
 		{"下载", formatBytes(summary.DownloadBytes)},
 		{"合计", formatBytes(summary.TotalBytes)},
 	})
-	return wrapTable(title, summaryTable) + "\n" +
-		wrapTable("节点 Top 5", renderRankingTable(nodes)) + "\n" +
-		wrapTable("用户 Top 5", renderRankingTable(users))
 }
 
-func renderRankingTable(items []domain.TrafficRank) string {
+func renderRankingTable(items []domain.TrafficRank, maximum int) string {
 	columns := []tableColumn{
 		{Title: "#", Width: 3, Right: true},
 		{Title: "名称", Width: 18},
@@ -95,8 +103,8 @@ func renderRankingTable(items []domain.TrafficRank) string {
 		{Title: "合计", Width: 10, Right: true},
 	}
 	limit := len(items)
-	if limit > 5 {
-		limit = 5
+	if limit > maximum {
+		limit = maximum
 	}
 	rows := make([][]string, 0, limit)
 	for index, item := range items[:limit] {
@@ -120,6 +128,7 @@ func formatHelp() string {
 		{"/traffic", "今日上传与下载流量"},
 		{"/today", "今日节点和用户流量排行"},
 		{"/ranking", "昨日节点和用户流量排行"},
+		{"/month", "本月用户使用量排行"},
 		{"/machines", "服务器在线状态"},
 		{"/id", "查看 Telegram 数字 ID"},
 		{"/help", "查看命令说明"},

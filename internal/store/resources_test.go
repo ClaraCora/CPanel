@@ -69,3 +69,24 @@ func TestEffectiveMachineStatusUsesHeartbeatThreshold(t *testing.T) {
 		})
 	}
 }
+
+func TestRankingDateOffsetsForMonth(t *testing.T) {
+	tests := []struct {
+		name       string
+		currentDay time.Time
+		wantStart  int
+		wantEnd    int
+	}{
+		{name: "first day", currentDay: time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC), wantStart: 0, wantEnd: 1},
+		{name: "month to date", currentDay: time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC), wantStart: -8, wantEnd: 1},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			start, end := rankingDateOffsets("month", test.currentDay)
+			if start != test.wantStart || end != test.wantEnd {
+				t.Fatalf("rankingDateOffsets(month) = (%d, %d), want (%d, %d)", start, end, test.wantStart, test.wantEnd)
+			}
+		})
+	}
+}

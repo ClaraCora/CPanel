@@ -68,6 +68,39 @@ func TestTodayRankingUsesTodayPeriodAndAlignedColumns(t *testing.T) {
 		t.Fatalf("today response = %#v", api.messages)
 	}
 }
+
+func TestMonthCommandUsesMonthPeriodAndOnlyShowsUserRanking(t *testing.T) {
+	repository := &fakeRepository{
+		summary: domain.TrafficSummary{UploadBytes: 1024, DownloadBytes: 2048, TotalBytes: 3072},
+		overview: domain.Overview{
+			NodeTrafficRanking: []domain.TrafficRank{{ID: "n1", Name: "不应显示的节点", TotalBytes: 2048}},
+			UserTrafficRanking: []domain.TrafficRank{{ID: "u1", Name: "本月用户", UploadBytes: 512, DownloadBytes: 512, TotalBytes: 1024}},
+		},
+	}
+	api := &fakeBotAPI{}
+	service := &Service{repository: repository, api: api, now: time.Now}
+	admin := telegramUser{ID: 100}
+	config := botConfig{Token: "token", AdminID: 100, PlatformName: "CPanel", Location: time.UTC}
+
+	if err := service.processUpdate(context.Background(), config, telegramUpdate{Message: &telegramMessage{Text: "/month", Chat: telegramChat{ID: 100}, From: &admin}}); err != nil {
+		t.Fatal(err)
+	}
+	if len(repository.summaryPeriods) != 1 || repository.summaryPeriods[0] != "month" || len(repository.overviewPeriods) != 1 || repository.overviewPeriods[0] != "month" {
+		t.Fatalf("periods = summary %v, overview %v", repository.summaryPeriods, repository.overviewPeriods)
+	}
+	if len(api.messages) != 1 {
+		t.Fatalf("message count = %d, want 1", len(api.messages))
+	}
+	message := api.messages[0].text
+	for _, expected := range []string{"本月用户使用量", "用户 Top 10", "本月用户", "上传", "下载", "合计"} {
+		if !strings.Contains(message, expected) {
+			t.Fatalf("month response missing %q: %s", expected, message)
+		}
+	}
+	if strings.Contains(message, "不应显示的节点") || strings.Contains(message, "节点 Top") {
+		t.Fatalf("month response unexpectedly contains node ranking: %s", message)
+	}
+}
 func (f *fakeRepository) ListMachines(context.Context) ([]domain.Machine, error) {
 	return f.machines, nil
 }
@@ -152,6 +185,15 @@ func TestParseCommandRemovesBotUsername(t *testing.T) {
 	if command := parseCommand(" /RANKING@cpanel_bot extra "); command != "/ranking" {
 		t.Fatalf("command = %q, want /ranking", command)
 	}
+}
+
+func TestSupportedCommandsIncludesMonth(t *testing.T) {
+	for _, command := range supportedCommands() {
+		if command.Command == "month" {
+			return
+		}
+	}
+	t.Fatal("supported commands do not include /month")
 }
 
 func TestDailyReportWaitsForAdministratorBinding(t *testing.T) {

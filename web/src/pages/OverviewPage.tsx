@@ -35,14 +35,24 @@ const emptyOverview: Overview = {
   user_traffic_ranking: [],
 };
 
+const rankingPeriods = [
+  { value: "today", label: "今日" },
+  { value: "yesterday", label: "昨日" },
+  { value: "7d", label: "近七天" },
+  { value: "month", label: "本月" },
+] as const;
+
+type RankingPeriod = (typeof rankingPeriods)[number]["value"];
+
 export function OverviewPage() {
-  const [period, setPeriod] = useState<"today" | "yesterday" | "7d">("today");
+  const [period, setPeriod] = useState<RankingPeriod>("today");
   const { data, loading, error, reload } = useResource<Overview>(
     `/overview?period=${period}`,
     emptyOverview,
   );
-	const hasLoaded = data !== emptyOverview;
-	const periodLabel = period === "today" ? "今日" : period === "yesterday" ? "昨日" : "近七天";
+  const hasLoaded = data !== emptyOverview;
+  const periodLabel =
+    rankingPeriods.find((item) => item.value === period)?.label ?? "今日";
   return (
     <div className="page">
       <PageHeader
@@ -110,12 +120,39 @@ export function OverviewPage() {
                 <h2 id="traffic-ranking-title">{periodLabel}流量排行</h2>
                 <p>按上传与下载合计排序，最多显示 10 条。</p>
               </div>
-				<div className="ranking-period" role="group" aria-label="流量排行时间范围">
-					{([{"value":"today","label":"今日"},{"value":"yesterday","label":"昨日"},{"value":"7d","label":"近七天"}] as const).map((item) => <button type="button" className={period === item.value ? "active" : ""} aria-pressed={period === item.value} onClick={() => setPeriod(item.value)} key={item.value}>{item.label}</button>)}
-					{loading && <LoaderCircle className="spin ranking-period__loading" size={15} aria-label="正在更新排行" />}
-				</div>
+              <div
+                className="ranking-period"
+                role="group"
+                aria-label="流量排行时间范围"
+              >
+                {rankingPeriods.map((item) => (
+                  <button
+                    type="button"
+                    className={period === item.value ? "active" : ""}
+                    aria-pressed={period === item.value}
+                    onClick={() => setPeriod(item.value)}
+                    key={item.value}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+                {loading && (
+                  <LoaderCircle
+                    className="spin ranking-period__loading"
+                    size={15}
+                    aria-label="正在更新排行"
+                  />
+                )}
+              </div>
             </div>
-			{error && <div className="ranking-error" role="alert"><span>{error}</span><button type="button" onClick={() => void reload()}>重新加载</button></div>}
+            {error && (
+              <div className="ranking-error" role="alert">
+                <span>{error}</span>
+                <button type="button" onClick={() => void reload()}>
+                  重新加载
+                </button>
+              </div>
+            )}
             <div className={`ranking-grid ${loading ? "is-loading" : ""}`}>
               <TrafficRanking title="节点流量排行" items={data.node_traffic_ranking} empty={`${periodLabel}还没有节点流量`} />
               <TrafficRanking title="用户流量排行" items={data.user_traffic_ranking} empty={`${periodLabel}还没有用户流量`} />

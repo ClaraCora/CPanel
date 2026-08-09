@@ -182,7 +182,7 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 	if period == "" {
 		period = "today"
 	}
-	if period != "today" && period != "yesterday" && period != "7d" {
+	if !validOverviewPeriod(period) {
 		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "流量排行时间范围无效", nil)
 		return
 	}
@@ -192,6 +192,15 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeData(w, r, http.StatusOK, value)
+}
+
+func validOverviewPeriod(period string) bool {
+	switch period {
+	case "today", "yesterday", "7d", "month":
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Server) handleListAuditEvents(w http.ResponseWriter, r *http.Request) {

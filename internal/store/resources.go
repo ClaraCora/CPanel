@@ -15,8 +15,8 @@ import (
 
 func (s *Store) Overview(ctx context.Context, rankingPeriod string) (domain.Overview, error) {
 	var overview domain.Overview
-	currentDay := time.Now().In(loadTrafficLocation(s.SettingString(ctx, "site", "timezone", "Asia/Shanghai"))).Format(time.DateOnly)
-	startOffset, endOffset := rankingDateOffsets(rankingPeriod)
+	currentDay := time.Now().In(loadTrafficLocation(s.SettingString(ctx, "site", "timezone", "Asia/Shanghai")))
+	startOffset, endOffset := rankingDateOffsets(rankingPeriod, currentDay)
 	if _, err := s.ReconcileMachinePresence(ctx); err != nil {
 		return overview, err
 	}
@@ -34,7 +34,7 @@ func (s *Store) Overview(ctx context.Context, rankingPeriod string) (domain.Over
 			  COALESCE((SELECT sum(upload_bytes) FROM imported_user_traffic_daily WHERE day=$1::date), 0),
 			COALESCE((SELECT sum(download_bytes) FROM traffic_daily WHERE day=$1::date), 0) +
 			  COALESCE((SELECT sum(download_bytes) FROM imported_user_traffic_daily WHERE day=$1::date), 0)
-	`, currentDay).Scan(
+	`, currentDay.Format(time.DateOnly)).Scan(
 		&overview.MachinesTotal, &overview.MachinesOnline, &overview.MachinesOffline,
 		&overview.NodesTotal, &overview.NodesPublished, &overview.AdminsActive, &overview.UsersActive,
 		&overview.FriendsActive, &overview.TrafficTodayUpload, &overview.TrafficTodayDownload,
@@ -50,7 +50,7 @@ func (s *Store) Overview(ctx context.Context, rankingPeriod string) (domain.Over
 		WHERE day >= $1::date + $2::int AND day < $1::date + $3::int)
 		SELECT n.id,n.name,sum(t.upload_bytes),sum(t.download_bytes),sum(t.upload_bytes+t.download_bytes)
 		FROM combined t JOIN nodes n ON n.id=t.node_id GROUP BY n.id,n.name
-		ORDER BY sum(t.upload_bytes+t.download_bytes) DESC,n.name LIMIT 10`, currentDay, startOffset, endOffset)
+		ORDER BY sum(t.upload_bytes+t.download_bytes) DESC,n.name LIMIT 10`, currentDay.Format(time.DateOnly), startOffset, endOffset)
 	if err != nil {
 		return overview, err
 	}
@@ -61,31 +61,33 @@ func (s *Store) Overview(ctx context.Context, rankingPeriod string) (domain.Over
 		WHERE day >= $1::date + $2::int AND day < $1::date + $3::int)
 		SELECT u.id,u.name,sum(t.upload_bytes),sum(t.download_bytes),sum(t.upload_bytes+t.download_bytes)
 		FROM combined t JOIN users u ON u.id=t.user_id GROUP BY u.id,u.name
-		ORDER BY sum(t.upload_bytes+t.download_bytes) DESC,u.name LIMIT 10`, currentDay, startOffset, endOffset)
+		ORDER BY sum(t.upload_bytes+t.download_bytes) DESC,u.name LIMIT 10`, currentDay.Format(time.DateOnly), startOffset, endOffset)
 	return overview, err
 }
 
 func (s *Store) TrafficSummary(ctx context.Context, period string) (domain.TrafficSummary, error) {
 	var summary domain.TrafficSummary
-	currentDay := time.Now().In(loadTrafficLocation(s.SettingString(ctx, "site", "timezone", "Asia/Shanghai"))).Format(time.DateOnly)
-	startOffset, endOffset := rankingDateOffsets(period)
+	currentDay := time.Now().In(loadTrafficLocation(s.SettingString(ctx, "site", "timezone", "Asia/Shanghai")))
+	startOffset, endOffset := rankingDateOffsets(period, currentDay)
 	err := s.pool.QueryRow(ctx, `WITH combined AS (
 		SELECT upload_bytes,download_bytes FROM traffic_daily
 		WHERE day >= $1::date + $2::int AND day < $1::date + $3::int
 		UNION ALL SELECT upload_bytes,download_bytes FROM imported_user_traffic_daily
 		WHERE day >= $1::date + $2::int AND day < $1::date + $3::int)
 		SELECT COALESCE(sum(upload_bytes),0),COALESCE(sum(download_bytes),0) FROM combined`,
-		currentDay, startOffset, endOffset).Scan(&summary.UploadBytes, &summary.DownloadBytes)
+		currentDay.Format(time.DateOnly), startOffset, endOffset).Scan(&summary.UploadBytes, &summary.DownloadBytes)
 	summary.TotalBytes = summary.UploadBytes + summary.DownloadBytes
 	return summary, err
 }
 
-func rankingDateOffsets(period string) (int, int) {
+func rankingDateOffsets(period string, currentDay time.Time) (int, int) {
 	switch period {
 	case "yesterday":
 		return -1, 0
 	case "7d":
 		return -6, 1
+	case "month":
+		return -(currentDay.Day() - 1), 1
 	default:
 		return 0, 1
 	}

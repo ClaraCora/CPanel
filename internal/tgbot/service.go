@@ -225,6 +225,12 @@ func (s *Service) processUpdate(ctx context.Context, config botConfig, update te
 			return s.sendQueryFailure(ctx, config, err)
 		}
 		text = formatRanking("昨日流量排行", summary, overview.NodeTrafficRanking, overview.UserTrafficRanking)
+	case "/month":
+		summary, overview, err := s.rankingData(ctx, "month")
+		if err != nil {
+			return s.sendQueryFailure(ctx, config, err)
+		}
+		text = formatUserRanking("本月用户使用量", summary, overview.UserTrafficRanking)
 	case "/help", "/start":
 		text = formatHelp()
 	default:
@@ -287,6 +293,7 @@ func supportedCommands() []telegramCommand {
 		{Command: "today", Description: "查看今日流量排行"},
 		{Command: "machines", Description: "查看服务器状态"},
 		{Command: "ranking", Description: "查看昨日流量排行"},
+		{Command: "month", Description: "查看本月用户使用量"},
 		{Command: "id", Description: "查看 Telegram 数字 ID"},
 		{Command: "help", Description: "查看命令说明"},
 	}

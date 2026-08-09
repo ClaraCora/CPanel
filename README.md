@@ -150,6 +150,7 @@ TG Bot 使用 Telegram Bot API 长轮询，不需要配置 Webhook。BotFather �
 | `/today` | 今日节点与用户流量 Top 5 |
 | `/machines` | 服务器在线状态与最后心跳 |
 | `/ranking` | 昨日节点与用户流量 Top 5 |
+| `/month` | 本月用户使用量 Top 10（本月 1 日至今） |
 | `/id` | 当前 Telegram 数字 ID |
 | `/help` | 命令说明 |
 

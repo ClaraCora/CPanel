@@ -138,8 +138,7 @@ func (s *Service) SendTest(ctx context.Context) error {
 	if config.Token == "" || config.AdminID == 0 {
 		return ErrNotConfigured
 	}
-	message := fmt.Sprintf("%s TG Bot 测试成功\n\n连接时间：%s\n管理员 ID：%d",
-		cleanLabel(config.PlatformName), s.now().In(config.Location).Format("2006-01-02 15:04:05"), config.AdminID)
+	message := formatTestMessage(config.PlatformName, s.now().In(config.Location), config.AdminID)
 	return s.api.SendMessage(ctx, config.Token, config.AdminID, message)
 }
 
@@ -188,10 +187,10 @@ func (s *Service) processUpdate(ctx context.Context, config botConfig, update te
 		return nil
 	}
 	if command == "/id" {
-		return s.api.SendMessage(ctx, config.Token, message.Chat.ID, fmt.Sprintf("你的 Telegram 数字 ID：%d", message.From.ID))
+		return s.api.SendMessage(ctx, config.Token, message.Chat.ID, formatTelegramID(message.From.ID))
 	}
 	if message.From.ID != config.AdminID || message.Chat.ID != config.AdminID {
-		return s.api.SendMessage(ctx, config.Token, message.Chat.ID, "此 Bot 仅限已绑定的面板管理员使用。\n发送 /id 可查看你的 Telegram 数字 ID。")
+		return s.api.SendMessage(ctx, config.Token, message.Chat.ID, formatNotice("访问受限", "此 Bot 仅限已绑定的面板管理员使用", "发送 /id 可查看你的 Telegram 数字 ID"))
 	}
 
 	var text string
@@ -214,8 +213,14 @@ func (s *Service) processUpdate(ctx context.Context, config botConfig, update te
 			return s.sendQueryFailure(ctx, config, err)
 		}
 		text = formatMachines(machines, config.Location)
+	case "/today":
+		summary, overview, err := s.rankingData(ctx, "today")
+		if err != nil {
+			return s.sendQueryFailure(ctx, config, err)
+		}
+		text = formatRanking("今日流量排行", summary, overview.NodeTrafficRanking, overview.UserTrafficRanking)
 	case "/ranking":
-		summary, overview, err := s.rankingData(ctx)
+		summary, overview, err := s.rankingData(ctx, "yesterday")
 		if err != nil {
 			return s.sendQueryFailure(ctx, config, err)
 		}
@@ -223,24 +228,24 @@ func (s *Service) processUpdate(ctx context.Context, config botConfig, update te
 	case "/help", "/start":
 		text = formatHelp()
 	default:
-		text = "无法识别该命令。\n\n" + formatHelp()
+		text = formatNotice("未知命令", "无法识别该命令") + "\n" + formatHelp()
 	}
 	return s.api.SendMessage(ctx, config.Token, config.AdminID, text)
 }
 
 func (s *Service) sendQueryFailure(ctx context.Context, config botConfig, queryErr error) error {
-	if err := s.api.SendMessage(ctx, config.Token, config.AdminID, "查询失败，请稍后重试或检查面板日志。"); err != nil {
+	if err := s.api.SendMessage(ctx, config.Token, config.AdminID, formatNotice("查询失败", "请稍后重试或检查面板日志")); err != nil {
 		return err
 	}
 	return queryErr
 }
 
-func (s *Service) rankingData(ctx context.Context) (domain.TrafficSummary, domain.Overview, error) {
-	summary, err := s.repository.TrafficSummary(ctx, "yesterday")
+func (s *Service) rankingData(ctx context.Context, period string) (domain.TrafficSummary, domain.Overview, error) {
+	summary, err := s.repository.TrafficSummary(ctx, period)
 	if err != nil {
 		return domain.TrafficSummary{}, domain.Overview{}, err
 	}
-	overview, err := s.repository.Overview(ctx, "yesterday")
+	overview, err := s.repository.Overview(ctx, period)
 	return summary, overview, err
 }
 
@@ -258,7 +263,7 @@ func (s *Service) maybeSendDailyReport(ctx context.Context, config botConfig, fi
 	if now.Before(scheduledToday) || (state.LastReportDay != nil && state.LastReportDay.Format(time.DateOnly) == today) {
 		return nil
 	}
-	summary, overview, err := s.rankingData(ctx)
+	summary, overview, err := s.rankingData(ctx, "yesterday")
 	if err != nil {
 		return err
 	}
@@ -279,6 +284,7 @@ func supportedCommands() []telegramCommand {
 	return []telegramCommand{
 		{Command: "status", Description: "查看面板运行状态"},
 		{Command: "traffic", Description: "查看今日流量"},
+		{Command: "today", Description: "查看今日流量排行"},
 		{Command: "machines", Description: "查看服务器状态"},
 		{Command: "ranking", Description: "查看昨日流量排行"},
 		{Command: "id", Description: "查看 Telegram 数字 ID"},

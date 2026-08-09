@@ -2,6 +2,7 @@ package tgbot
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -27,6 +28,27 @@ func TestTelegramClientRedactsTokenFromAPIError(t *testing.T) {
 	}
 	if strings.Contains(err.Error(), token) {
 		t.Fatalf("error leaked Bot token: %v", err)
+	}
+}
+
+func TestTelegramClientSendsHTMLMessages(t *testing.T) {
+	var request map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"ok":true,"result":{}}`)
+	}))
+	defer server.Close()
+
+	client := newTelegramClient(server.Client())
+	client.baseURL = server.URL
+	if err := client.SendMessage(context.Background(), "token", 7, "<b>标题</b>\n<pre>表格</pre>"); err != nil {
+		t.Fatal(err)
+	}
+	if request["parse_mode"] != "HTML" {
+		t.Fatalf("parse_mode = %#v, want HTML", request["parse_mode"])
 	}
 }
 

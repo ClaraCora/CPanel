@@ -12,10 +12,12 @@ import (
 )
 
 type fakeRepository struct {
-	overview domain.Overview
-	summary  domain.TrafficSummary
-	machines []domain.Machine
-	marked   string
+	overview        domain.Overview
+	summary         domain.TrafficSummary
+	machines        []domain.Machine
+	marked          string
+	overviewPeriods []string
+	summaryPeriods  []string
 }
 
 func (f *fakeRepository) RawSetting(context.Context, string, string) (json.RawMessage, error) {
@@ -33,11 +35,38 @@ func (f *fakeRepository) MarkTelegramReportSent(_ context.Context, _, day string
 	f.marked = day
 	return nil
 }
-func (f *fakeRepository) Overview(context.Context, string) (domain.Overview, error) {
+
+func (f *fakeRepository) Overview(_ context.Context, period string) (domain.Overview, error) {
+	f.overviewPeriods = append(f.overviewPeriods, period)
 	return f.overview, nil
 }
-func (f *fakeRepository) TrafficSummary(context.Context, string) (domain.TrafficSummary, error) {
+func (f *fakeRepository) TrafficSummary(_ context.Context, period string) (domain.TrafficSummary, error) {
+	f.summaryPeriods = append(f.summaryPeriods, period)
 	return f.summary, nil
+}
+
+func TestTodayRankingUsesTodayPeriodAndAlignedColumns(t *testing.T) {
+	repository := &fakeRepository{
+		summary: domain.TrafficSummary{UploadBytes: 1024, DownloadBytes: 2048, TotalBytes: 3072},
+		overview: domain.Overview{
+			NodeTrafficRanking: []domain.TrafficRank{{ID: "n1", Name: "香港节点", UploadBytes: 1024, DownloadBytes: 2048, TotalBytes: 3072}},
+			UserTrafficRanking: []domain.TrafficRank{{ID: "u1", Name: "example-user", UploadBytes: 512, DownloadBytes: 512, TotalBytes: 1024}},
+		},
+	}
+	api := &fakeBotAPI{}
+	service := &Service{repository: repository, api: api, now: time.Now}
+	admin := telegramUser{ID: 100}
+	config := botConfig{Token: "token", AdminID: 100, PlatformName: "CPanel", Location: time.UTC}
+
+	if err := service.processUpdate(context.Background(), config, telegramUpdate{Message: &telegramMessage{Text: "/today", Chat: telegramChat{ID: 100}, From: &admin}}); err != nil {
+		t.Fatal(err)
+	}
+	if len(repository.summaryPeriods) != 1 || repository.summaryPeriods[0] != "today" || len(repository.overviewPeriods) != 1 || repository.overviewPeriods[0] != "today" {
+		t.Fatalf("periods = summary %v, overview %v", repository.summaryPeriods, repository.overviewPeriods)
+	}
+	if len(api.messages) != 1 || !strings.Contains(api.messages[0].text, "今日流量排行") || !strings.Contains(api.messages[0].text, "上传") || !strings.Contains(api.messages[0].text, "下载") {
+		t.Fatalf("today response = %#v", api.messages)
+	}
 }
 func (f *fakeRepository) ListMachines(context.Context) ([]domain.Machine, error) {
 	return f.machines, nil

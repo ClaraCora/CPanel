@@ -147,10 +147,13 @@ TG Bot 使用 Telegram Bot API 长轮询，不需要配置 Webhook。BotFather �
 | --- | --- |
 | `/status` | 服务器、节点、订阅账号和今日总流量 |
 | `/traffic` | 今日上传、下载和合计流量 |
+| `/today` | 今日节点与用户流量 Top 5 |
 | `/machines` | 服务器在线状态与最后心跳 |
 | `/ranking` | 昨日节点与用户流量 Top 5 |
 | `/id` | 当前 Telegram 数字 ID |
 | `/help` | 命令说明 |
+
+Bot 回复使用 Telegram HTML 等宽表格，状态、名称、上传、下载和合计列会按中英文显示宽度独立对齐；过长名称会在表格内截断，不影响其他列。
 
 “推送昨日排行榜”启用后，面板按“系统设置 → 站点”的时区，在配置时间推送昨日上传、下载、节点 Top 5 和用户 Top 5。发送日期和 Telegram update offset 会持久化，面板重启不会重复处理旧消息或重复推送当日日报。
 

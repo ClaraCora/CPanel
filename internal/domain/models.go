@@ -355,6 +355,12 @@ type TrafficRank struct {
 	TotalBytes    int64  `json:"total_bytes"`
 }
 
+type TrafficSummary struct {
+	UploadBytes   int64 `json:"upload_bytes"`
+	DownloadBytes int64 `json:"download_bytes"`
+	TotalBytes    int64 `json:"total_bytes"`
+}
+
 type HistoricalData struct {
 	Retention      HistoricalRetention `json:"retention"`
 	Traffic        []DailyTraffic      `json:"traffic"`

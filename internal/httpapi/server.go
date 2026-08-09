@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"net/http"
 
 	"cpanel/internal/auth"
@@ -21,11 +22,20 @@ type Server struct {
 	secureBox         *securebox.Box
 	agentRelease      *agentReleaseResolver
 	agentV2           *agentV2Service
+	telegramBot       TelegramBotService
 }
 
-func New(cfg config.Config, dataStore *store.Store, box *securebox.Box) *Server {
+type TelegramBotService interface {
+	SendTest(context.Context) error
+}
+
+func New(cfg config.Config, dataStore *store.Store, box *securebox.Box, telegramBots ...TelegramBotService) *Server {
 	dummy, _ := auth.HashPassword("this password is intentionally never valid")
-	return &Server{cfg: cfg, store: dataStore, dummyPasswordHash: dummy, secureBox: box, agentRelease: newAgentReleaseResolver(nil, ""), agentV2: newAgentV2Service(dataStore, box)}
+	var telegramBot TelegramBotService
+	if len(telegramBots) > 0 {
+		telegramBot = telegramBots[0]
+	}
+	return &Server{cfg: cfg, store: dataStore, dummyPasswordHash: dummy, secureBox: box, agentRelease: newAgentReleaseResolver(nil, ""), agentV2: newAgentV2Service(dataStore, box), telegramBot: telegramBot}
 }
 
 func (s *Server) Handler() http.Handler {
@@ -85,6 +95,7 @@ func (s *Server) Handler() http.Handler {
 		ops.Post("/ck", s.handleCreateOutbound)
 		ops.Patch("/ck/{id}", s.handleUpdateOutbound)
 		ops.Get("/sz/dy/jl", s.handleListSubscriptionAccess)
+		ops.Post("/sz/tg/cs", s.handleTestTelegramBot)
 		ops.Get("/sz/{section}", s.handleListSettings)
 		ops.Patch("/sz/{section}", s.handleUpdateSettings)
 		ops.Get("/sj", s.handleListAuditEvents)

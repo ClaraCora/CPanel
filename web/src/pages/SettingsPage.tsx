@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Eye, EyeOff, KeyRound, LockKeyhole, RefreshCw, Save, ScrollText, ShieldCheck, UserRound } from "lucide-react";
+import { Eye, EyeOff, KeyRound, LockKeyhole, RefreshCw, Save, ScrollText, Send, ShieldCheck, UserRound } from "lucide-react";
 import { ApiError, api } from "../api";
 import { Button, EmptyState, Field, PageHeader, TableSkeleton, formatPreciseDate, useToast } from "../components/ui";
 import { useResource } from "../hooks";
 import type { Admin, Setting, SubscriptionAccessEvent } from "../types";
 
-type SettingField = { key: string; label: string; type?: "text" | "number" | "select" | "password" | "textarea" | "toggle"; helper?: string; sensitive?: boolean; generate?: boolean; options?: { value: string; label: string }[]; defaultValue?: string; min?: number; max?: number };
+type SettingField = { key: string; label: string; type?: "text" | "number" | "select" | "password" | "textarea" | "toggle" | "time"; helper?: string; sensitive?: boolean; generate?: boolean; options?: { value: string; label: string }[]; defaultValue?: string; min?: number; max?: number };
 type SettingSection = { id: string; label: string; description: string; fields?: SettingField[] };
 
 const subscriptionSection: SettingSection = { id: "subscription", label: "订阅设置", description: "Clash Meta 输出、浏览器拦截和拉取记录", fields: [{ key: "base_url", label: "订阅基础地址" }, { key: "cache_seconds", label: "缓存时间（秒）", type: "number", defaultValue: "60" }, { key: "format", label: "输出格式", type: "select", options: [{ value: "clash-meta", label: "Clash Meta" }], defaultValue: "clash-meta" }, { key: "block_browser_access", label: "拦截常规浏览器", type: "toggle", defaultValue: "false" }, { key: "ua_whitelist", label: "UA 白名单", type: "textarea", helper: "每行一个 UA 关键字，不区分大小写" }] };
@@ -17,6 +17,7 @@ const sections: SettingSection[] = [
   { id: "security", label: "安全", description: "管理员会话和登录保护", fields: [{ key: "session_ttl_minutes", label: "会话有效期（分钟）", type: "number", defaultValue: "720" }, { key: "password_min_length", label: "密码最小长度", type: "number", defaultValue: "8", min: 8, max: 128 }, { key: "max_login_failures", label: "登录失败锁定次数", type: "number", defaultValue: "8" }, { key: "trusted_proxy_cidrs", label: "可信代理 CIDR", type: "textarea", helper: "每行一个 CIDR" }] },
   { id: "node_defaults", label: "节点默认值", description: "新建节点时使用的内核、监听与上报参数", fields: [{ key: "default_kernel", label: "默认内核", type: "select", options: [{ value: "xray", label: "Xray" }, { value: "singbox", label: "sing-box" }], defaultValue: "xray" }, { key: "listen_ip", label: "默认监听地址", defaultValue: "0.0.0.0" }, { key: "telemetry_seconds", label: "遥测上报间隔（秒）", type: "number", defaultValue: "60" }, { key: "certificate_mode", label: "证书模式", type: "select", options: [{ value: "manual", label: "手动配置" }, { value: "acme", label: "ACME 自动申请" }], defaultValue: "manual" }] },
   { id: "certificate", label: "证书与 DNS", description: "ACME 账号和 DNS Provider 凭据", fields: [{ key: "acme_email", label: "ACME 邮箱" }, { key: "dns_provider", label: "DNS Provider" }, { key: "dns_api_token", label: "DNS API Token", type: "password", sensitive: true, helper: "保存后不再显示明文" }, { key: "http01_port", label: "HTTP-01 端口", type: "number", defaultValue: "80" }] },
+  { id: "tgbot", label: "TG Bot", description: "管理员查询与昨日流量排行推送", fields: [{ key: "enabled", label: "启用 TG Bot", type: "toggle", defaultValue: "false", helper: "启用后通过长轮询接收命令，不需要配置 Webhook" }, { key: "bot_token", label: "BotFather 密钥", type: "password", sensitive: true, helper: "填写 @BotFather 提供的完整密钥，保存后不再显示明文" }, { key: "admin_telegram_id", label: "管理员 Telegram ID", helper: "先私聊 Bot 发送 /id，再将返回的数字填写到这里" }, { key: "daily_report_enabled", label: "推送昨日排行榜", type: "toggle", defaultValue: "true" }, { key: "daily_report_time", label: "日报推送时间", type: "time", defaultValue: "09:00", helper: "使用站点设置中的时区；内容包含昨日上传、下载及节点和用户 Top 5" }] },
   { id: "retention", label: "数据保留", description: "在线设备、流量和审计日志保留时间；服务器与节点指标仅保留最新值", fields: [{ key: "devices_days", label: "在线设备保留天数", type: "number", defaultValue: "30" }, { key: "traffic_days", label: "流量明细保留天数", type: "number", defaultValue: "90" }, { key: "audit_days", label: "审计日志保留天数", type: "number", defaultValue: "180" }, { key: "subscription_access_days", label: "订阅拉取记录保留天数", type: "number", defaultValue: "30" }] },
 ];
 
@@ -90,6 +91,7 @@ function SystemSettingForm({ section }: { section: SettingSection }) {
   const { data, loading, error, reload } = useResource<Setting[]>(`/settings/${section.id}`, []);
   const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
   const toast = useToast();
   useEffect(() => { const stored = new Map(data.map((item) => [item.key, item.value])); setValues(Object.fromEntries(fields.map((field) => [field.key, field.sensitive && stored.has(field.key) ? "" : stored.has(field.key) ? String(stored.get(field.key) ?? "") : field.defaultValue ?? ""]))); }, [data, fields]);
 
@@ -108,9 +110,22 @@ function SystemSettingForm({ section }: { section: SettingSection }) {
     finally { setSaving(false); }
   }
 
+  async function sendTestMessage() {
+    setTesting(true);
+    try {
+      await api.post("/settings/tgbot/test");
+      toast("测试消息已发送到绑定的 Telegram 账号");
+    } catch (reason) {
+      toast(reason instanceof ApiError ? reason.message : "测试消息发送失败", "error");
+    } finally { setTesting(false); }
+  }
+
   if (loading) return <div className="settings-loading"><TableSkeleton columns={2} rows={5} /></div>;
   if (error) return <EmptyState title="设置加载失败" description={error} action={<Button onClick={() => void reload()}>重新加载</Button>} />;
-  return <form onSubmit={save} className="settings-form">{fields.map((field) => <Field key={field.key} label={field.label} helper={field.helper}>{field.type === "toggle" ? <label className="settings-toggle"><input type="checkbox" checked={(values[field.key] ?? "true") === "true"} onChange={(event) => setValues((current) => ({ ...current, [field.key]: String(event.target.checked) }))} /><span>{(values[field.key] ?? "true") === "true" ? "启用" : "关闭"}</span></label> : field.type === "textarea" ? <textarea rows={4} value={values[field.key] ?? ""} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))} /> : field.type === "select" ? <select value={values[field.key] ?? ""} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))}>{field.options?.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select> : field.generate ? <div className="input-with-action"><input type={field.type ?? "text"} min={field.min} max={field.max} value={values[field.key] ?? ""} autoComplete="new-password" placeholder="留空表示不修改" onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))} /><Button type="button" onClick={() => generateKey(field)}><RefreshCw size={15} />生成</Button></div> : <input type={field.type ?? "text"} min={field.min} max={field.max} value={values[field.key] ?? ""} autoComplete={field.sensitive ? "new-password" : undefined} placeholder={field.sensitive ? "留空表示不修改" : undefined} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))} />}</Field>)}<footer><span><ShieldCheck size={15} />修改将写入管理员审计日志</span><Button type="submit" variant="primary" loading={saving}><Save size={16} />保存设置</Button></footer></form>;
+  return <form onSubmit={save} className="settings-form">
+    {fields.map((field) => <Field key={field.key} label={field.label} helper={field.helper}>{field.type === "toggle" ? <label className="settings-toggle"><input type="checkbox" checked={(values[field.key] ?? "true") === "true"} onChange={(event) => setValues((current) => ({ ...current, [field.key]: String(event.target.checked) }))} /><span>{(values[field.key] ?? "true") === "true" ? "启用" : "关闭"}</span></label> : field.type === "textarea" ? <textarea rows={4} value={values[field.key] ?? ""} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))} /> : field.type === "select" ? <select value={values[field.key] ?? ""} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))}>{field.options?.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select> : field.generate ? <div className="input-with-action"><input type={field.type ?? "text"} min={field.min} max={field.max} value={values[field.key] ?? ""} autoComplete="new-password" placeholder="留空表示不修改" onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))} /><Button type="button" onClick={() => generateKey(field)}><RefreshCw size={15} />生成</Button></div> : <input type={field.type ?? "text"} min={field.min} max={field.max} value={values[field.key] ?? ""} autoComplete={field.sensitive ? "new-password" : undefined} placeholder={field.sensitive ? "留空表示不修改" : undefined} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))} />}</Field>)}
+    <footer><span><ShieldCheck size={15} />修改将写入管理员审计日志</span><div className="settings-form__actions">{section.id === "tgbot" && <Button type="button" loading={testing} disabled={saving} onClick={() => void sendTestMessage()}><Send size={16} />发送测试消息</Button>}<Button type="submit" variant="primary" loading={saving} disabled={testing}><Save size={16} />保存设置</Button></div></footer>
+  </form>;
 }
 
 const accessOutcome = {

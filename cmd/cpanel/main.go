@@ -21,6 +21,7 @@ import (
 	"cpanel/internal/httpapi"
 	"cpanel/internal/securebox"
 	"cpanel/internal/store"
+	"cpanel/internal/tgbot"
 	"cpanel/internal/xboardimport"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -99,7 +100,9 @@ func serve(cfg config.Config, dataStore *store.Store, box *securebox.Box) error 
 	defer stopMaintenance()
 	go maintainHistoricalData(maintenanceCtx, dataStore)
 	go maintainMachinePresence(maintenanceCtx, dataStore)
-	server := &http.Server{Addr: cfg.Addr, Handler: httpapi.New(cfg, dataStore, box).Handler(), ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
+	telegramBot := tgbot.New(dataStore, box)
+	go telegramBot.Run(maintenanceCtx)
+	server := &http.Server{Addr: cfg.Addr, Handler: httpapi.New(cfg, dataStore, box, telegramBot).Handler(), ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
 	errCh := make(chan error, 1)
 	go func() { slog.Info("cpanel listening", "addr", cfg.Addr); errCh <- server.ListenAndServe() }()
 	stop := make(chan os.Signal, 1)

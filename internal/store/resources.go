@@ -65,6 +65,21 @@ func (s *Store) Overview(ctx context.Context, rankingPeriod string) (domain.Over
 	return overview, err
 }
 
+func (s *Store) TrafficSummary(ctx context.Context, period string) (domain.TrafficSummary, error) {
+	var summary domain.TrafficSummary
+	currentDay := time.Now().In(loadTrafficLocation(s.SettingString(ctx, "site", "timezone", "Asia/Shanghai"))).Format(time.DateOnly)
+	startOffset, endOffset := rankingDateOffsets(period)
+	err := s.pool.QueryRow(ctx, `WITH combined AS (
+		SELECT upload_bytes,download_bytes FROM traffic_daily
+		WHERE day >= $1::date + $2::int AND day < $1::date + $3::int
+		UNION ALL SELECT upload_bytes,download_bytes FROM imported_user_traffic_daily
+		WHERE day >= $1::date + $2::int AND day < $1::date + $3::int)
+		SELECT COALESCE(sum(upload_bytes),0),COALESCE(sum(download_bytes),0) FROM combined`,
+		currentDay, startOffset, endOffset).Scan(&summary.UploadBytes, &summary.DownloadBytes)
+	summary.TotalBytes = summary.UploadBytes + summary.DownloadBytes
+	return summary, err
+}
+
 func rankingDateOffsets(period string) (int, int) {
 	switch period {
 	case "yesterday":

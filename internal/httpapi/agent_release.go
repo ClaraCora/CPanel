@@ -2,14 +2,17 @@ package httpapi
 
 import (
 	"context"
-	"encoding/json"
+	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 )
 
-const defaultAgentReleaseURL = "https://api.github.com/repos/ClaraCora/CPanelde/git/ref/tags/latest"
+const defaultAgentReleaseURL = "https://github.com/ClaraCora/CPanelde/releases/download/latest/agent-version.txt"
+
+var semanticAgentVersionPattern = regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9a-z.-]+)?$`)
 
 type agentReleaseResolver struct {
 	mu        sync.Mutex
@@ -46,7 +49,7 @@ func (r *agentReleaseResolver) Latest(ctx context.Context) string {
 	if err != nil {
 		return r.version
 	}
-	request.Header.Set("Accept", "application/vnd.github+json")
+	request.Header.Set("Accept", "text/plain")
 	request.Header.Set("User-Agent", "CPanel")
 	response, err := r.client.Do(request)
 	if err != nil {
@@ -56,15 +59,11 @@ func (r *agentReleaseResolver) Latest(ctx context.Context) string {
 	if response.StatusCode != http.StatusOK {
 		return r.version
 	}
-	var payload struct {
-		Object struct {
-			SHA string `json:"sha"`
-		} `json:"object"`
-	}
-	if json.NewDecoder(response.Body).Decode(&payload) != nil {
+	payload, err := io.ReadAll(io.LimitReader(response.Body, 128))
+	if err != nil {
 		return r.version
 	}
-	if version := normalizeAgentVersion(payload.Object.SHA); version != "" {
+	if version := normalizeAgentVersion(string(payload)); version != "" {
 		r.version = version
 	}
 	return r.version
@@ -72,6 +71,9 @@ func (r *agentReleaseResolver) Latest(ctx context.Context) string {
 
 func normalizeAgentVersion(value string) string {
 	value = strings.ToLower(strings.TrimSpace(value))
+	if semanticAgentVersionPattern.MatchString(value) {
+		return value
+	}
 	if len(value) < 12 {
 		return ""
 	}

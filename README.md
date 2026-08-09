@@ -130,6 +130,30 @@ curl -o /dev/null -s -w '%{http_code}\n' https://panel.example.com/ca/jk/jx
 
 两个请求均应输出 `404`。随后访问正式域名登录后台，在“系统设置”中确认外部控制地址和统一通讯密钥，再到“服务器”页面复制该服务器生成的 Agent 安装命令。不要手工拼接 Agent 参数，页面生成的命令会包含服务器 ID、首次登记通讯密钥和面板公钥。
 
+## TG Bot
+
+TG Bot 使用 Telegram Bot API 长轮询，不需要配置 Webhook。BotFather 密钥使用面板加密密钥加密保存，日志和设置读取接口不会返回密钥明文。面板服务器需要能够访问 `api.telegram.org:443`。
+
+首次配置顺序：
+
+1. 在 Telegram 的 `@BotFather` 创建 Bot 并取得完整密钥。
+2. 打开“系统设置 → TG Bot”，填写密钥、开启 TG Bot，管理员 Telegram ID 暂时留空并保存。
+3. 私聊该 Bot 发送 `/id`，将返回的数字填写到“管理员 Telegram ID”并再次保存。
+4. 点击“发送测试消息”确认连接。只有绑定的管理员私聊能够查询面板数据，其他账号只能使用 `/id`。
+
+支持的查询命令：
+
+| 命令 | 内容 |
+| --- | --- |
+| `/status` | 服务器、节点、订阅账号和今日总流量 |
+| `/traffic` | 今日上传、下载和合计流量 |
+| `/machines` | 服务器在线状态与最后心跳 |
+| `/ranking` | 昨日节点与用户流量 Top 5 |
+| `/id` | 当前 Telegram 数字 ID |
+| `/help` | 命令说明 |
+
+“推送昨日排行榜”启用后，面板按“系统设置 → 站点”的时区，在配置时间推送昨日上传、下载、节点 Top 5 和用户 Top 5。发送日期和 Telegram update offset 会持久化，面板重启不会重复处理旧消息或重复推送当日日报。
+
 ## 订阅访问控制
 
 “访问控制 → 订阅”提供常规浏览器拦截开关、UA 白名单和最近 200 条订阅拉取记录。拦截默认关闭，开启后 Chrome、Safari、Firefox、Edge 等常规浏览器 UA 会收到 `404 Not Found`；Clash、sing-box、Shadowrocket 等非浏览器客户端不受影响。UA 白名单按行配置，使用不区分大小写的关键字匹配。

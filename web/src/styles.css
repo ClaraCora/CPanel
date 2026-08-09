@@ -404,6 +404,7 @@ a.resource-name:hover { color: var(--primary); text-decoration: underline; }
 .settings-form > .field { margin-bottom: 18px; }
 .settings-form footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--border); }
 .settings-form footer > span { display: flex; align-items: center; gap: 6px; color: var(--secondary); font-size: 10px; }
+.settings-form__actions { display: flex; align-items: center; gap: 8px; }
 .settings-loading { padding: 22px; }
 .account-settings { max-width: 820px; }
 .account-form { max-width: none; }
@@ -529,6 +530,7 @@ a.resource-name:hover { color: var(--primary); text-decoration: underline; }
   .settings-form { padding: 16px; }
   .settings-form footer { align-items: stretch; flex-direction: column; }
   .settings-form footer .button { width: 100%; }
+  .settings-form__actions { flex-direction: column-reverse; }
   .subscription-access { padding: 16px; }
 	.route-rule__body { grid-template-columns: 1fr; }
 	.route-rule__matches { border-right: 0; border-bottom: 1px solid var(--border); }

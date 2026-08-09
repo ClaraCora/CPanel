@@ -11,7 +11,7 @@ const resourcePaths: Record<string, string> = {
   "route-policies": "ly", outbounds: "ck",
 };
 const settingPaths: Record<string, string> = {
-  site: "zd", agent: "dl", security: "aq", node_defaults: "jdmr", certificate: "zs", subscription: "dy", retention: "bl",
+  site: "zd", agent: "dl", security: "aq", node_defaults: "jdmr", certificate: "zs", subscription: "dy", retention: "bl", tgbot: "tg",
 };
 const rolePaths: Record<string, string> = { admin: "gly", user: "yh", friend: "py" };
 
@@ -33,6 +33,7 @@ function wirePathname(path: string): string {
   if (segments[0] === "history") return "/ls";
   if (segments[0] === "audit-events") return "/sj";
   if (segments[0] === "settings" && segments[1] === "subscription" && segments[2] === "access-log") return "/sz/dy/jl";
+  if (segments[0] === "settings" && segments[1] === "tgbot" && segments[2] === "test") return "/sz/tg/cs";
   if (segments[0] === "settings") return `/sz/${settingPaths[segments[1]] ?? segments[1]}`;
   const resource = resourcePaths[segments[0]];
   if (!resource) return path;
@@ -89,6 +90,7 @@ async function demoRequest<T>(path: string, init: RequestInit): Promise<T> {
     return demoSession.admin as T;
   }
   if (path === "/account/password" && method === "PATCH") return { password_updated: true, other_sessions_revoked: 0 } as T;
+  if (path === "/settings/tgbot/test" && method === "POST") return { sent: true } as T;
   if (method === "GET") return demoResource(path) as T;
   if (path === "/nodes" && method === "POST") {
     const input = JSON.parse(String(init.body));

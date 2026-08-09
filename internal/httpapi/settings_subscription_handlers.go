@@ -6,7 +6,9 @@ import (
 	"log/slog"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"cpanel/internal/auth"
 	"cpanel/internal/store"
@@ -35,11 +37,13 @@ func (s *Server) handleListSubscriptionAccess(w http.ResponseWriter, r *http.Req
 var allowedSettingSections = map[string]bool{
 	"site": true, "agent": true, "security": true, "node_defaults": true,
 	"certificate": true, "subscription": true, "retention": true,
+	"tgbot": true,
 }
 
 var settingSectionPaths = map[string]string{
 	"zd": "site", "dl": "agent", "aq": "security", "jdmr": "node_defaults",
 	"zs": "certificate", "dy": "subscription", "bl": "retention",
+	"tg": "tgbot",
 }
 
 func settingSection(r *http.Request) string {
@@ -88,10 +92,20 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 			writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "设置键或值无效", map[string]string{key: "invalid"})
 			return
 		}
+		if section == "tgbot" && key == "bot_token" {
+			sensitive[key] = true
+		}
 		if sensitive[key] {
 			if section == "agent" && key == "communication_key" {
 				if err := json.Unmarshal(value, &sharedKey); err != nil || len(sharedKey) < 32 {
 					writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "Agent 通讯密钥至少需要 32 个字符", map[string]string{key: "too_short"})
+					return
+				}
+			}
+			if section == "tgbot" && key == "bot_token" {
+				var token string
+				if err := json.Unmarshal(value, &token); err != nil || !validTelegramBotToken(token) {
+					writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "TG Bot 密钥格式无效", map[string]string{key: "请填写 BotFather 提供的完整密钥"})
 					return
 				}
 			}
@@ -147,6 +161,39 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+		if section == "tgbot" && (key == "enabled" || key == "daily_report_enabled") {
+			var enabled bool
+			if err := json.Unmarshal(value, &enabled); err != nil {
+				writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "TG Bot 开关必须是布尔值", map[string]string{key: "请选择启用或关闭"})
+				return
+			}
+		}
+		if section == "tgbot" && key == "admin_telegram_id" {
+			var configured string
+			if err := json.Unmarshal(value, &configured); err != nil {
+				writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "管理员 Telegram ID 格式无效", map[string]string{key: "请输入数字 ID"})
+				return
+			}
+			configured = strings.TrimSpace(configured)
+			if configured != "" {
+				id, err := strconv.ParseInt(configured, 10, 64)
+				if err != nil || id <= 0 {
+					writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "管理员 Telegram ID 必须是正整数", map[string]string{key: "请输入 /id 返回的数字"})
+					return
+				}
+			}
+		}
+		if section == "tgbot" && key == "daily_report_time" {
+			var configured string
+			if err := json.Unmarshal(value, &configured); err != nil {
+				writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "日报推送时间格式无效", map[string]string{key: "请选择推送时间"})
+				return
+			}
+			if _, err := time.Parse("15:04", configured); err != nil {
+				writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "日报推送时间格式无效", map[string]string{key: "请选择有效时间"})
+				return
+			}
+		}
 	}
 	admin := currentAdmin(r)
 	if err := s.store.UpsertSettings(r.Context(), section, admin.ID, input.Values, sensitive); err != nil {
@@ -167,6 +214,22 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	_ = s.store.WriteAudit(r.Context(), admin.ID, "settings.update", "settings", section,
 		map[string]any{"keys": keys}, clientIP(r), requestID(r))
 	writeData(w, r, http.StatusOK, map[string]any{"section": section, "updated_keys": keys})
+}
+
+func validTelegramBotToken(value string) bool {
+	parts := strings.Split(strings.TrimSpace(value), ":")
+	if len(parts) != 2 || len(parts[1]) < 20 {
+		return false
+	}
+	if _, err := strconv.ParseInt(parts[0], 10, 64); err != nil {
+		return false
+	}
+	for _, char := range parts[1] {
+		if (char < 'a' || char > 'z') && (char < 'A' || char > 'Z') && (char < '0' || char > '9') && char != '_' && char != '-' {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *Server) handleSubscription(w http.ResponseWriter, r *http.Request) {

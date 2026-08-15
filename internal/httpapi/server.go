@@ -94,6 +94,7 @@ func (s *Server) Handler() http.Handler {
 		ops.Get("/ck", s.handleListOutbounds)
 		ops.Post("/ck", s.handleCreateOutbound)
 		ops.Patch("/ck/{id}", s.handleUpdateOutbound)
+		ops.Delete("/ck/{id}", s.handleDeleteOutbound)
 		ops.Get("/sz/dy/jl", s.handleListSubscriptionAccess)
 		ops.Post("/sz/tg/cs", s.handleTestTelegramBot)
 		ops.Get("/sz/{section}", s.handleListSettings)

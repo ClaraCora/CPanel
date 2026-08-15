@@ -960,7 +960,7 @@ func (s *Store) ArchiveUser(ctx context.Context, userID string) error {
 
 func (s *Store) ListRoutePolicies(ctx context.Context) ([]domain.RoutePolicy, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT r.id,r.name,r.status,r.current_revision,
+		SELECT r.id,r.name,r.status,r.current_revision,r.default_outbound_tag,
 		       COALESCE((SELECT rr.rules FROM route_policy_revisions rr
 		                 WHERE rr.route_policy_id=r.id ORDER BY rr.revision DESC LIMIT 1),'[]'::jsonb),
 		       r.notes,
@@ -975,7 +975,7 @@ func (s *Store) ListRoutePolicies(ctx context.Context) ([]domain.RoutePolicy, er
 	for rows.Next() {
 		var item domain.RoutePolicy
 		var rawRules []byte
-		if err := rows.Scan(&item.ID, &item.Name, &item.Status, &item.CurrentRevision, &rawRules, &item.Notes,
+		if err := rows.Scan(&item.ID, &item.Name, &item.Status, &item.CurrentRevision, &item.DefaultOutboundTag, &rawRules, &item.Notes,
 			&item.NodeCount, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
@@ -987,8 +987,9 @@ func (s *Store) ListRoutePolicies(ctx context.Context) ([]domain.RoutePolicy, er
 	return items, rows.Err()
 }
 
-func (s *Store) CreateRoutePolicy(ctx context.Context, name, notes, adminID string, rules []domain.RoutePolicyRule) (domain.RoutePolicy, error) {
-	if err := s.validateRoutePolicyTargets(ctx, rules); err != nil {
+func (s *Store) CreateRoutePolicy(ctx context.Context, name, notes, defaultOutboundTag, adminID string, rules []domain.RoutePolicyRule) (domain.RoutePolicy, error) {
+	defaultOutboundTag = strings.ToLower(strings.TrimSpace(defaultOutboundTag))
+	if err := s.validateRoutePolicyTargets(ctx, rules, defaultOutboundTag); err != nil {
 		return domain.RoutePolicy{}, err
 	}
 	rawRules, err := json.Marshal(rules)
@@ -1001,10 +1002,10 @@ func (s *Store) CreateRoutePolicy(ctx context.Context, name, notes, adminID stri
 	}
 	defer tx.Rollback(ctx)
 	item := domain.RoutePolicy{ID: domain.MustID("rte"), Rules: rules}
-	err = tx.QueryRow(ctx, `INSERT INTO route_policies(id,name,notes,status,current_revision) VALUES($1,$2,$3,'published',1)
-		RETURNING name,status,current_revision,notes,created_at,updated_at`,
-		item.ID, strings.TrimSpace(name), strings.TrimSpace(notes),
-	).Scan(&item.Name, &item.Status, &item.CurrentRevision, &item.Notes, &item.CreatedAt, &item.UpdatedAt)
+	err = tx.QueryRow(ctx, `INSERT INTO route_policies(id,name,notes,default_outbound_tag,status,current_revision) VALUES($1,$2,$3,$4,'published',1)
+		RETURNING name,status,current_revision,default_outbound_tag,notes,created_at,updated_at`,
+		item.ID, strings.TrimSpace(name), strings.TrimSpace(notes), defaultOutboundTag,
+	).Scan(&item.Name, &item.Status, &item.CurrentRevision, &item.DefaultOutboundTag, &item.Notes, &item.CreatedAt, &item.UpdatedAt)
 	if err != nil {
 		return domain.RoutePolicy{}, mapError(err)
 	}
@@ -1034,8 +1035,22 @@ func (s *Store) ArchiveRoutePolicy(ctx context.Context, routeID string) error {
 }
 
 func (s *Store) UpdateRoutePolicy(ctx context.Context, routeID, adminID string, input domain.RoutePolicyUpdate) (domain.RoutePolicy, error) {
-	if input.Rules != nil {
-		if err := s.validateRoutePolicyTargets(ctx, *input.Rules); err != nil {
+	if input.DefaultOutboundTag != nil {
+		value := strings.ToLower(strings.TrimSpace(*input.DefaultOutboundTag))
+		input.DefaultOutboundTag = &value
+	}
+	if input.Rules != nil || input.DefaultOutboundTag != nil {
+		currentRules, currentDefaultOutboundTag, err := s.routePolicyTargets(ctx, routeID)
+		if err != nil {
+			return domain.RoutePolicy{}, err
+		}
+		if input.Rules != nil {
+			currentRules = *input.Rules
+		}
+		if input.DefaultOutboundTag != nil {
+			currentDefaultOutboundTag = *input.DefaultOutboundTag
+		}
+		if err := s.validateRoutePolicyTargets(ctx, currentRules, currentDefaultOutboundTag); err != nil {
 			return domain.RoutePolicy{}, err
 		}
 	}
@@ -1046,8 +1061,9 @@ func (s *Store) UpdateRoutePolicy(ctx context.Context, routeID, adminID string, 
 	defer tx.Rollback(ctx)
 	var currentRevision int
 	err = tx.QueryRow(ctx, `UPDATE route_policies SET
-		name=COALESCE(NULLIF(BTRIM($2),''),name),notes=COALESCE($3,notes),status=COALESCE($4,status),updated_at=now()
-		WHERE id=$1 AND status <> 'archived' RETURNING current_revision`, routeID, input.Name, input.Notes, input.Status).Scan(&currentRevision)
+		name=COALESCE(NULLIF(BTRIM($2),''),name),notes=COALESCE($3,notes),status=COALESCE($4,status),
+		default_outbound_tag=COALESCE($5,default_outbound_tag),updated_at=now()
+		WHERE id=$1 AND status <> 'archived' RETURNING current_revision`, routeID, input.Name, input.Notes, input.Status, input.DefaultOutboundTag).Scan(&currentRevision)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.RoutePolicy{}, ErrNotFound
 	}
@@ -1068,7 +1084,7 @@ func (s *Store) UpdateRoutePolicy(ctx context.Context, routeID, adminID string, 
 			return domain.RoutePolicy{}, mapError(err)
 		}
 	}
-	if input.Rules != nil || input.Status != nil {
+	if input.Rules != nil || input.Status != nil || input.DefaultOutboundTag != nil {
 		if err := notifyRoutePolicyNodes(ctx, tx, routeID); err != nil {
 			return domain.RoutePolicy{}, err
 		}
@@ -1088,12 +1104,34 @@ func (s *Store) UpdateRoutePolicy(ctx context.Context, routeID, adminID string, 
 	return domain.RoutePolicy{}, ErrNotFound
 }
 
-func (s *Store) validateRoutePolicyTargets(ctx context.Context, rules []domain.RoutePolicyRule) error {
+func (s *Store) routePolicyTargets(ctx context.Context, routeID string) ([]domain.RoutePolicyRule, string, error) {
+	var rawRules []byte
+	var defaultOutboundTag string
+	err := s.pool.QueryRow(ctx, `SELECT r.default_outbound_tag,
+		COALESCE((SELECT rr.rules FROM route_policy_revisions rr WHERE rr.route_policy_id=r.id ORDER BY rr.revision DESC LIMIT 1),'[]'::jsonb)
+		FROM route_policies r WHERE r.id=$1 AND r.status <> 'archived'`, routeID).Scan(&defaultOutboundTag, &rawRules)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, "", ErrNotFound
+	}
+	if err != nil {
+		return nil, "", err
+	}
+	var rules []domain.RoutePolicyRule
+	if err := json.Unmarshal(rawRules, &rules); err != nil {
+		return nil, "", err
+	}
+	return rules, strings.ToLower(strings.TrimSpace(defaultOutboundTag)), nil
+}
+
+func (s *Store) validateRoutePolicyTargets(ctx context.Context, rules []domain.RoutePolicyRule, defaultOutboundTag string) error {
 	targets := make(map[string]struct{})
 	for _, rule := range rules {
 		if rule.Action.Type == "route" {
 			targets[strings.ToLower(strings.TrimSpace(rule.Action.Target))] = struct{}{}
 		}
+	}
+	if value := strings.ToLower(strings.TrimSpace(defaultOutboundTag)); value != "" {
+		targets[value] = struct{}{}
 	}
 	if len(targets) == 0 {
 		return nil
@@ -1150,6 +1188,54 @@ func (s *Store) ListOutbounds(ctx context.Context) ([]domain.Outbound, error) {
 		items = append(items, item)
 	}
 	return items, rows.Err()
+}
+
+func (s *Store) ArchiveOutbound(ctx context.Context, outboundID string) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	var tag string
+	err = tx.QueryRow(ctx, `SELECT tag FROM outbounds WHERE id=$1 AND status <> 'archived' FOR UPDATE`, outboundID).Scan(&tag)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+
+	var inUse bool
+	err = tx.QueryRow(ctx, `SELECT
+		EXISTS(SELECT 1 FROM outbounds o WHERE o.id <> $1 AND o.status <> 'archived' AND lower(o.proxy_tag)=lower($2))
+		OR EXISTS(SELECT 1 FROM route_policies r WHERE r.status <> 'archived' AND lower(r.default_outbound_tag)=lower($2))
+		OR EXISTS(
+			SELECT 1 FROM route_policies r
+			CROSS JOIN LATERAL (
+				SELECT rr.rules FROM route_policy_revisions rr
+				WHERE rr.route_policy_id=r.id ORDER BY rr.revision DESC LIMIT 1
+			) latest
+			WHERE r.status <> 'archived' AND EXISTS(
+				SELECT 1 FROM jsonb_array_elements(latest.rules) rule
+				WHERE lower(COALESCE(rule->'action'->>'type',''))='route'
+				  AND lower(COALESCE(rule->'action'->>'target',''))=lower($2)
+			)
+		)`, outboundID, tag).Scan(&inUse)
+	if err != nil {
+		return err
+	}
+	if inUse {
+		return ErrOutboundInUse
+	}
+
+	if _, err := tx.Exec(ctx, `UPDATE outbounds SET status='archived',updated_at=now() WHERE id=$1`, outboundID); err != nil {
+		return err
+	}
+	if err := notifyAllPublishedNodeSpecs(ctx, tx); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (s *Store) CreateOutbound(ctx context.Context, input domain.Outbound) (domain.Outbound, error) {

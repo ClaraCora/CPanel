@@ -16,6 +16,7 @@ var (
 	ErrPlanInUse                    = errors.New("plan is still in use")
 	ErrRoutePolicyInUse             = errors.New("route policy is still in use")
 	ErrRouteOutboundUnavailable     = errors.New("route outbound is unavailable")
+	ErrOutboundInUse                = errors.New("outbound is still in use")
 	ErrNodePortInUse                = errors.New("node port is already in use")
 	ErrAgentNotConnected            = errors.New("agent has not connected")
 	ErrAgentAlreadyLatest           = errors.New("agent is already latest")

@@ -16,7 +16,7 @@ func TestMergeAgentRoutingSettingsIncludesRulesAndOutboundChain(t *testing.T) {
 		{"tag":"media-out","protocol":"socks","proxy_tag":"warp","settings":{"server":"10.0.0.1"}}
 	]`)
 
-	merged, err := mergeAgentRoutingSettings(settings, rules, outbounds, true)
+	merged, err := mergeAgentRoutingSettings(settings, rules, outbounds, "", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func TestMergeAgentRoutingSettingsIncludesRulesAndOutboundChain(t *testing.T) {
 }
 
 func TestMergeAgentRoutingSettingsClearsRulesForDisabledPolicy(t *testing.T) {
-	merged, err := mergeAgentRoutingSettings(json.RawMessage(`{"transport":"tcp"}`), json.RawMessage(`[{"match":{"ports":["443"]},"action":{"type":"block"}}]`), json.RawMessage(`[]`), false)
+	merged, err := mergeAgentRoutingSettings(json.RawMessage(`{"transport":"tcp"}`), json.RawMessage(`[{"match":{"ports":["443"]},"action":{"type":"block"}}]`), json.RawMessage(`[]`), "warp", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,11 +55,14 @@ func TestMergeAgentRoutingSettingsClearsRulesForDisabledPolicy(t *testing.T) {
 	if rules, ok := decoded["custom_route_rules"].([]any); !ok || len(rules) != 0 {
 		t.Fatalf("disabled policy should emit an empty rule set: %s", merged)
 	}
+	if value, _ := decoded["default_outbound_tag"].(string); value != "" {
+		t.Fatalf("disabled policy should clear the default outbound: %s", merged)
+	}
 }
 
 func TestMergeAgentRoutingSettingsCompilesDomainRegexForXray(t *testing.T) {
 	rules := json.RawMessage(`[{"name":"blocked","match":{"domain_regexes":["^(.+\\.)?example\\.com$"]},"action":{"type":"block"}}]`)
-	merged, err := mergeAgentRoutingSettings(json.RawMessage(`{}`), rules, json.RawMessage(`[]`), true)
+	merged, err := mergeAgentRoutingSettings(json.RawMessage(`{}`), rules, json.RawMessage(`[]`), "", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,6 +79,30 @@ func TestMergeAgentRoutingSettingsCompilesDomainRegexForXray(t *testing.T) {
 	}
 	if _, exists := decoded.Rules[0].Match["domain_regexes"]; exists {
 		t.Fatalf("Agent payload must not contain panel-only domain_regexes: %s", merged)
+	}
+}
+
+func TestMergeAgentRoutingSettingsIncludesDefaultOutbound(t *testing.T) {
+	outbounds := json.RawMessage(`[
+		{"tag":"warp","protocol":"wireguard","settings":{"private_key":"key"}},
+		{"tag":"unused","protocol":"socks","settings":{"server":"10.0.0.2"}}
+	]`)
+	merged, err := mergeAgentRoutingSettings(json.RawMessage(`{"transport":"tcp"}`), json.RawMessage(`[]`), outbounds, "warp", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded struct {
+		DefaultOutboundTag string           `json:"default_outbound_tag"`
+		CustomOutbounds    []map[string]any `json:"custom_outbounds"`
+	}
+	if err := json.Unmarshal(merged, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded.DefaultOutboundTag != "warp" {
+		t.Fatalf("default outbound = %q, want warp", decoded.DefaultOutboundTag)
+	}
+	if len(decoded.CustomOutbounds) != 1 || decoded.CustomOutbounds[0]["tag"] != "warp" {
+		t.Fatalf("default outbound was not selected: %s", merged)
 	}
 }
 

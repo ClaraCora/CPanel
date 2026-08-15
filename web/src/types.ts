@@ -127,6 +127,7 @@ export interface RoutePolicy {
   name: string;
   status: string;
   current_revision: number;
+  default_outbound_tag?: string;
   rules: RoutePolicyRule[];
   notes?: string;
   node_count: number;

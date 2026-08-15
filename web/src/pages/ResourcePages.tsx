@@ -46,7 +46,7 @@ type ResourcePageProps<T extends Resource> = {
 };
 
 function ResourcePage<T extends Resource>({ title, description, endpoint, createLabel, columns, fields, defaults, transform, toValues, enabledStatus = "active", disabledStatus = "disabled", installable = false, upgradeable = false, subscriptionActions = false, quickAccountCreation = false, deletable = false, identifierAction, protectedItem, refreshIntervalMs = 0 }: ResourcePageProps<T>) {
-	deletable = deletable || ["/machines", "/access-groups", "/plans", "/route-policies"].includes(endpoint);
+	deletable = deletable || ["/machines", "/access-groups", "/plans", "/route-policies", "/outbounds"].includes(endpoint);
 	if (endpoint === "/route-policies") enabledStatus = "published";
   const { data, loading, error, reload } = useResource<T[]>(endpoint, [], refreshIntervalMs);
   const [query, setQuery] = useState("");
@@ -423,8 +423,9 @@ export function UsersPage() {
 
 export function RoutesPage() {
   const { data: outbounds } = useResource<Outbound[]>("/outbounds", []);
-  const initialRules = JSON.stringify([{ name: "", match: { domain_suffixes: [] }, action: { type: "direct" } }]);
-  return <ResourcePage<RoutePolicy> title="路由策略" description="按顺序匹配域名、IP、端口与网络协议，并执行直连、阻断或指定出站" endpoint="/route-policies" createLabel="添加路由策略" defaults={{ name: "", notes: "", rules: initialRules }} fields={[{ key: "name", label: "策略名称", required: true, placeholder: "例如：流媒体直连" }, { key: "notes", label: "策略备注", type: "textarea", placeholder: "选填，例如适用区域或变更原因" }, { key: "rules", label: "规则编排", type: "route-rules", routeOutbounds: outbounds }]} transform={(v) => ({ name: v.name.trim(), notes: v.notes.trim(), rules: JSON.parse(v.rules || "[]") })} toValues={(item) => ({ name: item.name, notes: item.notes ?? "", rules: JSON.stringify(item.rules ?? []) })} columns={[{ label: "策略", render: (item) => primary(item.name, item.id, item.notes) }, { label: "规则", render: (item) => <span className="mono">{item.rules?.length ?? 0}</span> }, { label: "当前版本", render: (item) => <span className="mono">rev {item.current_revision}</span> }, { label: "绑定节点", render: (item) => <span className="mono">{item.node_count}</span> }, { label: "更新时间", render: (item) => formatDate(item.updated_at) }]} />;
+  const initialRules = JSON.stringify([]);
+  const defaultOutboundOptions = [{ value: "", label: "默认直连（仅按下方规则处理）" }, ...outbounds.filter((item) => item.status === "active" && !["direct", "block"].includes(item.protocol) && item.kernel_support.includes("xray")).map((item) => ({ value: item.tag, label: `${item.name} · ${item.tag}` }))];
+  return <ResourcePage<RoutePolicy> title="路由策略" description="按顺序匹配域名、IP、端口与网络协议，并执行直连、阻断或指定出站" endpoint="/route-policies" createLabel="添加路由策略" defaults={{ name: "", notes: "", default_outbound_tag: "", rules: initialRules }} fields={[{ key: "name", label: "策略名称", required: true, placeholder: "例如：流媒体直连" }, { key: "default_outbound_tag", label: "默认流量出口", type: "select", options: defaultOutboundOptions, helper: "选择出口后，未被规则命中的流量将通过该出口；未选择时保持直连。" }, { key: "notes", label: "策略备注", type: "textarea", placeholder: "选填，例如适用区域或变更原因" }, { key: "rules", label: "规则编排", type: "route-rules", routeOutbounds: outbounds }]} transform={(v) => ({ name: v.name.trim(), notes: v.notes.trim(), default_outbound_tag: v.default_outbound_tag, rules: JSON.parse(v.rules || "[]") })} toValues={(item) => ({ name: item.name, notes: item.notes ?? "", default_outbound_tag: item.default_outbound_tag ?? "", rules: JSON.stringify(item.rules ?? []) })} columns={[{ label: "策略", render: (item) => primary(item.name, item.id, item.notes) }, { label: "默认出口", render: (item) => item.default_outbound_tag || "直连" }, { label: "规则", render: (item) => <span className="mono">{item.rules?.length ?? 0}</span> }, { label: "当前版本", render: (item) => <span className="mono">rev {item.current_revision}</span> }, { label: "绑定节点", render: (item) => <span className="mono">{item.node_count}</span> }, { label: "更新时间", render: (item) => formatDate(item.updated_at) }]} />;
 }
 
 export function OutboundsPage() {

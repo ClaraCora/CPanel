@@ -70,8 +70,9 @@ func (s *Store) AgentNodeSpec(ctx context.Context, machineID string, agentNodeID
 	var item domain.AgentNodeSpec
 	var policyAttached, policyPublished bool
 	var rawRules, rawOutbounds []byte
+	var defaultOutboundTag string
 	err := s.pool.QueryRow(ctx, `SELECT n.agent_id,n.current_revision,n.protocol,n.listen_ip,n.server_port,n.kernel_type,n.config,
-		       n.route_policy_id IS NOT NULL,COALESCE(r.status='published',false),
+		       n.route_policy_id IS NOT NULL,COALESCE(r.status='published',false),COALESCE(r.default_outbound_tag,''),
 		       COALESCE((SELECT rr.rules FROM route_policy_revisions rr
 		                 WHERE rr.route_policy_id=r.id ORDER BY rr.revision DESC LIMIT 1),'[]'::jsonb),
 		       COALESCE((SELECT jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
@@ -81,7 +82,7 @@ func (s *Store) AgentNodeSpec(ctx context.Context, machineID string, agentNodeID
 		FROM nodes n LEFT JOIN route_policies r ON r.id=n.route_policy_id
 		WHERE n.machine_id=$1 AND n.agent_id=$2 AND n.status='published'`, machineID, agentNodeID).Scan(
 		&item.NodeID, &item.Revision, &item.Protocol, &item.ListenIP, &item.ServerPort, &item.KernelType, &item.Settings,
-		&policyAttached, &policyPublished, &rawRules, &rawOutbounds,
+		&policyAttached, &policyPublished, &defaultOutboundTag, &rawRules, &rawOutbounds,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.AgentNodeSpec{}, ErrNotFound
@@ -90,12 +91,12 @@ func (s *Store) AgentNodeSpec(ctx context.Context, machineID string, agentNodeID
 		return domain.AgentNodeSpec{}, err
 	}
 	if policyAttached {
-		item.Settings, err = mergeAgentRoutingSettings(item.Settings, rawRules, rawOutbounds, policyPublished)
+		item.Settings, err = mergeAgentRoutingSettings(item.Settings, rawRules, rawOutbounds, defaultOutboundTag, policyPublished)
 	}
 	return item, err
 }
 
-func mergeAgentRoutingSettings(settings, rawRules, rawOutbounds json.RawMessage, policyPublished bool) (json.RawMessage, error) {
+func mergeAgentRoutingSettings(settings, rawRules, rawOutbounds json.RawMessage, defaultOutboundTag string, policyPublished bool) (json.RawMessage, error) {
 	config := make(map[string]any)
 	if len(settings) > 0 {
 		if err := json.Unmarshal(settings, &config); err != nil {
@@ -103,12 +104,17 @@ func mergeAgentRoutingSettings(settings, rawRules, rawOutbounds json.RawMessage,
 		}
 	}
 	rules := make([]domain.RoutePolicyRule, 0)
+	defaultOutboundTag = strings.TrimSpace(defaultOutboundTag)
 	if policyPublished && len(rawRules) > 0 {
 		if err := json.Unmarshal(rawRules, &rules); err != nil {
 			return nil, fmt.Errorf("decode route policy rules: %w", err)
 		}
 	}
+	if !policyPublished {
+		defaultOutboundTag = ""
+	}
 	config["custom_route_rules"] = routeRulesForAgent(rules)
+	config["default_outbound_tag"] = defaultOutboundTag
 
 	allOutbounds := make([]map[string]any, 0)
 	if len(rawOutbounds) > 0 {
@@ -116,7 +122,7 @@ func mergeAgentRoutingSettings(settings, rawRules, rawOutbounds json.RawMessage,
 			return nil, fmt.Errorf("decode route outbounds: %w", err)
 		}
 	}
-	selected := selectRouteOutbounds(rules, allOutbounds)
+	selected := selectRouteOutbounds(rules, allOutbounds, defaultOutboundTag)
 	if len(selected) > 0 {
 		config["custom_outbounds"] = mergeRouteOutbounds(config["custom_outbounds"], selected)
 	}
@@ -147,7 +153,7 @@ func routeRulesForAgent(rules []domain.RoutePolicyRule) []domain.RoutePolicyRule
 	return result
 }
 
-func selectRouteOutbounds(rules []domain.RoutePolicyRule, all []map[string]any) []map[string]any {
+func selectRouteOutbounds(rules []domain.RoutePolicyRule, all []map[string]any, defaultOutboundTag string) []map[string]any {
 	byTag := make(map[string]map[string]any, len(all))
 	for _, outbound := range all {
 		tag, _ := outbound["tag"].(string)
@@ -179,6 +185,7 @@ func selectRouteOutbounds(rules []domain.RoutePolicyRule, all []map[string]any) 
 			include(rule.Action.Target)
 		}
 	}
+	include(defaultOutboundTag)
 	selected := make([]map[string]any, 0, len(wanted))
 	for _, outbound := range all {
 		tag, _ := outbound["tag"].(string)

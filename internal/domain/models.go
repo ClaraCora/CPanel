@@ -269,10 +269,11 @@ type UserUpdate struct {
 }
 
 type RoutePolicyUpdate struct {
-	Name   *string            `json:"name"`
-	Notes  *string            `json:"notes"`
-	Status *string            `json:"status"`
-	Rules  *[]RoutePolicyRule `json:"rules"`
+	Name               *string            `json:"name"`
+	Notes              *string            `json:"notes"`
+	Status             *string            `json:"status"`
+	DefaultOutboundTag *string            `json:"default_outbound_tag"`
+	Rules              *[]RoutePolicyRule `json:"rules"`
 }
 
 type OutboundUpdate struct {
@@ -286,15 +287,16 @@ type OutboundUpdate struct {
 }
 
 type RoutePolicy struct {
-	ID              string            `json:"id"`
-	Name            string            `json:"name"`
-	Status          string            `json:"status"`
-	CurrentRevision int               `json:"current_revision"`
-	Rules           []RoutePolicyRule `json:"rules"`
-	Notes           string            `json:"notes,omitempty"`
-	NodeCount       int               `json:"node_count"`
-	CreatedAt       time.Time         `json:"created_at"`
-	UpdatedAt       time.Time         `json:"updated_at"`
+	ID                 string            `json:"id"`
+	Name               string            `json:"name"`
+	Status             string            `json:"status"`
+	CurrentRevision    int               `json:"current_revision"`
+	DefaultOutboundTag string            `json:"default_outbound_tag"`
+	Rules              []RoutePolicyRule `json:"rules"`
+	Notes              string            `json:"notes,omitempty"`
+	NodeCount          int               `json:"node_count"`
+	CreatedAt          time.Time         `json:"created_at"`
+	UpdatedAt          time.Time         `json:"updated_at"`
 }
 
 type RoutePolicyRule struct {

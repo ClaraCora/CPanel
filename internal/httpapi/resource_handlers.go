@@ -623,9 +623,10 @@ func (s *Server) handleListRoutePolicies(w http.ResponseWriter, r *http.Request)
 
 func (s *Server) handleCreateRoutePolicy(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Name  string                   `json:"name"`
-		Notes string                   `json:"notes"`
-		Rules []domain.RoutePolicyRule `json:"rules"`
+		Name               string                   `json:"name"`
+		Notes              string                   `json:"notes"`
+		DefaultOutboundTag string                   `json:"default_outbound_tag"`
+		Rules              []domain.RoutePolicyRule `json:"rules"`
 	}
 	if !decodeJSON(w, r, &input) {
 		return
@@ -639,7 +640,7 @@ func (s *Server) handleCreateRoutePolicy(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	admin := currentAdmin(r)
-	item, err := s.store.CreateRoutePolicy(r.Context(), input.Name, input.Notes, admin.ID, input.Rules)
+	item, err := s.store.CreateRoutePolicy(r.Context(), input.Name, input.Notes, input.DefaultOutboundTag, admin.ID, input.Rules)
 	if err != nil {
 		writeStoreError(w, r, err)
 		return
@@ -748,6 +749,10 @@ func (s *Server) handleUpdateOutbound(w http.ResponseWriter, r *http.Request) {
 	}
 	auditUpdate(s, r, "outbound", item.ID, input)
 	writeData(w, r, http.StatusOK, item)
+}
+
+func (s *Server) handleDeleteOutbound(w http.ResponseWriter, r *http.Request) {
+	s.handleArchiveResource(w, r, "outbound", s.store.ArchiveOutbound)
 }
 
 func auditUpdate(s *Server, r *http.Request, resourceType, resourceID string, changes any) {

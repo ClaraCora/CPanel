@@ -27,8 +27,8 @@ export const demoMachines: Machine[] = [
 ];
 
 export const demoRoutes: RoutePolicy[] = [
-  { id: "rte_asia", name: "亚洲流媒体分流", status: "published", current_revision: 12, rules: [{ name: "流媒体直连", match: { domain_suffixes: ["netflix.com", "disneyplus.com"] }, action: { type: "direct" } }], node_count: 4, created_at: now, updated_at: now },
-  { id: "rte_direct", name: "默认直连", status: "published", current_revision: 3, rules: [{ name: "内网直连", match: { ip_cidrs: ["10.0.0.0/8", "192.168.0.0/16"] }, action: { type: "direct" } }], node_count: 2, created_at: now, updated_at: now },
+  { id: "rte_asia", name: "亚洲流媒体分流", status: "published", current_revision: 12, default_outbound_tag: "", rules: [{ name: "流媒体直连", match: { domain_suffixes: ["netflix.com", "disneyplus.com"] }, action: { type: "direct" } }], node_count: 4, created_at: now, updated_at: now },
+  { id: "rte_direct", name: "默认直连", status: "published", current_revision: 3, default_outbound_tag: "", rules: [{ name: "内网直连", match: { ip_cidrs: ["10.0.0.0/8", "192.168.0.0/16"] }, action: { type: "direct" } }], node_count: 2, created_at: now, updated_at: now },
 ];
 
 export const demoNodes: Node[] = [

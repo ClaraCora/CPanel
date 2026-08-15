@@ -57,6 +57,49 @@ journalctl -u cpanel -f
 
 总览、TG Bot 本月排行与自然月套餐账号均以 `traffic_daily` 和导入日流量为统一数据源。升级自旧版本时，已有自然月套餐保持原策略，并在服务启动后自动剔除上月累计，不需要手工清零。
 
+## Google/YouTube 指定出口分流（Xray）
+
+以下配置用于让 Google 和 YouTube 流量通过指定代理出站，其余流量保持直连。该方案要求节点使用 Xray，并将 Agent 升级到 `v2.0.2` 或更高版本。新版本 Agent 会对 HTTP、TLS 和 QUIC 启用仅用于路由判断的嗅探，并在规则需要时自动下载 `geoip.dat` 和 `geosite.dat`，不需要在节点配置中手工填写嗅探 JSON。
+
+推荐将路由策略的“默认流量出口”设置为“默认直连（仅按下方规则处理）”，然后只添加一条 Google 分流规则：
+
+| 配置项 | 填写内容 |
+| --- | --- |
+| 规则名称 | `Google 系分流` |
+| 精确域名 | `geosite:google, geosite:youtube` |
+| 域名后缀 | 使用下方完整列表 |
+| GeoIP 分类 | `google` |
+| 执行动作 | 指定出站 |
+| 出站目标 | 选择实际的落地出站，例如 `us.sjc-rn` |
+
+域名后缀列表：
+
+```text
+google.com, google.com.hk, google.cn, googleapis.com, gstatic.com,
+googleusercontent.com, ggpht.com, gvt1.com, gvt2.com, 1e100.net,
+recaptcha.net, youtube.com, youtube-nocookie.com, youtu.be,
+googlevideo.com, ytimg.com, gmail.com, googlemail.com, google.dev,
+firebaseio.com, firebaseapp.com, doubleclick.net, googlesyndication.com,
+googleadservices.com, googletagmanager.com, google-analytics.com
+```
+
+GeoIP 分类只填写 `google`，不要填写 `youtube`。YouTube 使用 Google 网络地址，而当前 GeoIP 数据通常没有独立的 `youtube` 分类；填写不存在的分类可能导致 Xray 无法加载路由配置。`geosite:youtube` 属于域名分类，应填写在“精确域名”中。
+
+当默认出口已经是直连时，不需要再添加 TCP/UDP 直连规则。路由未匹配 Google 规则后会自动使用默认直连。如果业务上必须把默认出口设置为落地，则需要在 Google 规则后增加第二条规则：
+
+1. 网络协议同时选择 `TCP` 和 `UDP`。
+2. 执行动作选择“直连”。
+
+此时规则顺序必须是“Google 指定出站”在前、“TCP/UDP 直连”在后。路由策略按顺序匹配，顺序颠倒会导致 Google 流量先命中直连规则。
+
+保存策略后，节点会自动收到新配置。首次使用 GeoIP/GeoSite 时，Agent 日志应出现数据库下载完成和 Xray 重启成功的信息：
+
+```bash
+journalctl -u corade -f
+```
+
+正常日志会包含 `geo database ready`、`xray started` 和 `config updated`，且不应出现 `this rule has no effective fields` 或 GeoIP/GeoSite 分类不存在的错误。产生实际流量后，Google 请求应显示为 `[vless-in -> 指定出站标记]`，非 Google 请求应显示为 `[vless-in -> direct]`。
+
 ## `/ca/jk/` 健康检查
 
 `/ca/jk/` 是 CPanel 面板进程的本机健康检查路径，不是 Agent 通讯接口，也不应对公网开放。Agent 使用的通讯路径是 `/ca/cc`。

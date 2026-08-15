@@ -310,6 +310,7 @@ type RoutePolicyMatch struct {
 	Domains        []string `json:"domains,omitempty"`
 	DomainSuffixes []string `json:"domain_suffixes,omitempty"`
 	DomainRegexes  []string `json:"domain_regexes,omitempty"`
+	GeoIPs         []string `json:"geo_ips,omitempty"`
 	IPCIDRs        []string `json:"ip_cidrs,omitempty"`
 	Ports          []string `json:"ports,omitempty"`
 	Networks       []string `json:"networks,omitempty"`

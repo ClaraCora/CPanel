@@ -142,6 +142,7 @@ export interface RoutePolicyRule {
     domains?: string[];
     domain_suffixes?: string[];
     domain_regexes?: string[];
+    geo_ips?: string[];
     ip_cidrs?: string[];
     ports?: string[];
     networks?: string[];

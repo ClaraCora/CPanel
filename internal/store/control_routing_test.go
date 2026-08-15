@@ -82,6 +82,26 @@ func TestMergeAgentRoutingSettingsCompilesDomainRegexForXray(t *testing.T) {
 	}
 }
 
+func TestMergeAgentRoutingSettingsPreservesGeoIPCategories(t *testing.T) {
+	rules := json.RawMessage(`[{"name":"google","match":{"geo_ips":["google"]},"action":{"type":"route","target":"landing"}}]`)
+	outbounds := json.RawMessage(`[{"tag":"landing","protocol":"socks","settings":{"server":"127.0.0.1","server_port":1080}}]`)
+	merged, err := mergeAgentRoutingSettings(json.RawMessage(`{}`), rules, outbounds, "landing", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded struct {
+		Rules []struct {
+			Match domain.RoutePolicyMatch `json:"match"`
+		} `json:"custom_route_rules"`
+	}
+	if err := json.Unmarshal(merged, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if len(decoded.Rules) != 1 || len(decoded.Rules[0].Match.GeoIPs) != 1 || decoded.Rules[0].Match.GeoIPs[0] != "google" {
+		t.Fatalf("GeoIP categories were not preserved for Agent: %s", merged)
+	}
+}
+
 func TestMergeAgentRoutingSettingsIncludesDefaultOutbound(t *testing.T) {
 	outbounds := json.RawMessage(`[
 		{"tag":"warp","protocol":"wireguard","settings":{"private_key":"key"}},

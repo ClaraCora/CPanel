@@ -994,6 +994,19 @@ a.resource-name:hover {
 .route-builder__empty { color: var(--secondary); }
 .route-builder__empty button,
 .route-add-match { color: var(--primary); }
+.route-geoip-presets button {
+  background: rgba(13, 19, 29, 0.72);
+  border-color: rgba(190, 214, 255, 0.14);
+}
+
+.route-geoip-presets button:hover {
+  border-color: rgba(64, 217, 255, 0.32);
+  color: var(--foreground);
+}
+
+.route-geoip-presets button.active {
+  box-shadow: 0 5px 16px rgba(36, 116, 167, 0.16);
+}
 .route-rule {
   background: rgba(12, 17, 27, 0.72);
   border-color: var(--border);

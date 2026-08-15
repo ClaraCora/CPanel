@@ -7,12 +7,15 @@ const matchOptions: { value: MatchKey; label: string; placeholder: string; multi
   { value: "domains", label: "精确域名", placeholder: "api.example.com, cdn.example.com" },
   { value: "domain_suffixes", label: "域名后缀", placeholder: "example.com, example.net" },
   { value: "domain_regexes", label: "域名正则", placeholder: "每行一条，可直接粘贴 regexp: 开头的 Xray 规则", multiline: true },
+  { value: "geo_ips", label: "GeoIP 分类", placeholder: "google, cn" },
   { value: "ip_cidrs", label: "目标 IP/CIDR", placeholder: "10.0.0.0/8, 2001:db8::/32" },
   { value: "ports", label: "目标端口", placeholder: "443, 8000-9000" },
   { value: "networks", label: "网络协议", placeholder: "" },
   { value: "source_cidrs", label: "来源 IP/CIDR", placeholder: "192.168.1.0/24" },
   { value: "source_ports", label: "来源端口", placeholder: "1024-65535" },
 ];
+
+const geoIPPresetOptions = ["google", "cn", "private"];
 
 const emptyRule = (): RoutePolicyRule => ({ name: "", match: { domain_suffixes: [] }, action: { type: "direct" } });
 
@@ -60,7 +63,13 @@ export function RouteRulesEditor({ value, outbounds, onChange }: { value: string
               <span>{option.label}</span>
               {option.value === "networks" ? <div className="route-network-options">
                 {["tcp", "udp"].map((network) => <label key={network}><input type="checkbox" checked={(rule.match.networks ?? []).includes(network)} onChange={() => updateRule(index, (current) => ({ ...current, match: { ...current.match, networks: toggleValue(current.match.networks ?? [], network) } }))} /><span>{network.toUpperCase()}</span></label>)}
-              </div> : option.multiline ? <textarea rows={6} spellCheck={false} value={(rule.match[option.value] ?? []).join("\n")} placeholder={option.placeholder} onChange={(event) => updateRule(index, (current) => ({ ...current, match: { ...current.match, [option.value]: splitRegexValues(event.target.value) } }))} /> : <input value={(rule.match[option.value] ?? []).join(", ")} placeholder={option.placeholder} onChange={(event) => updateRule(index, (current) => ({ ...current, match: { ...current.match, [option.value]: splitValues(event.target.value) } }))} />}
+              </div> : option.value === "geo_ips" ? <div className="route-geoip-field">
+                <input spellCheck={false} value={(rule.match.geo_ips ?? []).join(", ")} placeholder={option.placeholder} onChange={(event) => updateRule(index, (current) => ({ ...current, match: { ...current.match, geo_ips: splitValues(event.target.value) } }))} />
+                <div className="route-geoip-presets" role="group" aria-label="常用 GeoIP 分类">{geoIPPresetOptions.map((category) => {
+                  const selected = (rule.match.geo_ips ?? []).map(normalizeGeoIPCategory).includes(category);
+                  return <button type="button" aria-pressed={selected} className={selected ? "active" : ""} title={`${selected ? "移除" : "添加"} ${category}`} onClick={() => updateRule(index, (current) => ({ ...current, match: { ...current.match, geo_ips: toggleGeoIPCategory(current.match.geo_ips ?? [], category) } }))} key={category}>{category}</button>;
+                })}</div>
+              </div> : option.multiline ? <textarea rows={6} spellCheck={false} value={(rule.match[option.value] ?? []).join("\n")} placeholder={option.placeholder} onChange={(event) => updateRule(index, (current) => ({ ...current, match: { ...current.match, [option.value]: splitRegexValues(event.target.value) } }))} /> : <input spellCheck={false} value={(rule.match[option.value] ?? []).join(", ")} placeholder={option.placeholder} onChange={(event) => updateRule(index, (current) => ({ ...current, match: { ...current.match, [option.value]: splitValues(event.target.value) } }))} />}
               <button type="button" className="icon-button" aria-label={`移除${option.label}`} title="移除条件" onClick={() => updateRule(index, (current) => {
                 const match = { ...current.match };
                 delete match[option.value];
@@ -89,8 +98,12 @@ export function validateRouteRulesValue(value: string): string {
   const rules = parseRouteRules(value);
   for (let index = 0; index < rules.length; index++) {
     const rule = rules[index];
-		if (rule.disabled) continue;
+    if (rule.disabled) continue;
     if (!Object.values(rule.match).some((values) => values && values.length > 0)) return `第 ${index + 1} 条规则至少需要一个匹配条件`;
+    for (const value of rule.match.geo_ips ?? []) {
+      const category = normalizeGeoIPCategory(value);
+      if (!/^[a-z0-9][a-z0-9._-]*$/.test(category)) return `第 ${index + 1} 条规则包含无效 GeoIP 分类：${value}`;
+    }
     if (rule.action.type === "route" && !rule.action.target) return `第 ${index + 1} 条规则请选择出站目标`;
   }
   return "";
@@ -115,4 +128,13 @@ function splitRegexValues(value: string): string[] {
 
 function toggleValue(values: string[], value: string): string[] {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
+}
+
+function normalizeGeoIPCategory(value: string): string {
+  return value.trim().toLowerCase().replace(/^geoip:\s*/i, "");
+}
+
+function toggleGeoIPCategory(values: string[], category: string): string[] {
+  const normalized = values.map(normalizeGeoIPCategory).filter(Boolean);
+  return normalized.includes(category) ? normalized.filter((value) => value !== category) : [...normalized, category];
 }

@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+var geoIPCategoryPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
+
 func ValidateRoutePolicyRules(rules []RoutePolicyRule) error {
 	for index := range rules {
 		rule := &rules[index]
@@ -42,6 +44,11 @@ func ValidateRoutePolicyRules(rules []RoutePolicyRule) error {
 				return fmt.Errorf("第 %d 条规则包含无效域名正则：%s", index+1, expression)
 			}
 		}
+		for _, category := range rule.Match.GeoIPs {
+			if !geoIPCategoryPattern.MatchString(category) {
+				return fmt.Errorf("第 %d 条规则包含无效 GeoIP 分类：%s", index+1, category)
+			}
+		}
 		switch rule.Action.Type {
 		case "direct", "block":
 			if rule.Action.Target != "" {
@@ -62,11 +69,30 @@ func normalizeRouteMatch(match *RoutePolicyMatch) {
 	match.Domains = normalizeRouteValues(match.Domains, true)
 	match.DomainSuffixes = normalizeRouteValues(match.DomainSuffixes, true)
 	match.DomainRegexes = normalizeRouteRegexes(match.DomainRegexes)
+	match.GeoIPs = normalizeGeoIPValues(match.GeoIPs)
 	match.IPCIDRs = normalizeRouteValues(match.IPCIDRs, false)
 	match.Ports = normalizeRouteValues(match.Ports, true)
 	match.Networks = normalizeRouteValues(match.Networks, true)
 	match.SourceCIDRs = normalizeRouteValues(match.SourceCIDRs, false)
 	match.SourcePorts = normalizeRouteValues(match.SourcePorts, true)
+}
+
+func normalizeGeoIPValues(values []string) []string {
+	result := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		value = strings.ToLower(strings.TrimSpace(value))
+		value = strings.TrimSpace(strings.TrimPrefix(value, "geoip:"))
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	return result
 }
 
 func normalizeRouteRegexes(values []string) []string {
@@ -113,7 +139,7 @@ func normalizeRouteValues(values []string, lower bool) []string {
 }
 
 func routeMatchEmpty(match RoutePolicyMatch) bool {
-	return len(match.Domains)+len(match.DomainSuffixes)+len(match.DomainRegexes)+len(match.IPCIDRs)+len(match.Ports)+
+	return len(match.Domains)+len(match.DomainSuffixes)+len(match.DomainRegexes)+len(match.GeoIPs)+len(match.IPCIDRs)+len(match.Ports)+
 		len(match.Networks)+len(match.SourceCIDRs)+len(match.SourcePorts) == 0
 }
 

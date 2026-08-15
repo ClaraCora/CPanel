@@ -138,6 +138,7 @@ func routeRulesForAgent(rules []domain.RoutePolicyRule) []domain.RoutePolicyRule
 	copy(result, rules)
 	for index := range result {
 		result[index].Match.Domains = append([]string{}, rules[index].Match.Domains...)
+		result[index].Match.GeoIPs = append([]string{}, rules[index].Match.GeoIPs...)
 		for _, expression := range rules[index].Match.DomainRegexes {
 			expression = strings.TrimSpace(expression)
 			if expression == "" {

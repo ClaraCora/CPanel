@@ -21,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import type { Admin } from "../types";
+import { ThemeToggle } from "./ThemeToggle";
 
 const groups = [
   { label: "", items: [{ to: "/", label: "总览", icon: CircleGauge }] },
@@ -83,6 +84,7 @@ export function AppShell({
           <Menu size={20} />
         </button>
         <Brand />
+        <ThemeToggle />
         {demo && <span className="demo-label">演示数据</span>}
       </header>
       <aside className={`sidebar ${mobileOpen ? "sidebar--open" : ""}`}>
@@ -129,6 +131,7 @@ export function AppShell({
             <strong>{admin.name}</strong>
             <span>{admin.email}</span>
           </div>
+          <ThemeToggle />
           <button
             className="icon-button icon-button--dark"
             aria-label="退出登录"

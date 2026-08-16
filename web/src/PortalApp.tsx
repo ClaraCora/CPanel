@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Activity, CalendarDays, Check, CircleUserRound, Clipboard, Copy, Download, Eye, EyeOff, KeyRound, Link2, LogOut, Network, RefreshCw, Server, ShieldCheck, Signal, TriangleAlert, UserRound } from "lucide-react";
 import { ApiError, demoMode } from "./auth";
 import { portalApi } from "./portalApi";
+import { ThemeToggle } from "./components/ThemeToggle";
 import type { PortalDashboard, PortalSession } from "./types";
 import "./portal.css";
 
@@ -29,7 +30,7 @@ export default function PortalApp() {
     return () => { active = false; };
   }, []);
 
-  if (checking) return <main className="edu-boot"><div className="edu-boot__mark">C</div><span>正在验证登录状态…</span></main>;
+  if (checking) return <main className="edu-boot"><ThemeToggle className="theme-toggle--floating edu-theme-toggle" /><div className="edu-boot__mark">C</div><span>正在验证登录状态…</span></main>;
   if (!session) return <PortalLogin initialError={entryError} onLogin={setSession} />;
   return <PortalDashboardPage session={session} onLogout={() => setSession(null)} />;
 }
@@ -47,7 +48,7 @@ function PortalLogin({ initialError, onLogin }: { initialError: string; onLogin:
     catch (reason) { setError(reason instanceof ApiError ? reason.message : "无法连接服务，请稍后重试"); }
     finally { setLoading(false); }
   }
-  return <main className="edu-login"><section className="edu-login__panel"><div className="edu-login__brand"><span>C</span><strong>设备管理平台</strong></div>{error && <div className="edu-alert" role="alert"><TriangleAlert size={17} />{error}</div>}<form onSubmit={submit}><label>门户账号<input autoComplete="username" value={login} onChange={(event) => setLogin(event.target.value)} placeholder="账号或邮箱" required autoFocus /></label><label>密码<span className="edu-password"><input type={visible ? "text" : "password"} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /><button type="button" aria-label={visible ? "隐藏密码" : "显示密码"} onClick={() => setVisible((value) => !value)}>{visible ? <EyeOff size={17} /> : <Eye size={17} />}</button></span></label><button className="edu-button edu-button--primary" disabled={loading} type="submit">{loading ? "登录中…" : "登录"}</button></form></section></main>;
+  return <main className="edu-login"><ThemeToggle className="edu-theme-toggle" /><section className="edu-login__panel"><div className="edu-login__brand"><span>C</span><strong>设备管理平台</strong></div>{error && <div className="edu-alert" role="alert"><TriangleAlert size={17} />{error}</div>}<form onSubmit={submit}><label>门户账号<input autoComplete="username" value={login} onChange={(event) => setLogin(event.target.value)} placeholder="账号或邮箱" required autoFocus /></label><label>密码<span className="edu-password"><input type={visible ? "text" : "password"} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /><button type="button" aria-label={visible ? "隐藏密码" : "显示密码"} onClick={() => setVisible((value) => !value)}>{visible ? <EyeOff size={17} /> : <Eye size={17} />}</button></span></label><button className="edu-button edu-button--primary" disabled={loading} type="submit">{loading ? "登录中…" : "登录"}</button></form></section></main>;
 }
 
 function PortalDashboardPage({ session, onLogout }: { session: PortalSession; onLogout: () => void }) {
@@ -77,6 +78,7 @@ function PortalDashboardPage({ session, onLogout }: { session: PortalSession; on
     <header className="edu-topbar">
       <a className="edu-brand" href="/edu"><span>C</span><strong>设备管理平台</strong></a>
       <div className="edu-topbar__account">
+        <ThemeToggle className="edu-theme-toggle" />
         <span className="edu-avatar">{dashboard.name.slice(0, 1).toUpperCase()}</span>
         <div><strong>{dashboard.name}</strong><small>{role}</small></div>
         <button className="edu-icon-button" type="button" title="退出登录" aria-label="退出登录" onClick={() => void logout()}><LogOut size={18} /></button>

@@ -1,6 +1,7 @@
 import { Component, Suspense, lazy, useEffect, useState, type ReactNode } from "react";
 import { authApi, demoMode } from "./auth";
 import { ToastProvider } from "./components/ui";
+import { ThemeToggle } from "./components/ThemeToggle";
 import { LoginPage } from "./pages/LoginPage";
 import type { Session } from "./types";
 
@@ -31,6 +32,7 @@ export default function App() {
   if (checking)
     return (
       <main className="boot-screen">
+        <ThemeToggle className="theme-toggle--floating" />
         <div className="brand__mark">C</div>
         <span>正在验证管理会话…</span>
       </main>
@@ -57,6 +59,7 @@ export default function App() {
 
 function BootScreen({ label }: { label: string }) {
   return <main className="boot-screen">
+    <ThemeToggle className="theme-toggle--floating" />
     <div className="brand__mark">C</div>
     <span>{label}</span>
   </main>;
@@ -72,6 +75,7 @@ class AuthenticatedLoadBoundary extends Component<{ children: ReactNode }, { fai
   render() {
     if (this.state.failed) {
       return <main className="boot-screen">
+        <ThemeToggle className="theme-toggle--floating" />
         <div className="brand__mark">C</div>
         <span>管理后台加载失败</span>
         <button type="button" className="button button--secondary" onClick={() => window.location.reload()}>重新加载</button>

@@ -95,7 +95,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .nav-link--active:before { content: ""; position: absolute; left: -8px; top: 8px; bottom: 8px; width: 3px; background: var(--primary); }
 .nav-link svg { flex: 0 0 auto; color: #6e6e73; }
 .nav-link--active svg { color: var(--primary); }
-.sidebar__account { display: grid; grid-template-columns: 32px minmax(0, 1fr) 34px; gap: 9px; align-items: center; padding: 13px 10px; border-top: 1px solid var(--border); }
+.sidebar__account { display: grid; grid-template-columns: 32px minmax(0, 1fr) 34px 34px; gap: 9px; align-items: center; padding: 13px 10px; border-top: 1px solid var(--border); }
 .account-avatar { display: grid; width: 32px; height: 32px; place-items: center; color: var(--primary); background: #e8f2fd; border-radius: 50%; font-size: 12px; font-weight: 700; }
 .account-copy { display: flex; min-width: 0; flex-direction: column; }
 .account-copy strong { overflow: hidden; color: var(--foreground); font-size: 12px; text-overflow: ellipsis; }

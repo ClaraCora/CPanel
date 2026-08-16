@@ -287,7 +287,7 @@ func (s *Store) CreateMachineCredential(ctx context.Context, machineID string, e
 
 func (s *Store) ListNodes(ctx context.Context) ([]domain.Node, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT n.id,n.agent_id,n.machine_id,m.name,n.route_policy_id,n.name,n.protocol,n.listen_ip,
+		SELECT n.id,n.agent_id,n.machine_id,m.name,n.route_policy_id,n.admin_route_policy_id,n.member_route_policy_id,n.name,n.protocol,n.listen_ip,
 		       n.server_port,n.kernel_type,n.config,n.status,n.current_revision,n.applied_revision,
 		       n.last_report_at,n.last_error,n.created_at,n.updated_at
 		FROM nodes n JOIN machines m ON m.id=n.machine_id
@@ -299,7 +299,7 @@ func (s *Store) ListNodes(ctx context.Context) ([]domain.Node, error) {
 	items := make([]domain.Node, 0)
 	for rows.Next() {
 		var item domain.Node
-		if err := rows.Scan(&item.ID, &item.AgentID, &item.MachineID, &item.MachineName, &item.RoutePolicyID,
+		if err := rows.Scan(&item.ID, &item.AgentID, &item.MachineID, &item.MachineName, &item.RoutePolicyID, &item.AdminRoutePolicyID, &item.MemberRoutePolicyID,
 			&item.Name, &item.Protocol, &item.ListenIP, &item.ServerPort, &item.KernelType, &item.Config,
 			&item.Status, &item.CurrentRevision, &item.AppliedRevision, &item.LastReport, &item.LastError,
 			&item.CreatedAt, &item.UpdatedAt); err != nil {
@@ -317,12 +317,12 @@ func (s *Store) ListNodes(ctx context.Context) ([]domain.Node, error) {
 func (s *Store) GetNode(ctx context.Context, nodeID string) (domain.Node, error) {
 	var item domain.Node
 	err := s.pool.QueryRow(ctx, `
-		SELECT n.id,n.agent_id,n.machine_id,m.name,n.route_policy_id,n.name,n.protocol,n.listen_ip,
+		SELECT n.id,n.agent_id,n.machine_id,m.name,n.route_policy_id,n.admin_route_policy_id,n.member_route_policy_id,n.name,n.protocol,n.listen_ip,
 		       n.server_port,n.kernel_type,n.config,n.status,n.current_revision,n.applied_revision,
 		       n.last_report_at,n.last_error,n.created_at,n.updated_at
 		FROM nodes n JOIN machines m ON m.id=n.machine_id
 		WHERE n.id=$1 AND n.status <> 'archived'`, nodeID,
-	).Scan(&item.ID, &item.AgentID, &item.MachineID, &item.MachineName, &item.RoutePolicyID,
+	).Scan(&item.ID, &item.AgentID, &item.MachineID, &item.MachineName, &item.RoutePolicyID, &item.AdminRoutePolicyID, &item.MemberRoutePolicyID,
 		&item.Name, &item.Protocol, &item.ListenIP, &item.ServerPort, &item.KernelType, &item.Config,
 		&item.Status, &item.CurrentRevision, &item.AppliedRevision, &item.LastReport, &item.LastError,
 		&item.CreatedAt, &item.UpdatedAt)
@@ -383,6 +383,8 @@ func replaceNodeEndpoints(ctx context.Context, tx pgx.Tx, nodeID string, endpoin
 func (s *Store) CreateNode(ctx context.Context, input domain.NodeCreate) (domain.Node, error) {
 	item := domain.Node{ID: domain.MustID("nod")}
 	input.RoutePolicyID = normalizeOptionalID(input.RoutePolicyID)
+	input.AdminRoutePolicyID = normalizeOptionalID(input.AdminRoutePolicyID)
+	input.MemberRoutePolicyID = normalizeOptionalID(input.MemberRoutePolicyID)
 	if input.ListenIP == "" {
 		input.ListenIP = "0.0.0.0"
 	}
@@ -398,15 +400,17 @@ func (s *Store) CreateNode(ctx context.Context, input domain.NodeCreate) (domain
 	}
 	defer tx.Rollback(ctx)
 	err = tx.QueryRow(ctx, `
-		INSERT INTO nodes(id,machine_id,route_policy_id,name,protocol,listen_ip,server_port,kernel_type,config)
-		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)
+		INSERT INTO nodes(id,machine_id,route_policy_id,admin_route_policy_id,member_route_policy_id,name,protocol,listen_ip,server_port,kernel_type,config)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
 		RETURNING agent_id,status,current_revision,applied_revision,last_report_at,last_error,created_at,updated_at`,
-		item.ID, input.MachineID, input.RoutePolicyID, strings.TrimSpace(input.Name), strings.ToLower(input.Protocol),
+		item.ID, input.MachineID, input.RoutePolicyID, input.AdminRoutePolicyID, input.MemberRoutePolicyID, strings.TrimSpace(input.Name), strings.ToLower(input.Protocol),
 		input.ListenIP, input.ServerPort, input.KernelType, input.Config,
 	).Scan(&item.AgentID, &item.Status, &item.CurrentRevision, &item.AppliedRevision, &item.LastReport,
 		&item.LastError, &item.CreatedAt, &item.UpdatedAt)
 	item.MachineID = input.MachineID
 	item.RoutePolicyID = input.RoutePolicyID
+	item.AdminRoutePolicyID = input.AdminRoutePolicyID
+	item.MemberRoutePolicyID = input.MemberRoutePolicyID
 	item.Name = strings.TrimSpace(input.Name)
 	item.Protocol = strings.ToLower(input.Protocol)
 	item.ListenIP = input.ListenIP
@@ -496,6 +500,22 @@ func (s *Store) UpdateNode(ctx context.Context, nodeID string, input domain.Node
 			item.RoutePolicyID = &value
 		}
 	}
+	if input.AdminRoutePolicyID != nil {
+		value := strings.TrimSpace(*input.AdminRoutePolicyID)
+		if value == "" {
+			item.AdminRoutePolicyID = nil
+		} else {
+			item.AdminRoutePolicyID = &value
+		}
+	}
+	if input.MemberRoutePolicyID != nil {
+		value := strings.TrimSpace(*input.MemberRoutePolicyID)
+		if value == "" {
+			item.MemberRoutePolicyID = nil
+		} else {
+			item.MemberRoutePolicyID = &value
+		}
+	}
 	if input.Name != nil {
 		item.Name = strings.TrimSpace(*input.Name)
 	}
@@ -527,10 +547,10 @@ func (s *Store) UpdateNode(ctx context.Context, nodeID string, input domain.Node
 	}
 	defer tx.Rollback(ctx)
 	command, err := tx.Exec(ctx, `
-		UPDATE nodes SET machine_id=$2,route_policy_id=$3,name=$4,protocol=$5,listen_ip=$6,
-		       server_port=$7,kernel_type=$8,config=$9,
-		       status=CASE WHEN $10::text IS NOT NULL THEN $10 WHEN status='disabled' THEN status ELSE 'draft' END,updated_at=now()
-		WHERE id=$1 AND status <> 'archived'`, nodeID, item.MachineID, item.RoutePolicyID, item.Name,
+		UPDATE nodes SET machine_id=$2,route_policy_id=$3,admin_route_policy_id=$4,member_route_policy_id=$5,name=$6,protocol=$7,listen_ip=$8,
+		       server_port=$9,kernel_type=$10,config=$11,
+		       status=CASE WHEN $12::text IS NOT NULL THEN $12 WHEN status='disabled' THEN status ELSE 'draft' END,updated_at=now()
+		WHERE id=$1 AND status <> 'archived'`, nodeID, item.MachineID, item.RoutePolicyID, item.AdminRoutePolicyID, item.MemberRoutePolicyID, item.Name,
 		item.Protocol, item.ListenIP, item.ServerPort, item.KernelType, item.Config, input.Status)
 	if err != nil {
 		return domain.Node{}, mapNodeError(err)
@@ -573,9 +593,9 @@ func (s *Store) PublishNode(ctx context.Context, nodeID, adminID string) (domain
 	err = tx.QueryRow(ctx, `
 		UPDATE nodes SET current_revision=current_revision+1,status='published',updated_at=now()
 		WHERE id=$1 AND status <> 'archived'
-		RETURNING id,agent_id,machine_id,route_policy_id,name,protocol,listen_ip,server_port,kernel_type,
+		RETURNING id,agent_id,machine_id,route_policy_id,admin_route_policy_id,member_route_policy_id,name,protocol,listen_ip,server_port,kernel_type,
 		          config,status,current_revision,applied_revision,last_report_at,last_error,created_at,updated_at`, nodeID,
-	).Scan(&item.ID, &item.AgentID, &item.MachineID, &item.RoutePolicyID, &item.Name, &item.Protocol,
+	).Scan(&item.ID, &item.AgentID, &item.MachineID, &item.RoutePolicyID, &item.AdminRoutePolicyID, &item.MemberRoutePolicyID, &item.Name, &item.Protocol,
 		&item.ListenIP, &item.ServerPort, &item.KernelType, &item.Config, &item.Status, &item.CurrentRevision,
 		&item.AppliedRevision, &item.LastReport, &item.LastError, &item.CreatedAt, &item.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -970,11 +990,11 @@ func (s *Store) ArchiveUser(ctx context.Context, userID string) error {
 
 func (s *Store) ListRoutePolicies(ctx context.Context) ([]domain.RoutePolicy, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT r.id,r.name,r.status,r.current_revision,r.default_outbound_tag,
+		SELECT r.id,r.name,r.status,r.scope,r.current_revision,r.default_outbound_tag,
 		       COALESCE((SELECT rr.rules FROM route_policy_revisions rr
 		                 WHERE rr.route_policy_id=r.id ORDER BY rr.revision DESC LIMIT 1),'[]'::jsonb),
 		       r.notes,
-		       (SELECT count(*) FROM nodes n WHERE n.route_policy_id=r.id AND n.status <> 'archived'),
+		       (SELECT count(*) FROM nodes n WHERE r.id IN (n.route_policy_id,n.admin_route_policy_id,n.member_route_policy_id) AND n.status <> 'archived'),
 		       r.created_at,r.updated_at
 		FROM route_policies r WHERE r.status <> 'archived' ORDER BY r.created_at DESC`)
 	if err != nil {
@@ -985,7 +1005,7 @@ func (s *Store) ListRoutePolicies(ctx context.Context) ([]domain.RoutePolicy, er
 	for rows.Next() {
 		var item domain.RoutePolicy
 		var rawRules []byte
-		if err := rows.Scan(&item.ID, &item.Name, &item.Status, &item.CurrentRevision, &item.DefaultOutboundTag, &rawRules, &item.Notes,
+		if err := rows.Scan(&item.ID, &item.Name, &item.Status, &item.Scope, &item.CurrentRevision, &item.DefaultOutboundTag, &rawRules, &item.Notes,
 			&item.NodeCount, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
@@ -997,7 +1017,8 @@ func (s *Store) ListRoutePolicies(ctx context.Context) ([]domain.RoutePolicy, er
 	return items, rows.Err()
 }
 
-func (s *Store) CreateRoutePolicy(ctx context.Context, name, notes, defaultOutboundTag, adminID string, rules []domain.RoutePolicyRule) (domain.RoutePolicy, error) {
+func (s *Store) CreateRoutePolicy(ctx context.Context, name, notes, scope, defaultOutboundTag, adminID string, rules []domain.RoutePolicyRule) (domain.RoutePolicy, error) {
+	scope = normalizeRoutePolicyScope(scope)
 	defaultOutboundTag = strings.ToLower(strings.TrimSpace(defaultOutboundTag))
 	if err := s.validateRoutePolicyTargets(ctx, rules, defaultOutboundTag); err != nil {
 		return domain.RoutePolicy{}, err
@@ -1011,11 +1032,11 @@ func (s *Store) CreateRoutePolicy(ctx context.Context, name, notes, defaultOutbo
 		return domain.RoutePolicy{}, err
 	}
 	defer tx.Rollback(ctx)
-	item := domain.RoutePolicy{ID: domain.MustID("rte"), Rules: rules}
-	err = tx.QueryRow(ctx, `INSERT INTO route_policies(id,name,notes,default_outbound_tag,status,current_revision) VALUES($1,$2,$3,$4,'published',1)
-		RETURNING name,status,current_revision,default_outbound_tag,notes,created_at,updated_at`,
-		item.ID, strings.TrimSpace(name), strings.TrimSpace(notes), defaultOutboundTag,
-	).Scan(&item.Name, &item.Status, &item.CurrentRevision, &item.DefaultOutboundTag, &item.Notes, &item.CreatedAt, &item.UpdatedAt)
+	item := domain.RoutePolicy{ID: domain.MustID("rte"), Rules: rules, Scope: scope}
+	err = tx.QueryRow(ctx, `INSERT INTO route_policies(id,name,notes,scope,default_outbound_tag,status,current_revision) VALUES($1,$2,$3,$4,$5,'published',1)
+		RETURNING name,status,scope,current_revision,default_outbound_tag,notes,created_at,updated_at`,
+		item.ID, strings.TrimSpace(name), strings.TrimSpace(notes), scope, defaultOutboundTag,
+	).Scan(&item.Name, &item.Status, &item.Scope, &item.CurrentRevision, &item.DefaultOutboundTag, &item.Notes, &item.CreatedAt, &item.UpdatedAt)
 	if err != nil {
 		return domain.RoutePolicy{}, mapError(err)
 	}
@@ -1031,7 +1052,7 @@ func (s *Store) ArchiveRoutePolicy(ctx context.Context, routeID string) error {
 	var nodeCount int
 	if err := s.pool.QueryRow(ctx, `SELECT
 		EXISTS(SELECT 1 FROM route_policies WHERE id=$1 AND status <> 'archived'),
-		(SELECT count(*) FROM nodes WHERE route_policy_id=$1 AND status <> 'archived')`, routeID).Scan(&exists, &nodeCount); err != nil {
+		(SELECT count(*) FROM nodes WHERE $1 IN (route_policy_id,admin_route_policy_id,member_route_policy_id) AND status <> 'archived')`, routeID).Scan(&exists, &nodeCount); err != nil {
 		return err
 	}
 	if !exists {
@@ -1071,9 +1092,9 @@ func (s *Store) UpdateRoutePolicy(ctx context.Context, routeID, adminID string, 
 	defer tx.Rollback(ctx)
 	var currentRevision int
 	err = tx.QueryRow(ctx, `UPDATE route_policies SET
-		name=COALESCE(NULLIF(BTRIM($2),''),name),notes=COALESCE($3,notes),status=COALESCE($4,status),
-		default_outbound_tag=COALESCE($5,default_outbound_tag),updated_at=now()
-		WHERE id=$1 AND status <> 'archived' RETURNING current_revision`, routeID, input.Name, input.Notes, input.Status, input.DefaultOutboundTag).Scan(&currentRevision)
+		name=COALESCE(NULLIF(BTRIM($2),''),name),notes=COALESCE($3,notes),status=COALESCE($4,status),scope=COALESCE($5,scope),
+		default_outbound_tag=COALESCE($6,default_outbound_tag),updated_at=now()
+		WHERE id=$1 AND status <> 'archived' RETURNING current_revision`, routeID, input.Name, input.Notes, input.Status, input.Scope, input.DefaultOutboundTag).Scan(&currentRevision)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.RoutePolicy{}, ErrNotFound
 	}
@@ -1094,7 +1115,7 @@ func (s *Store) UpdateRoutePolicy(ctx context.Context, routeID, adminID string, 
 			return domain.RoutePolicy{}, mapError(err)
 		}
 	}
-	if input.Rules != nil || input.Status != nil || input.DefaultOutboundTag != nil {
+	if input.Rules != nil || input.Status != nil || input.DefaultOutboundTag != nil || input.Scope != nil {
 		if err := notifyRoutePolicyNodes(ctx, tx, routeID); err != nil {
 			return domain.RoutePolicy{}, err
 		}
@@ -1131,6 +1152,17 @@ func (s *Store) routePolicyTargets(ctx context.Context, routeID string) ([]domai
 		return nil, "", err
 	}
 	return rules, strings.ToLower(strings.TrimSpace(defaultOutboundTag)), nil
+}
+
+func normalizeRoutePolicyScope(scope string) string {
+	switch strings.ToLower(strings.TrimSpace(scope)) {
+	case "admin":
+		return "admin"
+	case "member", "user", "friend":
+		return "member"
+	default:
+		return "default"
+	}
 }
 
 func (s *Store) validateRoutePolicyTargets(ctx context.Context, rules []domain.RoutePolicyRule, defaultOutboundTag string) error {
@@ -1172,7 +1204,7 @@ func (s *Store) validateRoutePolicyTargets(ctx context.Context, rules []domain.R
 func notifyRoutePolicyNodes(ctx context.Context, tx pgx.Tx, routeID string) error {
 	_, err := tx.Exec(ctx, `WITH changed AS (
 		UPDATE nodes SET current_revision=current_revision+1,updated_at=now()
-		WHERE route_policy_id=$1 AND status='published'
+		WHERE $1 IN (route_policy_id,admin_route_policy_id,member_route_policy_id) AND status='published'
 		RETURNING id,agent_id,machine_id,current_revision
 	)
 	INSERT INTO control_changes(machine_id,node_id,event_type,revision,payload)

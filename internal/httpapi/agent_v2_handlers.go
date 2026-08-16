@@ -264,7 +264,7 @@ func (s *Server) handleAgentV2NodeUsers(w http.ResponseWriter, r *http.Request) 
 	}
 	users := make([]map[string]any, 0, len(items))
 	for _, item := range items {
-		users = append(users, map[string]any{"bh": item.ID, "wybs": item.UUID, "xs": item.SpeedLimit, "sbs": item.DeviceLimit})
+		users = append(users, map[string]any{"bh": item.ID, "wybs": item.UUID, "xs": item.SpeedLimit, "sbs": item.DeviceLimit, "lyfw": item.RouteScope})
 	}
 	writeAgentV2(w, r, http.StatusOK, map[string]any{"yh": users})
 }

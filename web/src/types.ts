@@ -48,6 +48,8 @@ export interface Node {
   machine_id: string;
   machine_name: string;
   route_policy_id: string | null;
+  admin_route_policy_id?: string | null;
+  member_route_policy_id?: string | null;
   name: string;
   protocol: string;
   listen_ip: string;
@@ -168,6 +170,7 @@ export interface RoutePolicy {
   id: string;
   name: string;
   status: string;
+  scope?: "default" | "admin" | "member";
   current_revision: number;
   default_outbound_tag?: string;
   rules: RoutePolicyRule[];

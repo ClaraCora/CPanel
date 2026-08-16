@@ -671,6 +671,7 @@ func (s *Server) handleCreateRoutePolicy(w http.ResponseWriter, r *http.Request)
 	var input struct {
 		Name               string                   `json:"name"`
 		Notes              string                   `json:"notes"`
+		Scope              string                   `json:"scope"`
 		DefaultOutboundTag string                   `json:"default_outbound_tag"`
 		Rules              []domain.RoutePolicyRule `json:"rules"`
 	}
@@ -681,12 +682,16 @@ func (s *Server) handleCreateRoutePolicy(w http.ResponseWriter, r *http.Request)
 		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "请填写路由策略名称", nil)
 		return
 	}
+	if input.Scope != "" && input.Scope != "default" && input.Scope != "admin" && input.Scope != "member" {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "路由策略适用范围无效", map[string]string{"scope": "invalid"})
+		return
+	}
 	if err := domain.ValidateRoutePolicyRules(input.Rules); err != nil {
 		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", err.Error(), map[string]string{"rules": err.Error()})
 		return
 	}
 	admin := currentAdmin(r)
-	item, err := s.store.CreateRoutePolicy(r.Context(), input.Name, input.Notes, input.DefaultOutboundTag, admin.ID, input.Rules)
+	item, err := s.store.CreateRoutePolicy(r.Context(), input.Name, input.Notes, input.Scope, input.DefaultOutboundTag, admin.ID, input.Rules)
 	if err != nil {
 		writeStoreError(w, r, err)
 		return
@@ -702,6 +707,10 @@ func (s *Server) handleUpdateRoutePolicy(w http.ResponseWriter, r *http.Request)
 	}
 	if input.Name != nil && !required(*input.Name) {
 		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "请填写路由策略名称", nil)
+		return
+	}
+	if input.Scope != nil && *input.Scope != "default" && *input.Scope != "admin" && *input.Scope != "member" {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "路由策略适用范围无效", map[string]string{"scope": "invalid"})
 		return
 	}
 	if !validOneOf(input.Status, "published", "disabled") {

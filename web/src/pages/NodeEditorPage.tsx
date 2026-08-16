@@ -32,6 +32,8 @@ type NodeForm = {
   name: string;
   machine_id: string;
   route_policy_id: string;
+  admin_route_policy_id: string;
+  member_route_policy_id: string;
   protocol: string;
   listen_ip: string;
   server_port: string;
@@ -43,6 +45,8 @@ const emptyForm: NodeForm = {
   name: "",
   machine_id: "",
   route_policy_id: "",
+  admin_route_policy_id: "",
+  member_route_policy_id: "",
   protocol: "vless",
   listen_ip: "0.0.0.0",
   server_port: "443",
@@ -83,6 +87,8 @@ export function NodeEditorPage() {
           name: copying ? `${node.name} 副本` : node.name,
           machine_id: node.machine_id,
           route_policy_id: node.route_policy_id ?? "",
+          admin_route_policy_id: node.admin_route_policy_id ?? "",
+          member_route_policy_id: node.member_route_policy_id ?? "",
           protocol: node.protocol,
           listen_ip: node.listen_ip,
           server_port: String(node.server_port),
@@ -154,6 +160,8 @@ export function NodeEditorPage() {
       name: form.name.trim(),
       machine_id: form.machine_id,
       route_policy_id: form.route_policy_id || (editing ? "" : null),
+      admin_route_policy_id: form.admin_route_policy_id || (editing ? "" : null),
+      member_route_policy_id: form.member_route_policy_id || (editing ? "" : null),
       protocol: form.protocol,
       listen_ip: form.listen_ip.trim() || "0.0.0.0",
       server_port: Number(form.server_port),
@@ -273,11 +281,23 @@ export function NodeEditorPage() {
                 }
               >
                 <option value="">不单独绑定</option>
-                {routes.map((route) => (
+                {routes.filter((route) => (route.scope ?? "default") === "default").map((route) => (
                   <option value={route.id} key={route.id}>
                     {route.name} · rev {route.current_revision}
                   </option>
                 ))}
+              </select>
+            </Field>
+            <Field label="管理员策略" helper="admin 订阅账号使用；留空回退默认策略">
+              <select value={form.admin_route_policy_id} onChange={(event) => update("admin_route_policy_id", event.target.value)}>
+                <option value="">跟随默认策略</option>
+                {routes.filter((route) => route.scope === "admin").map((route) => <option value={route.id} key={route.id}>{route.name} · rev {route.current_revision}</option>)}
+              </select>
+            </Field>
+            <Field label="用户/朋友策略" helper="user 与 friend 共用；留空回退默认策略">
+              <select value={form.member_route_policy_id} onChange={(event) => update("member_route_policy_id", event.target.value)}>
+                <option value="">跟随默认策略</option>
+                {routes.filter((route) => route.scope === "member").map((route) => <option value={route.id} key={route.id}>{route.name} · rev {route.current_revision}</option>)}
               </select>
             </Field>
           </div>

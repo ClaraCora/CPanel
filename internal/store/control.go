@@ -68,21 +68,13 @@ func (s *Store) AgentNodes(ctx context.Context, machineID string) ([]domain.Agen
 
 func (s *Store) AgentNodeSpec(ctx context.Context, machineID string, agentNodeID int64) (domain.AgentNodeSpec, error) {
 	var item domain.AgentNodeSpec
-	var policyAttached, policyPublished bool
-	var rawRules, rawOutbounds []byte
-	var defaultOutboundTag string
+	var defaultPolicyID, adminPolicyID, memberPolicyID *string
 	err := s.pool.QueryRow(ctx, `SELECT n.agent_id,n.current_revision,n.protocol,n.listen_ip,n.server_port,n.kernel_type,n.config,
-		       n.route_policy_id IS NOT NULL,COALESCE(r.status='published',false),COALESCE(r.default_outbound_tag,''),
-		       COALESCE((SELECT rr.rules FROM route_policy_revisions rr
-		                 WHERE rr.route_policy_id=r.id ORDER BY rr.revision DESC LIMIT 1),'[]'::jsonb),
-		       COALESCE((SELECT jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
-		                 'tag',o.tag,'protocol',o.protocol,'settings',o.settings,'proxy_tag',NULLIF(o.proxy_tag,''))) ORDER BY o.created_at)
-		                 FROM outbounds o WHERE o.status='active' AND o.protocol NOT IN ('direct','block')
-		                   AND n.kernel_type=ANY(o.kernel_support)),'[]'::jsonb)
-		FROM nodes n LEFT JOIN route_policies r ON r.id=n.route_policy_id
+		       n.route_policy_id,n.admin_route_policy_id,n.member_route_policy_id
+		FROM nodes n
 		WHERE n.machine_id=$1 AND n.agent_id=$2 AND n.status='published'`, machineID, agentNodeID).Scan(
 		&item.NodeID, &item.Revision, &item.Protocol, &item.ListenIP, &item.ServerPort, &item.KernelType, &item.Settings,
-		&policyAttached, &policyPublished, &defaultOutboundTag, &rawRules, &rawOutbounds,
+		&defaultPolicyID, &adminPolicyID, &memberPolicyID,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.AgentNodeSpec{}, ErrNotFound
@@ -90,10 +82,123 @@ func (s *Store) AgentNodeSpec(ctx context.Context, machineID string, agentNodeID
 	if err != nil {
 		return domain.AgentNodeSpec{}, err
 	}
-	if policyAttached {
-		item.Settings, err = mergeAgentRoutingSettings(item.Settings, rawRules, rawOutbounds, defaultOutboundTag, policyPublished)
+	if defaultPolicyID == nil && adminPolicyID == nil && memberPolicyID == nil {
+		return item, nil
+	}
+	allOutbounds, err := s.agentRouteOutbounds(ctx, item.KernelType)
+	if err != nil {
+		return domain.AgentNodeSpec{}, err
+	}
+	profiles := make(map[string]map[string]any, 3)
+	defaultProfile, err := s.agentRouteProfile(ctx, defaultPolicyID, allOutbounds)
+	if err != nil {
+		return domain.AgentNodeSpec{}, err
+	}
+	if defaultProfile == nil {
+		defaultProfile = emptyAgentRouteProfile()
+	}
+	profiles["default"] = defaultProfile
+	for scope, policyID := range map[string]*string{"admin": adminPolicyID, "member": memberPolicyID} {
+		profile := defaultProfile
+		if policyID != nil && (defaultPolicyID == nil || *policyID != *defaultPolicyID) {
+			profile, err = s.agentRouteProfile(ctx, policyID, allOutbounds)
+			if err != nil {
+				return domain.AgentNodeSpec{}, err
+			}
+			if len(profile) == 0 {
+				profile = defaultProfile
+			}
+		}
+		profiles[scope] = profile
+	}
+	item.Settings, err = mergeAgentRoutingProfiles(item.Settings, profiles)
+	if err != nil {
+		return domain.AgentNodeSpec{}, err
 	}
 	return item, err
+}
+
+func (s *Store) agentRouteOutbounds(ctx context.Context, kernelType string) ([]map[string]any, error) {
+	rows, err := s.pool.Query(ctx, `SELECT jsonb_strip_nulls(jsonb_build_object(
+		'tag',o.tag,'protocol',o.protocol,'settings',o.settings,'proxy_tag',NULLIF(o.proxy_tag,'')))
+		FROM outbounds o WHERE o.status='active' AND o.protocol NOT IN ('direct','block') AND $1=ANY(o.kernel_support)
+		ORDER BY o.created_at`, kernelType)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	all := make([]map[string]any, 0)
+	for rows.Next() {
+		var raw []byte
+		if err := rows.Scan(&raw); err != nil {
+			return nil, err
+		}
+		var item map[string]any
+		if err := json.Unmarshal(raw, &item); err != nil {
+			return nil, err
+		}
+		all = append(all, item)
+	}
+	return all, rows.Err()
+}
+
+func (s *Store) agentRouteProfile(ctx context.Context, policyID *string, allOutbounds []map[string]any) (map[string]any, error) {
+	profile := emptyAgentRouteProfile()
+	if policyID == nil || strings.TrimSpace(*policyID) == "" {
+		return profile, nil
+	}
+	var published bool
+	var defaultTag string
+	var rawRules []byte
+	err := s.pool.QueryRow(ctx, `SELECT r.status='published',COALESCE(r.default_outbound_tag,''),COALESCE((SELECT rr.rules FROM route_policy_revisions rr WHERE rr.route_policy_id=r.id ORDER BY rr.revision DESC LIMIT 1),'[]'::jsonb) FROM route_policies r WHERE r.id=$1`, *policyID).Scan(&published, &defaultTag, &rawRules)
+	if errors.Is(err, pgx.ErrNoRows) || !published {
+		return nil, nil
+	}
+	var rules []domain.RoutePolicyRule
+	if err := json.Unmarshal(rawRules, &rules); err != nil {
+		return nil, fmt.Errorf("decode route policy rules: %w", err)
+	}
+	profile["custom_route_rules"] = routeRulesForAgent(rules)
+	profile["default_outbound_tag"] = strings.TrimSpace(defaultTag)
+	profile["custom_outbounds"] = selectRouteOutbounds(rules, allOutbounds, defaultTag)
+	return profile, nil
+}
+
+func emptyAgentRouteProfile() map[string]any {
+	return map[string]any{"custom_route_rules": []domain.RoutePolicyRule{}, "default_outbound_tag": "", "custom_outbounds": []map[string]any{}}
+}
+
+func mergeAgentRoutingProfiles(settings json.RawMessage, profiles map[string]map[string]any) (json.RawMessage, error) {
+	config := make(map[string]any)
+	if len(settings) > 0 {
+		if err := json.Unmarshal(settings, &config); err != nil {
+			return nil, fmt.Errorf("decode node settings: %w", err)
+		}
+	}
+	encodedProfiles := make(map[string]any, len(profiles))
+	for scope, profile := range profiles {
+		encodedProfiles[scope] = profile
+	}
+	config["custom_route_profiles"] = encodedProfiles
+	if defaultProfile, ok := profiles["default"]; ok {
+		config["custom_route_rules"] = defaultProfile["custom_route_rules"]
+		config["default_outbound_tag"] = defaultProfile["default_outbound_tag"]
+		config["custom_outbounds"] = mergeRouteOutbounds(config["custom_outbounds"], routeProfileOutbounds(defaultProfile))
+	}
+	for scope, profile := range profiles {
+		if scope == "default" {
+			continue
+		}
+		config["custom_outbounds"] = mergeRouteOutbounds(config["custom_outbounds"], routeProfileOutbounds(profile))
+	}
+	return json.Marshal(config)
+}
+
+func routeProfileOutbounds(profile map[string]any) []map[string]any {
+	if value, ok := profile["custom_outbounds"].([]map[string]any); ok {
+		return value
+	}
+	return nil
 }
 
 func mergeAgentRoutingSettings(settings, rawRules, rawOutbounds json.RawMessage, defaultOutboundTag string, policyPublished bool) (json.RawMessage, error) {
@@ -223,7 +328,8 @@ func (s *Store) AgentNodeUsers(ctx context.Context, machineID string, agentNodeI
 	rows, err := s.pool.Query(ctx, `
 		SELECT u.agent_id,u.uuid,
 		       COALESCE(u.speed_limit_override_mbps,p.speed_limit_mbps,0),
-		       COALESCE(u.device_limit_override,p.device_limit,0)
+		       COALESCE(u.device_limit_override,p.device_limit,0),
+		       CASE WHEN u.role='admin' THEN 'admin' ELSE 'member' END
 		FROM nodes n
 		JOIN access_group_nodes gn ON gn.node_id=n.id
 		JOIN users u ON true
@@ -239,7 +345,7 @@ func (s *Store) AgentNodeUsers(ctx context.Context, machineID string, agentNodeI
 	items := make([]domain.AgentUser, 0)
 	for rows.Next() {
 		var item domain.AgentUser
-		if err := rows.Scan(&item.ID, &item.UUID, &item.SpeedLimit, &item.DeviceLimit); err != nil {
+		if err := rows.Scan(&item.ID, &item.UUID, &item.SpeedLimit, &item.DeviceLimit, &item.RouteScope); err != nil {
 			return nil, err
 		}
 		items = append(items, item)

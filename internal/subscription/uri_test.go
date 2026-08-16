@@ -35,20 +35,21 @@ func TestBuildNodeURIVLESSReality(t *testing.T) {
 			t.Errorf("query[%q] = %q, want %q", key, got, want)
 		}
 	}
-	if parsed.Fragment != "JP Reality · 东京入口" {
+	if parsed.Fragment != "东京入口" {
 		t.Errorf("fragment = %q", parsed.Fragment)
 	}
 }
 
-func TestDisplayNameDoesNotDuplicateNodePrefix(t *testing.T) {
+func TestDisplayNamePrefersEntryName(t *testing.T) {
 	tests := []struct {
 		name  string
 		entry string
 		want  string
 	}{
 		{name: "香港-绿云", entry: "香港-绿云[广港HS]", want: "香港-绿云[广港HS]"},
-		{name: "JP Reality", entry: "东京入口", want: "JP Reality · 东京入口"},
+		{name: "JP Reality", entry: "东京入口", want: "东京入口"},
 		{name: "SS", entry: "SS", want: "SS"},
+		{name: "Fallback node", entry: "", want: "Fallback node"},
 	}
 	for _, test := range tests {
 		t.Run(test.entry, func(t *testing.T) {

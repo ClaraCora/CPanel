@@ -29,7 +29,7 @@ func BuildClashMeta(data domain.Subscription) ([]byte, error) {
 			return nil, fmt.Errorf("node %q: %w", node.Name, err)
 		}
 		proxies = append(proxies, proxy)
-		names = append(names, node.Name)
+		names = append(names, displayName(node))
 	}
 	selectNames := append([]string{"DIRECT"}, names...)
 	groups := []map[string]any{{"name": "CPanel", "type": "select", "proxies": selectNames}}
@@ -54,7 +54,7 @@ func proxyForNode(node domain.SubscriptionNode) (map[string]any, error) {
 		}
 	}
 	protocol := strings.ToLower(node.Protocol)
-	proxy := map[string]any{"name": node.Name, "server": node.Host, "port": node.Port}
+	proxy := map[string]any{"name": displayName(node), "server": node.Host, "port": node.Port}
 	switch protocol {
 	case "vmess":
 		proxy["type"] = "vmess"

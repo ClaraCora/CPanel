@@ -40,6 +40,26 @@ func TestBuildNodeURIVLESSReality(t *testing.T) {
 	}
 }
 
+func TestDisplayNameDoesNotDuplicateNodePrefix(t *testing.T) {
+	tests := []struct {
+		name  string
+		entry string
+		want  string
+	}{
+		{name: "香港-绿云", entry: "香港-绿云[广港HS]", want: "香港-绿云[广港HS]"},
+		{name: "JP Reality", entry: "东京入口", want: "JP Reality · 东京入口"},
+		{name: "SS", entry: "SS", want: "SS"},
+	}
+	for _, test := range tests {
+		t.Run(test.entry, func(t *testing.T) {
+			got := displayName(domain.SubscriptionNode{Name: test.name, EntryName: test.entry})
+			if got != test.want {
+				t.Fatalf("display name = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
 func TestBuildNodeURIShadowsocks2022(t *testing.T) {
 	serverKey := base64.StdEncoding.EncodeToString([]byte(strings.Repeat("s", 16)))
 	uri, err := BuildNodeURI(domain.SubscriptionNode{

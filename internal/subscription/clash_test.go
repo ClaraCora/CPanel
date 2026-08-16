@@ -76,6 +76,41 @@ func TestProxyForNodeKeepsTraditionalShadowsocksPassword(t *testing.T) {
 	}
 }
 
+func TestProxyForNodeUsesEntryNameForMultiEntryNode(t *testing.T) {
+	proxy, err := proxyForNode(domain.SubscriptionNode{
+		Name: "香港-绿云", EntryName: "香港-绿云[广港HS]", Host: "198.51.100.7", Port: 443,
+		Protocol: "vless", UserUUID: "11111111-1111-4111-8111-111111111111",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := proxy["name"]; got != "香港-绿云[广港HS]" {
+		t.Fatalf("proxy name = %q, want entry-specific name", got)
+	}
+}
+
+func TestBuildClashMetaKeepsMultiEntryNamesDistinct(t *testing.T) {
+	base := func(entry, host string) domain.SubscriptionNode {
+		return domain.SubscriptionNode{
+			Name: "香港-绿云", EntryName: entry, Host: host, Port: 443,
+			Protocol: "vless", UserUUID: "11111111-1111-4111-8111-111111111111",
+		}
+	}
+	result, err := BuildClashMeta(domain.Subscription{Nodes: []domain.SubscriptionNode{
+		base("香港-绿云[广港HS]", "198.51.100.7"),
+		base("香港-绿云[广港PO0]", "198.51.100.8"),
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(result)
+	for _, name := range []string{"香港-绿云[广港HS]", "香港-绿云[广港PO0]"} {
+		if !strings.Contains(text, name) {
+			t.Fatalf("subscription missing entry-specific name %q:\n%s", name, text)
+		}
+	}
+}
+
 func TestBuildClashMetaIncludesRealityClientSettings(t *testing.T) {
 	result, err := BuildClashMeta(domain.Subscription{Nodes: []domain.SubscriptionNode{{
 		Name: "Reality-01", Host: "reality.example.com", Port: 443, Protocol: "vless",

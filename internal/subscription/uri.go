@@ -288,8 +288,21 @@ func numberConfig(config map[string]any, key string, fallback int) int {
 }
 
 func displayName(node domain.SubscriptionNode) string {
-	if entry := strings.TrimSpace(node.EntryName); entry != "" && entry != strings.TrimSpace(node.Name) {
-		return strings.TrimSpace(node.Name) + " · " + entry
+	name := strings.TrimSpace(node.Name)
+	entry := strings.TrimSpace(node.EntryName)
+	if entry == "" || entry == name {
+		return name
 	}
-	return strings.TrimSpace(node.Name)
+	// Imported and manually maintained entries often already contain the full
+	// node name (for example "香港-绿云[广港HS]"). Do not prefix them again.
+	if strings.HasPrefix(entry, name) {
+		remainder := strings.TrimSpace(strings.TrimPrefix(entry, name))
+		if remainder != "" && strings.ContainsRune("-_/[（(·|", []rune(remainder)[0]) {
+			return entry
+		}
+	}
+	if name == "" {
+		return entry
+	}
+	return name + " · " + entry
 }

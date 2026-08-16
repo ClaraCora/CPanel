@@ -159,13 +159,20 @@ func (s *Store) agentRouteProfile(ctx context.Context, policyID *string, allOutb
 		return nil, fmt.Errorf("decode route policy rules: %w", err)
 	}
 	profile["custom_route_rules"] = routeRulesForAgent(rules)
-	profile["default_outbound_tag"] = strings.TrimSpace(defaultTag)
+	profile["default_outbound_tag"] = effectiveAgentDefaultOutboundTag(defaultTag)
 	profile["custom_outbounds"] = selectRouteOutbounds(rules, allOutbounds, defaultTag)
 	return profile, nil
 }
 
 func emptyAgentRouteProfile() map[string]any {
-	return map[string]any{"custom_route_rules": []domain.RoutePolicyRule{}, "default_outbound_tag": "", "custom_outbounds": []map[string]any{}}
+	return map[string]any{"custom_route_rules": []domain.RoutePolicyRule{}, "default_outbound_tag": "direct", "custom_outbounds": []map[string]any{}}
+}
+
+func effectiveAgentDefaultOutboundTag(value string) string {
+	if tag := strings.TrimSpace(value); tag != "" {
+		return tag
+	}
+	return "direct"
 }
 
 func mergeAgentRoutingProfiles(settings json.RawMessage, profiles map[string]map[string]any) (json.RawMessage, error) {
@@ -218,6 +225,7 @@ func mergeAgentRoutingSettings(settings, rawRules, rawOutbounds json.RawMessage,
 	if !policyPublished {
 		defaultOutboundTag = ""
 	}
+	defaultOutboundTag = effectiveAgentDefaultOutboundTag(defaultOutboundTag)
 	config["custom_route_rules"] = routeRulesForAgent(rules)
 	config["default_outbound_tag"] = defaultOutboundTag
 

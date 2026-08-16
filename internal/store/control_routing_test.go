@@ -55,8 +55,42 @@ func TestMergeAgentRoutingSettingsClearsRulesForDisabledPolicy(t *testing.T) {
 	if rules, ok := decoded["custom_route_rules"].([]any); !ok || len(rules) != 0 {
 		t.Fatalf("disabled policy should emit an empty rule set: %s", merged)
 	}
-	if value, _ := decoded["default_outbound_tag"].(string); value != "" {
-		t.Fatalf("disabled policy should clear the default outbound: %s", merged)
+	if value, _ := decoded["default_outbound_tag"].(string); value != "direct" {
+		t.Fatalf("disabled policy should fall back to direct: %s", merged)
+	}
+}
+
+func TestMergeAgentRoutingSettingsDefaultsToDirect(t *testing.T) {
+	merged, err := mergeAgentRoutingSettings(json.RawMessage(`{"default_outbound_tag":"warp"}`), json.RawMessage(`[]`), json.RawMessage(`[]`), "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(merged, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if value, _ := decoded["default_outbound_tag"].(string); value != "direct" {
+		t.Fatalf("empty policy default = %q, want direct", value)
+	}
+}
+
+func TestMergeAgentRoutingProfilesDefaultsToDirect(t *testing.T) {
+	merged, err := mergeAgentRoutingProfiles(json.RawMessage(`{"default_outbound_tag":"warp"}`), map[string]map[string]any{
+		"default": emptyAgentRouteProfile(),
+		"admin":   emptyAgentRouteProfile(),
+		"member":  emptyAgentRouteProfile(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded struct {
+		DefaultOutboundTag string `json:"default_outbound_tag"`
+	}
+	if err := json.Unmarshal(merged, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded.DefaultOutboundTag != "direct" {
+		t.Fatalf("scoped empty policy default = %q, want direct", decoded.DefaultOutboundTag)
 	}
 }
 

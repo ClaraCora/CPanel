@@ -143,6 +143,13 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+		if section == "security" && key == "max_login_failures" {
+			var maximum int
+			if err := json.Unmarshal(value, &maximum); err != nil || maximum < 3 || maximum > 100 {
+				writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "登录失败锁定次数必须是 3 到 100", map[string]string{key: "请输入 3 到 100 之间的整数"})
+				return
+			}
+		}
 		if section == "agent" && key == "allow_legacy_protocol" {
 			var allowed bool
 			if err := json.Unmarshal(value, &allowed); err != nil {
@@ -234,7 +241,7 @@ func validTelegramBotToken(value string) bool {
 
 func (s *Server) handleSubscription(w http.ResponseWriter, r *http.Request) {
 	userAgent := sanitizeUserAgent(r.UserAgent())
-	ipAddress := resolvedClientIP(r, s.store.SettingString(r.Context(), "security", "trusted_proxy_cidrs", ""))
+	ipAddress := clientIP(r)
 	recordAccess := func(userID *string, userName, outcome string, statusCode int) {
 		if err := s.store.RecordSubscriptionAccess(r.Context(), userID, userName, ipAddress, userAgent, outcome, statusCode); err != nil {
 			slog.Warn("record subscription access failed", "request_id", requestID(r), "error", err)

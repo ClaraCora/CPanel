@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"sync"
-	"time"
 
 	"cpanel/internal/auth"
 	"cpanel/internal/config"
@@ -20,12 +19,6 @@ const (
 	portalSessionCookieName = "ca_edu"
 )
 
-type portalLoginAttempt struct {
-	count       int
-	windowStart time.Time
-	blockedTill time.Time
-}
-
 type Server struct {
 	cfg               config.Config
 	store             *store.Store
@@ -34,8 +27,8 @@ type Server struct {
 	agentRelease      *agentReleaseResolver
 	agentV2           *agentV2Service
 	telegramBot       TelegramBotService
-	portalLoginMu     sync.Mutex
-	portalLogin       map[string]portalLoginAttempt
+	loginRateMu       sync.Mutex
+	loginAttempts     map[string]loginAttempt
 }
 
 type TelegramBotService interface {
@@ -48,7 +41,7 @@ func New(cfg config.Config, dataStore *store.Store, box *securebox.Box, telegram
 	if len(telegramBots) > 0 {
 		telegramBot = telegramBots[0]
 	}
-	return &Server{cfg: cfg, store: dataStore, dummyPasswordHash: dummy, secureBox: box, agentRelease: newAgentReleaseResolver(nil, ""), agentV2: newAgentV2Service(dataStore, box), telegramBot: telegramBot, portalLogin: make(map[string]portalLoginAttempt)}
+	return &Server{cfg: cfg, store: dataStore, dummyPasswordHash: dummy, secureBox: box, agentRelease: newAgentReleaseResolver(nil, ""), agentV2: newAgentV2Service(dataStore, box), telegramBot: telegramBot, loginAttempts: make(map[string]loginAttempt)}
 }
 
 func (s *Server) Handler() http.Handler {

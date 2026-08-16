@@ -17,10 +17,7 @@ import (
 )
 
 const (
-	portalGrantTTL       = 90 * time.Second
-	portalLoginWindow    = 15 * time.Minute
-	portalLoginBlockTime = 15 * time.Minute
-	portalLoginMaxTries  = 5
+	portalGrantTTL = 90 * time.Second
 )
 
 func (s *Server) handlePortalLogin(w http.ResponseWriter, r *http.Request) {
@@ -33,21 +30,25 @@ func (s *Server) handlePortalLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	login := strings.TrimSpace(input.Login)
-	key := clientIP(r) + "\x00" + strings.ToLower(login)
 	now := time.Now()
-	allowed := s.portalLoginAllowed(key, now)
+	maximumFailures := s.loginFailureLimit(r.Context())
+	sourceIP := clientIP(r)
+	if !s.loginAllowed("portal", sourceIP, login, maximumFailures, now) {
+		writeLoginRateLimited(w, r)
+		return
+	}
 	user, err := s.store.FindPortalUserByLogin(r.Context(), login)
 	hash := s.dummyPasswordHash
 	if err == nil && user.PasswordHash != "" {
 		hash = user.PasswordHash
 	}
 	valid := auth.VerifyPassword(hash, input.Password)
-	if !allowed || err != nil || !valid {
-		s.recordPortalLoginFailure(key, now)
+	if err != nil || !valid {
+		s.recordLoginFailure("portal", sourceIP, login, maximumFailures, now)
 		writeError(w, r, http.StatusUnauthorized, "PORTAL_LOGIN_FAILED", "账号或密码错误", nil)
 		return
 	}
-	s.clearPortalLoginFailures(key)
+	s.clearLoginFailures("portal", sourceIP, login)
 	plain, tokenHash, err := auth.NewSecret("cpedu_", 32)
 	if err != nil {
 		writeStoreError(w, r, err)
@@ -59,7 +60,7 @@ func (s *Server) handlePortalLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	expiresAt := time.Now().Add(s.cfg.SessionTTL)
-	if _, err := s.store.CreatePortalSession(r.Context(), user.ID, tokenHash, csrf, "", clientIP(r), r.UserAgent(), false, expiresAt); err != nil {
+	if _, err := s.store.CreatePortalSession(r.Context(), user.ID, tokenHash, csrf, "", sourceIP, r.UserAgent(), false, expiresAt); err != nil {
 		writeStoreError(w, r, err)
 		return
 	}
@@ -313,38 +314,4 @@ func validPortalLogin(value string) bool {
 		return false
 	}
 	return true
-}
-
-func (s *Server) portalLoginAllowed(key string, now time.Time) bool {
-	s.portalLoginMu.Lock()
-	defer s.portalLoginMu.Unlock()
-	for candidate, attempt := range s.portalLogin {
-		if now.Sub(attempt.windowStart) > 2*portalLoginWindow && now.After(attempt.blockedTill) {
-			delete(s.portalLogin, candidate)
-		}
-	}
-	attempt := s.portalLogin[key]
-	return !now.Before(attempt.blockedTill)
-}
-
-func (s *Server) recordPortalLoginFailure(key string, now time.Time) {
-	s.portalLoginMu.Lock()
-	defer s.portalLoginMu.Unlock()
-	attempt := s.portalLogin[key]
-	if attempt.windowStart.IsZero() || now.Sub(attempt.windowStart) > portalLoginWindow {
-		attempt = portalLoginAttempt{windowStart: now}
-	}
-	attempt.count++
-	if attempt.count >= portalLoginMaxTries {
-		attempt.blockedTill = now.Add(portalLoginBlockTime)
-		attempt.count = 0
-		attempt.windowStart = now
-	}
-	s.portalLogin[key] = attempt
-}
-
-func (s *Server) clearPortalLoginFailures(key string) {
-	s.portalLoginMu.Lock()
-	defer s.portalLoginMu.Unlock()
-	delete(s.portalLogin, key)
 }

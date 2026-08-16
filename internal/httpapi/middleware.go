@@ -17,6 +17,7 @@ type contextKey string
 
 const (
 	requestIDKey contextKey = "request_id"
+	clientIPKey  contextKey = "client_ip"
 	adminKey     contextKey = "admin"
 	sessionKey   contextKey = "session"
 	portalKey    contextKey = "portal"
@@ -33,9 +34,35 @@ func (s *Server) commonMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "same-origin")
 		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		if sensitiveResponsePath(r.URL.Path) {
+			noStore(w)
+		}
+
 		ctx := context.WithValue(r.Context(), requestIDKey, requestID)
+		if clientIPRequired(r.URL.Path) && s.store != nil {
+			trustedProxies := s.store.SettingString(ctx, "security", "trusted_proxy_cidrs", "")
+			ctx = context.WithValue(ctx, clientIPKey, resolvedClientIP(r, trustedProxies))
+		}
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func sensitiveResponsePath(path string) bool {
+	for _, prefix := range []string{"/ca/ht/", "/ca/edu/", "/ca/x/", "/ca/cc/"} {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func clientIPRequired(path string) bool {
+	for _, prefix := range []string{"/ca/ht/", "/ca/edu/", "/ca/x/"} {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func recoveryMiddleware(next http.Handler) http.Handler {
@@ -171,6 +198,9 @@ func currentAgent(r *http.Request) domain.AgentMachine {
 }
 
 func clientIP(r *http.Request) string {
+	if value, ok := r.Context().Value(clientIPKey).(string); ok && value != "" {
+		return value
+	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err == nil {
 		return host

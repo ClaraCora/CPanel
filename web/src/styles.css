@@ -428,14 +428,25 @@ a.resource-name:hover { color: var(--primary); text-decoration: underline; }
 .subscription-access > header svg { flex: 0 0 auto; color: var(--primary); }
 .subscription-access h3 { font-size: 14px; font-weight: 650; }
 .subscription-access header p { margin-top: 3px; color: var(--secondary); font-size: 10px; }
+.subscription-access__actions { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; }
+.subscription-access__view-switch { display: inline-flex; min-height: 34px; padding: 2px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); }
+.subscription-access__view-switch button { min-width: 72px; padding: 0 10px; color: var(--secondary); background: transparent; border: 0; border-radius: 5px; font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; transition: color .18s ease, background .18s ease, box-shadow .18s ease; }
+.subscription-access__view-switch button:hover { color: var(--text); }
+.subscription-access__view-switch button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.subscription-access__view-switch button.active { color: var(--text); background: var(--panel); box-shadow: 0 3px 10px rgba(20, 25, 31, .12); }
 .subscription-access__loading .table-skeleton { min-height: 260px; }
 .subscription-access__table { border: 1px solid var(--border); border-radius: 6px; }
-.subscription-access__table table { min-width: 760px; }
+.subscription-access__table table { min-width: 850px; }
 .subscription-access__table td { height: 58px; }
-.subscription-access__table td:nth-child(3), .subscription-access__table td:last-child { white-space: nowrap; }
+.subscription-access__table td:nth-child(3), .subscription-access__table td:nth-child(5), .subscription-access__table td:last-child { white-space: nowrap; }
 .subscription-access__table td:nth-child(4) { min-width: 220px; white-space: normal; }
 .subscription-access__table code { display: block; max-width: 320px; color: var(--secondary); font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace; font-size: 10px; line-height: 1.45; overflow-wrap: anywhere; white-space: normal; }
 .subscription-access__code { display: block; margin-top: 4px; color: var(--secondary); font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace; font-size: 9px; }
+.subscription-access__count { display: inline-grid; min-width: 24px; min-height: 24px; place-items: center; padding: 0 6px; color: var(--secondary); border: 1px solid var(--border); border-radius: 999px; font-size: 10px; font-variant-numeric: tabular-nums; }
+.subscription-access__count--merged { color: var(--primary); border-color: color-mix(in srgb, var(--primary) 35%, var(--border)); background: color-mix(in srgb, var(--primary) 10%, transparent); }
+.subscription-access__time { display: flex; min-width: 190px; flex-direction: column; gap: 3px; font-weight: 400; }
+.subscription-access__time strong { font: inherit; font-weight: 600; }
+.subscription-access__time span { color: var(--secondary); font-size: 9px; }
 
 .toast-region { position: fixed; right: 18px; top: 18px; z-index: 2000; display: flex; width: min(380px, calc(100vw - 36px)); flex-direction: column; gap: 8px; }
 .toast { display: grid; grid-template-columns: 20px 1fr 28px; min-height: 48px; align-items: center; gap: 8px; padding: 8px 8px 8px 12px; color: #1d1d1f; background: white; border: 1px solid #b8dfc1; border-radius: 6px; box-shadow: 0 8px 24px rgba(20, 25, 31, .16); font-size: 12px; }
@@ -547,7 +558,10 @@ a.resource-name:hover { color: var(--primary); text-decoration: underline; }
   .toolbar__count { width: 100%; margin-left: 0; }
   .pagination { align-items: flex-start; flex-direction: column; gap: 8px; }
   .subscription-access > header { align-items: stretch; flex-direction: column; }
-  .subscription-access > header .button { width: 100%; }
+  .subscription-access__actions { justify-content: space-between; }
+  .subscription-access__actions > .button { flex: 1 1 auto; }
+  .subscription-access__view-switch { flex: 1 1 auto; }
+  .subscription-access__view-switch button { flex: 1 1 0; }
   .login-page { padding: 0; align-items: stretch; }
   .login-panel { min-height: 100dvh; padding: 24px 20px; border: 0; border-radius: 0; box-shadow: none; }
   .drawer { width: 100vw; }

@@ -92,7 +92,9 @@ export const demoSettings: Record<string, Setting[]> = {
 
 export const demoSubscriptionAccess: SubscriptionAccessEvent[] = [
   { id: "sac_demo_01", user_id: "usr_1001", user_name: "li.ming", ip_address: "203.0.113.8", user_agent: "ClashMetaForAndroid/2.11.13.Meta", outcome: "allowed", status_code: 200, created_at: now },
-  { id: "sac_demo_02", user_id: "usr_1002", user_name: "chen", ip_address: "198.51.100.24", user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.5 Safari/605.1.15", outcome: "blocked", status_code: 404, created_at: "2026-07-31T06:31:00Z" },
+  { id: "sac_demo_02", user_id: "usr_1001", user_name: "li.ming", ip_address: "203.0.113.8", user_agent: "ClashMetaForAndroid/2.11.13.Meta", outcome: "allowed", status_code: 200, created_at: new Date(Date.now() - 14_000).toISOString() },
+  { id: "sac_demo_03", user_id: "usr_1001", user_name: "li.ming", ip_address: "203.0.113.8", user_agent: "ClashMetaForAndroid/2.11.13.Meta", outcome: "allowed", status_code: 200, created_at: new Date(Date.now() - 31_000).toISOString() },
+  { id: "sac_demo_04", user_id: "usr_1002", user_name: "chen", ip_address: "198.51.100.24", user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.5 Safari/605.1.15", outcome: "blocked", status_code: 404, created_at: "2026-07-31T06:31:00Z" },
 ];
 
 export const demoAuditEvents = [

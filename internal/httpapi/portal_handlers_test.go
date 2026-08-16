@@ -10,7 +10,7 @@ import (
 )
 
 func TestPortalProtectedRoutesRejectAnonymousRequests(t *testing.T) {
-	server := &Server{portalLogin: make(map[string]portalLoginAttempt)}
+	server := &Server{loginAttempts: make(map[string]loginAttempt)}
 	for _, test := range []struct {
 		name   string
 		method string

@@ -34,6 +34,14 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &input) {
 		return
 	}
+	input.Email = strings.TrimSpace(input.Email)
+	now := time.Now()
+	maximumFailures := s.loginFailureLimit(r.Context())
+	sourceIP := clientIP(r)
+	if !s.loginAllowed("admin", sourceIP, input.Email, maximumFailures, now) {
+		writeLoginRateLimited(w, r)
+		return
+	}
 	admin, err := s.store.FindAdminByEmail(r.Context(), input.Email)
 	hash := s.dummyPasswordHash
 	if err == nil {
@@ -41,9 +49,11 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	valid := auth.VerifyPassword(hash, input.Password)
 	if err != nil || !valid || admin.Status != "active" {
+		s.recordLoginFailure("admin", sourceIP, input.Email, maximumFailures, now)
 		writeError(w, r, http.StatusUnauthorized, "LOGIN_FAILED", "邮箱或密码错误", nil)
 		return
 	}
+	s.clearLoginFailures("admin", sourceIP, input.Email)
 	plain, tokenHash, err := auth.NewSecret("cpsess_", 32)
 	if err != nil {
 		writeStoreError(w, r, err)
@@ -55,12 +65,12 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	expiresAt := time.Now().Add(s.cfg.SessionTTL)
-	if _, err := s.store.CreateAdminSession(r.Context(), admin.ID, tokenHash, csrf, clientIP(r), r.UserAgent(), expiresAt); err != nil {
+	if _, err := s.store.CreateAdminSession(r.Context(), admin.ID, tokenHash, csrf, sourceIP, r.UserAgent(), expiresAt); err != nil {
 		writeStoreError(w, r, err)
 		return
 	}
 	_ = s.store.TouchAdminLogin(r.Context(), admin.ID)
-	_ = s.store.WriteAudit(r.Context(), admin.ID, "admin.login", "admin", admin.ID, map[string]any{}, clientIP(r), requestID(r))
+	_ = s.store.WriteAudit(r.Context(), admin.ID, "admin.login", "admin", admin.ID, map[string]any{}, sourceIP, requestID(r))
 	http.SetCookie(w, &http.Cookie{
 		Name: sessionCookieName, Value: plain, Path: "/", HttpOnly: true,
 		Secure: s.cfg.CookieSecure, SameSite: http.SameSiteStrictMode,

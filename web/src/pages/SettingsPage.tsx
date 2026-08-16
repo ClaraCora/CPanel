@@ -14,7 +14,7 @@ const sections: SettingSection[] = [
   { id: "account", label: "管理员账户", description: "登录资料、邮箱和密码" },
   { id: "site", label: "站点", description: "平台名称、外部地址、语言和时区", fields: [{ key: "platform_name", label: "平台名称", defaultValue: "CPanel" }, { key: "site_url", label: "站点 URL", helper: "用于生成 Agent 和订阅地址" }, { key: "timezone", label: "时区", defaultValue: "Asia/Shanghai" }, { key: "default_language", label: "默认语言", type: "select", options: [{ value: "zh-CN", label: "简体中文" }, { value: "en", label: "English" }], defaultValue: "zh-CN" }, { key: "footer_text", label: "页脚文本", type: "textarea" }] },
   { id: "agent", label: "Agent 接入", description: "Corade 通讯密钥、心跳与同步参数", fields: [{ key: "external_url", label: "外部控制地址", defaultValue: window.location.origin }, { key: "installer_url", label: "安装脚本地址", defaultValue: "https://raw.githubusercontent.com/ClaraCora/CPanelde/main/install.sh" }, { key: "communication_key", label: "统一通讯密钥", type: "password", sensitive: true, generate: true, helper: "仅用于 Agent 首次登记或身份重置；至少 32 个字符，保存后不再显示明文" }, { key: "heartbeat_seconds", label: "心跳间隔（秒）", type: "number", defaultValue: "60" }, { key: "offline_threshold_seconds", label: "离线阈值（秒）", type: "number", defaultValue: "180" }, { key: "fallback_pull_seconds", label: "REST 兜底间隔（秒）", type: "number", defaultValue: "60" }, { key: "max_message_bytes", label: "最大消息大小（字节）", type: "number", defaultValue: "2097152" }, { key: "allow_legacy_protocol", label: "允许旧通讯", type: "toggle", defaultValue: "true", helper: "关闭前必须所有未归档服务器都显示 V2 加密；关闭后旧 Agent 将返回 404" }] },
-  { id: "security", label: "安全", description: "管理员会话和登录保护", fields: [{ key: "session_ttl_minutes", label: "会话有效期（分钟）", type: "number", defaultValue: "720" }, { key: "password_min_length", label: "密码最小长度", type: "number", defaultValue: "8", min: 8, max: 128 }, { key: "max_login_failures", label: "登录失败锁定次数", type: "number", defaultValue: "8" }, { key: "trusted_proxy_cidrs", label: "可信代理 CIDR", type: "textarea", helper: "每行一个 CIDR" }] },
+  { id: "security", label: "安全", description: "管理员会话和登录保护", fields: [{ key: "session_ttl_minutes", label: "会话有效期（分钟）", type: "number", defaultValue: "720" }, { key: "password_min_length", label: "密码最小长度", type: "number", defaultValue: "8", min: 8, max: 128 }, { key: "max_login_failures", label: "登录失败锁定次数", type: "number", defaultValue: "8", min: 3, max: 100, helper: "同一来源与账号连续失败达到此次数后，锁定 15 分钟" }, { key: "trusted_proxy_cidrs", label: "可信代理 CIDR", type: "textarea", helper: "每行一个 CIDR" }] },
   { id: "node_defaults", label: "节点默认值", description: "新建节点时使用的内核、监听与上报参数", fields: [{ key: "default_kernel", label: "默认内核", type: "select", options: [{ value: "xray", label: "Xray" }, { value: "singbox", label: "sing-box" }], defaultValue: "xray" }, { key: "listen_ip", label: "默认监听地址", defaultValue: "0.0.0.0" }, { key: "telemetry_seconds", label: "遥测上报间隔（秒）", type: "number", defaultValue: "60" }, { key: "certificate_mode", label: "证书模式", type: "select", options: [{ value: "manual", label: "手动配置" }, { value: "acme", label: "ACME 自动申请" }], defaultValue: "manual" }] },
   { id: "certificate", label: "证书与 DNS", description: "ACME 账号和 DNS Provider 凭据", fields: [{ key: "acme_email", label: "ACME 邮箱" }, { key: "dns_provider", label: "DNS Provider" }, { key: "dns_api_token", label: "DNS API Token", type: "password", sensitive: true, helper: "保存后不再显示明文" }, { key: "http01_port", label: "HTTP-01 端口", type: "number", defaultValue: "80" }] },
   { id: "tgbot", label: "TG Bot", description: "管理员查询与昨日流量排行推送", fields: [{ key: "enabled", label: "启用 TG Bot", type: "toggle", defaultValue: "false", helper: "启用后通过长轮询接收命令，不需要配置 Webhook" }, { key: "bot_token", label: "BotFather 密钥", type: "password", sensitive: true, helper: "填写 @BotFather 提供的完整密钥，保存后不再显示明文" }, { key: "admin_telegram_id", label: "管理员 Telegram ID", helper: "先私聊 Bot 发送 /id，再将返回的数字填写到这里" }, { key: "daily_report_enabled", label: "推送昨日排行榜", type: "toggle", defaultValue: "true" }, { key: "daily_report_time", label: "日报推送时间", type: "time", defaultValue: "09:00", helper: "使用站点设置中的时区；内容包含昨日上传、下载及节点和用户 Top 5" }] },
@@ -135,7 +135,41 @@ const accessOutcome = {
   failed: { label: "拉取失败", tone: "danger" },
 } as const;
 
+type SubscriptionAccessDisplayRow = SubscriptionAccessEvent & {
+  access_count: number;
+  first_seen_at: string;
+  last_seen_at: string;
+};
+
+function groupedSubscriptionAccess(items: SubscriptionAccessEvent[]): SubscriptionAccessDisplayRow[] {
+  const rows = new Map<string, SubscriptionAccessDisplayRow>();
+  const latestRows = new Map<string, SubscriptionAccessDisplayRow>();
+  const ordered = [...items].sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime());
+  for (const item of ordered) {
+    const timestamp = new Date(item.created_at).getTime();
+    const isMergeable = item.outcome === "allowed" && item.status_code === 200 && Number.isFinite(timestamp);
+    if (!isMergeable) {
+      rows.set(`raw\u0000${item.id}`, { ...item, access_count: 1, first_seen_at: item.created_at, last_seen_at: item.created_at });
+      continue;
+    }
+    const fingerprint = [item.user_id ?? "", item.user_name, item.ip_address, item.user_agent, item.outcome, item.status_code].join("\u0000");
+    const existing = latestRows.get(fingerprint);
+    if (!existing || new Date(existing.first_seen_at).getTime() - timestamp > 60_000) {
+      const row = { ...item, access_count: 1, first_seen_at: item.created_at, last_seen_at: item.created_at };
+      rows.set(`grouped\u0000${fingerprint}\u0000${item.id}`, row);
+      latestRows.set(fingerprint, row);
+      continue;
+    }
+    existing.access_count += 1;
+    existing.first_seen_at = item.created_at;
+  }
+  return [...rows.values()].sort((left, right) => new Date(right.last_seen_at).getTime() - new Date(left.last_seen_at).getTime());
+}
+
 function SubscriptionAccessLog() {
   const { data, loading, error, reload } = useResource<SubscriptionAccessEvent[]>("/settings/subscription/access-log", []);
-  return <section className="subscription-access" aria-labelledby="subscription-access-title"><header><div><ScrollText size={18} /><div><h3 id="subscription-access-title">订阅拉取记录</h3><p>最近 200 条</p></div></div><Button type="button" onClick={() => void reload()} disabled={loading}><RefreshCw size={15} />刷新</Button></header>{loading ? <div className="subscription-access__loading"><TableSkeleton columns={5} rows={5} /></div> : error ? <EmptyState title="拉取记录加载失败" description={error} action={<Button type="button" onClick={() => void reload()}>重新加载</Button>} /> : data.length === 0 ? <EmptyState title="暂无拉取记录" description="新的订阅请求会显示在这里。" /> : <div className="table-scroll subscription-access__table"><table><thead><tr><th>账号</th><th>结果</th><th>IP 地址</th><th>User-Agent</th><th>拉取时间</th></tr></thead><tbody>{data.map((item) => { const outcome = accessOutcome[item.outcome] ?? accessOutcome.failed; return <tr key={item.id}><td><strong className="cell-primary">{item.user_name || "未知账号"}</strong><span className="resource-id">{item.user_id || "未匹配账号"}</span></td><td><span className={`status status--${outcome.tone}`}><span className="status__dot" aria-hidden="true" />{outcome.label}</span><span className="subscription-access__code">HTTP {item.status_code}</span></td><td className="mono">{item.ip_address || "未知"}</td><td><code title={item.user_agent}>{item.user_agent || "未提供"}</code></td><td className="mono">{formatPreciseDate(item.created_at)}</td></tr>; })}</tbody></table></div>}</section>;
+  const [view, setView] = useState<"grouped" | "raw">("grouped");
+  const rows = useMemo<SubscriptionAccessDisplayRow[]>(() => view === "grouped" ? groupedSubscriptionAccess(data) : data.map((item) => ({ ...item, access_count: 1, first_seen_at: item.created_at, last_seen_at: item.created_at })), [data, view]);
+  const summary = view === "grouped" ? `最近 ${data.length} 条原始记录，合并显示为 ${rows.length} 项` : `最近 ${data.length} 条原始记录`;
+  return <section className="subscription-access" aria-labelledby="subscription-access-title"><header><div><ScrollText size={18} /><div><h3 id="subscription-access-title">订阅拉取记录</h3><p>{summary}</p></div></div><div className="subscription-access__actions"><div className="subscription-access__view-switch" role="group" aria-label="记录显示方式"><button type="button" className={view === "grouped" ? "active" : ""} aria-pressed={view === "grouped"} onClick={() => setView("grouped")}>合并显示</button><button type="button" className={view === "raw" ? "active" : ""} aria-pressed={view === "raw"} onClick={() => setView("raw")}>原始记录</button></div><Button type="button" onClick={() => void reload()} disabled={loading}><RefreshCw size={15} />刷新</Button></div></header>{loading ? <div className="subscription-access__loading"><TableSkeleton columns={6} rows={5} /></div> : error ? <EmptyState title="拉取记录加载失败" description={error} action={<Button type="button" onClick={() => void reload()}>重新加载</Button>} /> : rows.length === 0 ? <EmptyState title="暂无拉取记录" description="新的订阅请求会显示在这里。" /> : <div className="table-scroll subscription-access__table"><table><thead><tr><th>账号</th><th>结果</th><th>IP 地址</th><th>User-Agent</th><th>次数</th><th>拉取时间</th></tr></thead><tbody>{rows.map((item) => { const outcome = accessOutcome[item.outcome] ?? accessOutcome.failed; const merged = item.access_count > 1; return <tr key={item.id}><td><strong className="cell-primary">{item.user_name || "未知账号"}</strong><span className="resource-id">{item.user_id || "未匹配账号"}</span></td><td><span className={`status status--${outcome.tone}`}><span className="status__dot" aria-hidden="true" />{outcome.label}</span><span className="subscription-access__code">HTTP {item.status_code}</span></td><td className="mono">{item.ip_address || "未知"}</td><td><code title={item.user_agent}>{item.user_agent || "未提供"}</code></td><td className="mono"><span className={`subscription-access__count${merged ? " subscription-access__count--merged" : ""}`}>{item.access_count}</span></td><td className="mono subscription-access__time"><strong>{formatPreciseDate(item.last_seen_at)}</strong>{merged && <span>{formatPreciseDate(item.first_seen_at)} 至 {formatPreciseDate(item.last_seen_at)}</span>}</td></tr>; })}</tbody></table></div>}</section>;
 }

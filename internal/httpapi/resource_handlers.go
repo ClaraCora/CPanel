@@ -12,7 +12,9 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
+	"cpanel/internal/auth"
 	"cpanel/internal/domain"
 	"cpanel/internal/store"
 	"github.com/go-chi/chi/v5"
@@ -499,6 +501,28 @@ func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "账号角色只能是用户或朋友", map[string]string{"role": "invalid"})
 		return
 	}
+	input.PortalLogin = strings.TrimSpace(input.PortalLogin)
+	if input.PortalLogin != "" || input.PortalPassword != "" {
+		fields := map[string]string{}
+		if !validPortalLogin(input.PortalLogin) {
+			fields["portal_login"] = "请填写 3 到 100 位的账号、邮箱或 . _ - @ 组合"
+		}
+		minimumLength := s.store.SettingInt(r.Context(), "security", "password_min_length", 8, 8)
+		if utf8.RuneCountInString(input.PortalPassword) < minimumLength {
+			fields["portal_password"] = fmt.Sprintf("门户密码至少需要 %d 个字符", minimumLength)
+		}
+		if len(fields) > 0 {
+			writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "门户登录信息不完整", fields)
+			return
+		}
+		hash, err := auth.HashPassword(input.PortalPassword)
+		if err != nil {
+			writeError(w, r, http.StatusUnprocessableEntity, "PASSWORD_INVALID", "门户密码不符合安全要求", map[string]string{"portal_password": "密码不符合安全要求"})
+			return
+		}
+		input.PortalPasswordHash = hash
+		input.PortalPassword = ""
+	}
 	item, err := s.store.CreateUser(r.Context(), input)
 	if err != nil {
 		writeStoreError(w, r, err)
@@ -559,6 +583,28 @@ func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 			writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "到期时间无效", map[string]string{"expires_at": "invalid"})
 			return
 		}
+	}
+	if input.PortalLogin != nil {
+		value := strings.TrimSpace(*input.PortalLogin)
+		input.PortalLogin = &value
+		if value != "" && !validPortalLogin(value) {
+			writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "门户账号格式无效", map[string]string{"portal_login": "请填写 3 到 100 位的账号、邮箱或 . _ - @ 组合"})
+			return
+		}
+	}
+	if input.PortalPassword != nil && *input.PortalPassword != "" {
+		minimumLength := s.store.SettingInt(r.Context(), "security", "password_min_length", 8, 8)
+		if utf8.RuneCountInString(*input.PortalPassword) < minimumLength {
+			writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "门户密码不符合安全要求", map[string]string{"portal_password": fmt.Sprintf("门户密码至少需要 %d 个字符", minimumLength)})
+			return
+		}
+		hash, err := auth.HashPassword(*input.PortalPassword)
+		if err != nil {
+			writeError(w, r, http.StatusUnprocessableEntity, "PASSWORD_INVALID", "门户密码不符合安全要求", map[string]string{"portal_password": "密码不符合安全要求"})
+			return
+		}
+		input.PortalPasswordHash = &hash
+		input.PortalPassword = nil
 	}
 	item, err := s.store.UpdateUser(r.Context(), chi.URLParam(r, "id"), input)
 	if err != nil {

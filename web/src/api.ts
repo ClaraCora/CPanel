@@ -48,6 +48,7 @@ function wirePathname(path: string): string {
     tail[1] = rolePaths[tail[1]] ?? tail[1];
   }
   if (segments[0] === "users" && tail[1] === "subscription") tail[1] = "dy";
+	if (segments[0] === "users" && tail[1] === "portal") tail[1] = "edu";
   return `/${resource}${tail.length ? `/${tail.join("/")}` : ""}`;
 }
 
@@ -91,6 +92,7 @@ async function demoRequest<T>(path: string, init: RequestInit): Promise<T> {
   }
   if (path === "/account/password" && method === "PATCH") return { password_updated: true, other_sessions_revoked: 0 } as T;
   if (path === "/settings/tgbot/test" && method === "POST") return { sent: true } as T;
+	if (path.startsWith("/users/") && path.endsWith("/portal") && method === "POST") return { grant: "demo-portal-grant", expires_at: new Date(Date.now() + 90_000).toISOString() } as T;
   if (method === "GET") return demoResource(path) as T;
   if (path === "/nodes" && method === "POST") {
     const input = JSON.parse(String(init.body));

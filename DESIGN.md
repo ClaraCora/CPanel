@@ -9,6 +9,8 @@ description: A dense dark operations workbench built from translucent graphite, 
 
 The interface is dark because the administrator may keep it open beside terminals during long or low-light maintenance sessions. Cyan-blue light identifies commands, green confirms healthy runtime state, amber marks pending work, and rose marks failures. Glass is functional: it separates persistent navigation, working surfaces, and temporary overlays while preserving spatial context.
 
+`/edu` is intentionally a separate, light account-center surface for subscribers. It keeps the same compact operational hierarchy but does not inherit the dark administration shell: white panels, quiet neutral borders, black commands, and restrained green status feedback make subscription copying and single-node import immediately legible on both desktop and phone.
+
 No topology, relationship, force, or connection diagrams are permitted. Lists and forms remain the only management surfaces.
 
 # Colors
@@ -86,6 +88,10 @@ Every semantic color appears with a Chinese text label. Healthy status dots may 
 # Motion
 
 One slow ambient light sweep animates behind the application. Page headers enter with a short blur-to-focus transition; healthy status dots breathe; loading skeletons use a bounded shimmer. Hover and press transitions use exponential ease-out. All animation stops under `prefers-reduced-motion`.
+
+# Portal Quality Bar
+
+The `/edu` portal is judged against a compact account-center reference, not the dark control desk. Its native devices are a 58px utility header, four compact summary cells, a subscription row with one copy action, one-click node rows, and a right-side traffic/security stack. Desktop preserves a wide left working column and narrow status column; phone restacks the same order without horizontal overflow. Form fields remain white inset controls with visible focus rings; password autofill must never switch to a dark surface. Delegated administrator mode is visibly read-only and exposes only copy actions.
 
 # Boundaries
 

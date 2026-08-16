@@ -3,6 +3,8 @@ package httpapi
 import (
 	"context"
 	"net/http"
+	"sync"
+	"time"
 
 	"cpanel/internal/auth"
 	"cpanel/internal/config"
@@ -13,7 +15,16 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-const sessionCookieName = "ca_hh"
+const (
+	sessionCookieName       = "ca_hh"
+	portalSessionCookieName = "ca_edu"
+)
+
+type portalLoginAttempt struct {
+	count       int
+	windowStart time.Time
+	blockedTill time.Time
+}
 
 type Server struct {
 	cfg               config.Config
@@ -23,6 +34,8 @@ type Server struct {
 	agentRelease      *agentReleaseResolver
 	agentV2           *agentV2Service
 	telegramBot       TelegramBotService
+	portalLoginMu     sync.Mutex
+	portalLogin       map[string]portalLoginAttempt
 }
 
 type TelegramBotService interface {
@@ -35,7 +48,7 @@ func New(cfg config.Config, dataStore *store.Store, box *securebox.Box, telegram
 	if len(telegramBots) > 0 {
 		telegramBot = telegramBots[0]
 	}
-	return &Server{cfg: cfg, store: dataStore, dummyPasswordHash: dummy, secureBox: box, agentRelease: newAgentReleaseResolver(nil, ""), agentV2: newAgentV2Service(dataStore, box), telegramBot: telegramBot}
+	return &Server{cfg: cfg, store: dataStore, dummyPasswordHash: dummy, secureBox: box, agentRelease: newAgentReleaseResolver(nil, ""), agentV2: newAgentV2Service(dataStore, box), telegramBot: telegramBot, portalLogin: make(map[string]portalLoginAttempt)}
 }
 
 func (s *Server) Handler() http.Handler {
@@ -49,6 +62,16 @@ func (s *Server) Handler() http.Handler {
 	router.Get("/ca/wj/{artifact}", s.handleAgentArtifact)
 	router.Post("/ca/ht/hh", s.handleLogin)
 	router.Get("/ca/x/{token}", s.handleSubscription)
+	router.Post("/ca/edu/dl", s.handlePortalLogin)
+	router.Post("/ca/edu/sq", s.handlePortalGrantRedemption)
+	router.Route("/ca/edu", func(portal chi.Router) {
+		portal.Use(s.requirePortal)
+		portal.Get("/hh", s.handlePortalCurrentSession)
+		portal.Get("/zl", s.handlePortalDashboard)
+		portal.Patch("/mm", s.handlePortalPassword)
+		portal.Post("/dy", s.handlePortalSubscriptionRotation)
+		portal.Post("/tc", s.handlePortalLogout)
+	})
 
 	router.Route("/ca/ht", func(ops chi.Router) {
 		ops.Use(s.requireAdmin)
@@ -85,6 +108,7 @@ func (s *Server) Handler() http.Handler {
 		ops.Post("/yh", s.handleCreateUser)
 		ops.Post("/yh/ks/{role}", s.handleQuickCreateUser)
 		ops.Get("/yh/{id}/dy", s.handleGetUserSubscription)
+		ops.Post("/yh/{id}/edu", s.handleCreatePortalGrant)
 		ops.Patch("/yh/{id}", s.handleUpdateUser)
 		ops.Delete("/yh/{id}", s.handleDeleteUser)
 		ops.Get("/ly", s.handleListRoutePolicies)

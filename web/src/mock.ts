@@ -49,8 +49,8 @@ export const demoPlans: Plan[] = [
 ];
 
 export const demoUsers: User[] = [
-  { id: "usr_1001", agent_id: 1001, role: "user", plan_id: "pln_standard", plan_name: "标准套餐", name: "li.ming", email: "li.ming@example.com", uuid: "45f62d12-5322-48e8-81df-16e9523b88f4", subscription_token_prefix: "cps_v9k3", subscription_available: true, status: "active", traffic_used_bytes: 12884901888, traffic_limit_bytes: 536870912000, expires_at: "2026-12-31T16:00:00Z", created_at: now, updated_at: now },
-  { id: "usr_1002", agent_id: 1002, role: "friend", plan_id: "pln_friend", plan_name: "朋友共享", name: "chen", email: null, uuid: "4da0948c-b38f-4685-a055-57cb67da55c5", subscription_token_prefix: "cps_m2c8", subscription_available: true, status: "active", traffic_used_bytes: 4294967296, traffic_limit_bytes: 1099511627776, expires_at: null, created_at: now, updated_at: now },
+  { id: "usr_1001", agent_id: 1001, role: "user", plan_id: "pln_standard", plan_name: "标准套餐", name: "li.ming", email: "li.ming@example.com", uuid: "45f62d12-5322-48e8-81df-16e9523b88f4", subscription_token_prefix: "cps_v9k3", subscription_available: true, portal_login: "li.ming@example.com", portal_enabled: true, status: "active", traffic_used_bytes: 12884901888, traffic_limit_bytes: 536870912000, expires_at: "2026-12-31T16:00:00Z", created_at: now, updated_at: now },
+  { id: "usr_1002", agent_id: 1002, role: "friend", plan_id: "pln_friend", plan_name: "朋友共享", name: "chen", email: null, uuid: "4da0948c-b38f-4685-a055-57cb67da55c5", subscription_token_prefix: "cps_m2c8", subscription_available: true, portal_login: "chen", portal_enabled: true, status: "active", traffic_used_bytes: 4294967296, traffic_limit_bytes: 1099511627776, expires_at: null, created_at: now, updated_at: now },
 ];
 
 export const demoOutbounds: Outbound[] = [

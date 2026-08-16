@@ -113,6 +113,8 @@ export interface User {
   uuid: string;
   subscription_token_prefix: string;
   subscription_available: boolean;
+	portal_login: string;
+	portal_enabled: boolean;
   status: string;
   traffic_used_bytes: number;
   traffic_limit_bytes: number;
@@ -120,6 +122,46 @@ export interface User {
   notes?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface PortalSession {
+	user: {
+		id: string;
+		name: string;
+		email: string | null;
+		role: "admin" | "user" | "friend";
+		status: string;
+	};
+	csrf_token: string;
+	expires_at: string;
+	read_only: boolean;
+	delegated_by_name?: string;
+}
+
+export interface PortalNode {
+	name: string;
+	entry_name: string;
+	protocol: string;
+	status: "online" | "offline";
+	uri?: string;
+	error?: string;
+}
+
+export interface PortalDashboard {
+	id: string;
+	name: string;
+	role: "admin" | "user" | "friend";
+	email: string | null;
+	plan_name: string | null;
+	status: string;
+	traffic_used_bytes: number;
+	traffic_limit_bytes: number;
+	traffic_reset_at: string | null;
+	expires_at: string | null;
+	speed_limit_mbps: number;
+	device_limit: number;
+	subscription_url: string;
+	nodes: PortalNode[];
 }
 
 export interface RoutePolicy {

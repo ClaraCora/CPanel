@@ -221,6 +221,8 @@ type User struct {
 	UUID                      string     `json:"uuid"`
 	SubscriptionTokenPrefix   string     `json:"subscription_token_prefix"`
 	SubscriptionAvailable     bool       `json:"subscription_available"`
+	PortalLogin               string     `json:"portal_login"`
+	PortalEnabled             bool       `json:"portal_enabled"`
 	Status                    string     `json:"status"`
 	TrafficLimitOverrideBytes *int64     `json:"traffic_limit_override_bytes"`
 	SpeedLimitOverrideMbps    *int       `json:"speed_limit_override_mbps"`
@@ -245,6 +247,9 @@ type UserCreate struct {
 	DeviceLimitOverride       *int       `json:"device_limit_override"`
 	ExpiresAt                 *time.Time `json:"expires_at"`
 	Notes                     string     `json:"notes"`
+	PortalLogin               string     `json:"portal_login"`
+	PortalPassword            string     `json:"portal_password"`
+	PortalPasswordHash        string     `json:"-"`
 }
 
 type UserCreated struct {
@@ -266,6 +271,9 @@ type UserUpdate struct {
 	ExpiresAt             *string `json:"expires_at"`
 	Notes                 *string `json:"notes"`
 	Status                *string `json:"status"`
+	PortalLogin           *string `json:"portal_login"`
+	PortalPassword        *string `json:"portal_password"`
+	PortalPasswordHash    *string `json:"-"`
 }
 
 type RoutePolicyUpdate struct {
@@ -479,11 +487,54 @@ type AuditEvent struct {
 
 type SubscriptionNode struct {
 	Name       string
+	EntryName  string
 	Host       string
 	Port       int
 	Protocol   string
+	Status     string
 	UserUUID   string
 	NodeConfig json.RawMessage
+}
+
+type PortalUserAuth struct {
+	User
+	PasswordHash string
+}
+
+type PortalSession struct {
+	ID              string
+	User            User
+	CSRFToken       string
+	ExpiresAt       time.Time
+	ReadOnly        bool
+	DelegatedByID   string
+	DelegatedByName string
+}
+
+type PortalNode struct {
+	Name      string `json:"name"`
+	EntryName string `json:"entry_name"`
+	Protocol  string `json:"protocol"`
+	Status    string `json:"status"`
+	URI       string `json:"uri,omitempty"`
+	Error     string `json:"error,omitempty"`
+}
+
+type PortalDashboard struct {
+	ID                string       `json:"id"`
+	Name              string       `json:"name"`
+	Role              string       `json:"role"`
+	Email             *string      `json:"email"`
+	PlanName          *string      `json:"plan_name"`
+	Status            string       `json:"status"`
+	TrafficUsedBytes  int64        `json:"traffic_used_bytes"`
+	TrafficLimitBytes int64        `json:"traffic_limit_bytes"`
+	TrafficResetAt    *time.Time   `json:"traffic_reset_at"`
+	ExpiresAt         *time.Time   `json:"expires_at"`
+	SpeedLimitMbps    int          `json:"speed_limit_mbps"`
+	DeviceLimit       int          `json:"device_limit"`
+	SubscriptionURL   string       `json:"subscription_url"`
+	Nodes             []PortalNode `json:"nodes"`
 }
 
 type Subscription struct {

@@ -19,6 +19,7 @@ const (
 	requestIDKey contextKey = "request_id"
 	adminKey     contextKey = "admin"
 	sessionKey   contextKey = "session"
+	portalKey    contextKey = "portal"
 	agentKey     contextKey = "agent"
 )
 
@@ -125,6 +126,30 @@ func (s *Server) requireAgent(next http.Handler) http.Handler {
 	})
 }
 
+func (s *Server) requirePortal(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie(portalSessionCookieName)
+		if err != nil || cookie.Value == "" {
+			writeError(w, r, http.StatusUnauthorized, "PORTAL_AUTH_REQUIRED", "请先登录订阅中心", nil)
+			return
+		}
+		session, err := s.store.FindPortalSession(r.Context(), auth.HashSecret(cookie.Value))
+		if err != nil {
+			writeError(w, r, http.StatusUnauthorized, "PORTAL_SESSION_INVALID", "登录状态已失效，请重新登录", nil)
+			return
+		}
+		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodOptions {
+			provided := r.Header.Get("X-CSRF-Token")
+			if subtle.ConstantTimeCompare([]byte(provided), []byte(session.CSRFToken)) != 1 {
+				writeError(w, r, http.StatusForbidden, "CSRF_TOKEN_INVALID", "安全令牌无效，请刷新页面后重试", nil)
+				return
+			}
+		}
+		ctx := context.WithValue(r.Context(), portalKey, session)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
 func requestID(r *http.Request) string {
 	value, _ := r.Context().Value(requestIDKey).(string)
 	return value
@@ -133,6 +158,11 @@ func requestID(r *http.Request) string {
 func currentAdmin(r *http.Request) domain.Admin {
 	value, _ := r.Context().Value(adminKey).(domain.Admin)
 	return value
+}
+
+func currentPortalSession(r *http.Request) domain.PortalSession {
+	session, _ := r.Context().Value(portalKey).(domain.PortalSession)
+	return session
 }
 
 func currentAgent(r *http.Request) domain.AgentMachine {
@@ -151,6 +181,14 @@ func clientIP(r *http.Request) string {
 func (s *Server) expireSessionCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
 		Name: sessionCookieName, Value: "", Path: "/", HttpOnly: true,
+		Secure: s.cfg.CookieSecure, SameSite: http.SameSiteStrictMode, MaxAge: -1,
+		Expires: time.Unix(1, 0),
+	})
+}
+
+func (s *Server) expirePortalSessionCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name: portalSessionCookieName, Value: "", Path: "/", HttpOnly: true,
 		Secure: s.cfg.CookieSecure, SameSite: http.SameSiteStrictMode, MaxAge: -1,
 		Expires: time.Unix(1, 0),
 	})

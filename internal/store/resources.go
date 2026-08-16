@@ -814,6 +814,7 @@ func (s *Store) ListUsers(ctx context.Context) ([]domain.User, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT u.id,u.agent_id,u.role,u.plan_id,p.name,u.access_group_override_id,u.name,u.email,u.uuid,
 		       u.subscription_token_prefix,(COALESCE(u.subscription_token_plain,'') <> ''),u.status,
+		       COALESCE(u.portal_login,''),(u.portal_password_hash IS NOT NULL),
 		       u.traffic_limit_override_bytes,u.speed_limit_override_mbps,
 		       u.device_limit_override,u.traffic_used_bytes,
 		       COALESCE(u.traffic_limit_override_bytes,p.traffic_limit_bytes,0),
@@ -829,7 +830,8 @@ func (s *Store) ListUsers(ctx context.Context) ([]domain.User, error) {
 		var item domain.User
 		if err := rows.Scan(&item.ID, &item.AgentID, &item.Role, &item.PlanID, &item.PlanName,
 			&item.AccessGroupOverrideID, &item.Name, &item.Email, &item.UUID, &item.SubscriptionTokenPrefix,
-			&item.SubscriptionAvailable, &item.Status, &item.TrafficLimitOverrideBytes, &item.SpeedLimitOverrideMbps,
+			&item.SubscriptionAvailable, &item.Status, &item.PortalLogin, &item.PortalEnabled,
+			&item.TrafficLimitOverrideBytes, &item.SpeedLimitOverrideMbps,
 			&item.DeviceLimitOverride, &item.TrafficUsedBytes, &item.TrafficLimitBytes, &item.TrafficResetAt, &item.ExpiresAt,
 			&item.Notes, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
@@ -855,16 +857,20 @@ func (s *Store) CreateUser(ctx context.Context, input domain.UserCreate) (domain
 	err = s.pool.QueryRow(ctx, `
 		INSERT INTO users(id,role,plan_id,access_group_override_id,name,email,uuid,subscription_token_hash,
 		                  subscription_token_prefix,subscription_token_plain,traffic_limit_override_bytes,speed_limit_override_mbps,
-		                  device_limit_override,expires_at,notes,traffic_reset_at)
-		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,date_trunc('month',now()) + interval '1 month')
+		                  device_limit_override,expires_at,notes,portal_login,portal_password_hash,portal_enabled_at,traffic_reset_at)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,
+		       NULLIF(BTRIM($16),''),NULLIF($17,''),CASE WHEN NULLIF($17,'') IS NULL THEN NULL ELSE now() END,
+		       date_trunc('month',now()) + interval '1 month')
 		RETURNING agent_id,role,plan_id,access_group_override_id,name,email,subscription_token_prefix,status,
+		          COALESCE(portal_login,''),(portal_password_hash IS NOT NULL),
 		          traffic_limit_override_bytes,speed_limit_override_mbps,device_limit_override,traffic_used_bytes,
 		          traffic_reset_at,expires_at,notes,created_at,updated_at`,
 		item.ID, input.Role, input.PlanID, input.AccessGroupOverrideID, strings.TrimSpace(input.Name), input.Email,
 		uuid, hash, auth.Prefix(plain, 12), plain, input.TrafficLimitOverrideBytes, input.SpeedLimitOverrideMbps,
-		input.DeviceLimitOverride, input.ExpiresAt, strings.TrimSpace(input.Notes),
+		input.DeviceLimitOverride, input.ExpiresAt, strings.TrimSpace(input.Notes), input.PortalLogin, input.PortalPasswordHash,
 	).Scan(&item.AgentID, &item.Role, &item.PlanID, &item.AccessGroupOverrideID, &item.Name, &item.Email,
-		&item.SubscriptionTokenPrefix, &item.Status, &item.TrafficLimitOverrideBytes, &item.SpeedLimitOverrideMbps,
+		&item.SubscriptionTokenPrefix, &item.Status, &item.PortalLogin, &item.PortalEnabled,
+		&item.TrafficLimitOverrideBytes, &item.SpeedLimitOverrideMbps,
 		&item.DeviceLimitOverride, &item.TrafficUsedBytes, &item.TrafficResetAt, &item.ExpiresAt, &item.Notes,
 		&item.CreatedAt, &item.UpdatedAt)
 	if err != nil {
@@ -884,7 +890,7 @@ func (s *Store) UpdateUser(ctx context.Context, userID string, input domain.User
 	} else if err != nil {
 		return domain.User{}, err
 	}
-	if adminLinked && ((input.Role != nil && *input.Role != "admin") || input.Status != nil) {
+	if adminLinked && ((input.Role != nil && *input.Role != "admin") || input.Status != nil || input.PortalLogin != nil || input.PortalPasswordHash != nil) {
 		return domain.User{}, ErrConflict
 	}
 	if !adminLinked && input.Role != nil && *input.Role == "admin" {
@@ -896,9 +902,13 @@ func (s *Store) UpdateUser(ctx context.Context, userID string, input domain.User
 		access_group_override_id=CASE WHEN $5::text IS NULL THEN access_group_override_id ELSE NULLIF(BTRIM($5),'') END,
 		name=COALESCE(NULLIF(BTRIM($6),''),name),email=CASE WHEN $7::text IS NULL THEN email ELSE NULLIF(BTRIM($7),'') END,
 		expires_at=CASE WHEN $8::text IS NULL THEN expires_at ELSE NULLIF(BTRIM($8),'')::timestamptz END,
-		notes=COALESCE($9,notes),status=COALESCE($10,status),updated_at=now()
+		notes=COALESCE($9,notes),status=COALESCE($10,status),
+		portal_login=CASE WHEN $11::text IS NULL THEN portal_login ELSE NULLIF(BTRIM($11),'') END,
+		portal_password_hash=COALESCE(NULLIF($12,''),portal_password_hash),
+		portal_enabled_at=CASE WHEN NULLIF($12,'') IS NULL THEN portal_enabled_at ELSE now() END,
+		updated_at=now()
 		WHERE id=$1 AND status <> 'archived'`, userID, input.Role, input.UUID, input.PlanID, input.AccessGroupOverrideID,
-		input.Name, input.Email, input.ExpiresAt, input.Notes, input.Status)
+		input.Name, input.Email, input.ExpiresAt, input.Notes, input.Status, input.PortalLogin, input.PortalPasswordHash)
 	if err != nil {
 		return domain.User{}, mapError(err)
 	}

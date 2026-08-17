@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
-import { Copy, Edit3, Link2, Plus, Power, RefreshCw, Search, SquareArrowOutUpRight, Terminal, Trash2, UserPlus, UsersRound } from "lucide-react";
+import { Copy, Edit3, KeyRound, Link2, Plus, Power, RefreshCw, Search, SquareArrowOutUpRight, Terminal, Trash2, UserPlus, UsersRound } from "lucide-react";
 import { ApiError, api } from "../api";
 import { Button, ConfirmDialog, Drawer, EmptyState, Field, PageHeader, RowMenu, StatusBadge, TableSkeleton, formatBytes, formatDate, formatDateWithYear, formatPreciseDate, useToast } from "../components/ui";
 import { NodeMultiSelect, type MultiSelectOption } from "../components/NodeMultiSelect";
@@ -38,6 +38,7 @@ type ResourcePageProps<T extends Resource> = {
   disabledStatus?: string;
   installable?: boolean;
   upgradeable?: boolean;
+  identityResettable?: boolean;
   subscriptionActions?: boolean;
 	portalActions?: boolean;
   quickAccountCreation?: boolean;
@@ -47,7 +48,7 @@ type ResourcePageProps<T extends Resource> = {
   refreshIntervalMs?: number;
 };
 
-function ResourcePage<T extends Resource>({ title, description, endpoint, createLabel, columns, fields, defaults, transform, toValues, enabledStatus = "active", disabledStatus = "disabled", installable = false, upgradeable = false, subscriptionActions = false, portalActions = false, quickAccountCreation = false, deletable = false, identifierAction, protectedItem, refreshIntervalMs = 0 }: ResourcePageProps<T>) {
+function ResourcePage<T extends Resource>({ title, description, endpoint, createLabel, columns, fields, defaults, transform, toValues, enabledStatus = "active", disabledStatus = "disabled", installable = false, upgradeable = false, identityResettable = false, subscriptionActions = false, portalActions = false, quickAccountCreation = false, deletable = false, identifierAction, protectedItem, refreshIntervalMs = 0 }: ResourcePageProps<T>) {
 	deletable = deletable || ["/machines", "/access-groups", "/plans", "/route-policies", "/outbounds"].includes(endpoint);
 	if (endpoint === "/route-policies") enabledStatus = "published";
   const { data, loading, error, reload } = useResource<T[]>(endpoint, [], refreshIntervalMs);
@@ -66,6 +67,8 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
   const [install, setInstall] = useState<{ name: string; command: string } | null>(null);
   const [upgradeTarget, setUpgradeTarget] = useState<T | null>(null);
   const [upgrading, setUpgrading] = useState(false);
+  const [identityResetTarget, setIdentityResetTarget] = useState<T | null>(null);
+  const [resettingIdentity, setResettingIdentity] = useState(false);
   const [formError, setFormError] = useState("");
   const [quickCreating, setQuickCreating] = useState<"user" | "friend" | "">("");
   const toast = useToast();
@@ -229,6 +232,21 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
     }
   }
 
+  async function resetAgentIdentity() {
+    if (!identityResetTarget || resettingIdentity) return;
+    setResettingIdentity(true);
+    try {
+      await api.delete(endpoint + "/" + identityResetTarget.id + "/agent-identity");
+      toast("旧 Agent 身份已清除，请重新运行一键安装命令或重启 Agent");
+      setIdentityResetTarget(null);
+      await reload();
+    } catch (reason) {
+      toast(reason instanceof ApiError ? reason.message : "Agent 身份重置失败，请重试", "error");
+    } finally {
+      setResettingIdentity(false);
+    }
+  }
+
   async function quickCreateAccount(role: "user" | "friend") {
     if (quickCreating) return;
     setQuickCreating(role);
@@ -263,7 +281,7 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
             {upgradeable && <button type="button" className={`icon-button ${agentUpgradeState(item) === "available" ? "icon-button--update" : ""}`} aria-label={`升级 ${resourceName(item)} 的 Agent`} title={upgradeStateLabel(item)} disabled={!canRequestUpgrade(item) || upgrading} onClick={() => setUpgradeTarget(item)}><RefreshCw size={16} /></button>}
             <button type="button" className="icon-button" aria-label={`编辑 ${item.id}`} title="编辑" onClick={() => showEdit(item)}><Edit3 size={16} /></button>
             {deletable && !protectedRow && <button type="button" className="icon-button icon-button--danger" aria-label={`删除 ${resourceName(item)}`} title="删除" onClick={() => setDeleteTarget(item)}><Trash2 size={16} /></button>}
-            <RowMenu label={`${item.id} 更多操作`}><button type="button" onClick={() => showEdit(item)}><Edit3 size={15} />编辑</button>{identifierAction && <button type="button" disabled={copyingIdentifier === item.id} onClick={() => void copyIdentifier(item)}><Copy size={15} />复制 {identifierAction.label}</button>}{subscriptionActions && <button type="button" disabled={!canCopy || copying === item.id} onClick={() => void copySubscription(item)}><Link2 size={15} />{canCopy ? "复制订阅链接" : "完整令牌未保存"}</button>}{portalActions && <button type="button" disabled={openingPortal === item.id} onClick={() => void openPortal(item)}><SquareArrowOutUpRight size={15} />进入订阅页面</button>}{installable && <button type="button" onClick={() => void loadInstallation(item)}><Terminal size={15} />一键安装 Agent</button>}{!protectedRow && <button type="button" disabled={changingStatus === item.id} onClick={() => void toggleStatus(item)}><Power size={15} />{item.status === disabledStatus ? "恢复启用" : disabledStatus === "paused" ? "暂停" : "停用"}</button>}{deletable && !protectedRow && <button type="button" className="menu-action--danger" onClick={() => setDeleteTarget(item)}><Trash2 size={15} />删除</button>}</RowMenu>
+            <RowMenu label={`${item.id} 更多操作`}><button type="button" onClick={() => showEdit(item)}><Edit3 size={15} />编辑</button>{identifierAction && <button type="button" disabled={copyingIdentifier === item.id} onClick={() => void copyIdentifier(item)}><Copy size={15} />复制 {identifierAction.label}</button>}{subscriptionActions && <button type="button" disabled={!canCopy || copying === item.id} onClick={() => void copySubscription(item)}><Link2 size={15} />{canCopy ? "复制订阅链接" : "完整令牌未保存"}</button>}{portalActions && <button type="button" disabled={openingPortal === item.id} onClick={() => void openPortal(item)}><SquareArrowOutUpRight size={15} />进入订阅页面</button>}{installable && <button type="button" onClick={() => void loadInstallation(item)}><Terminal size={15} />一键安装 Agent</button>}{identityResettable && <button type="button" onClick={() => setIdentityResetTarget(item)}><KeyRound size={15} />重置 Agent 身份</button>}{!protectedRow && <button type="button" disabled={changingStatus === item.id} onClick={() => void toggleStatus(item)}><Power size={15} />{item.status === disabledStatus ? "恢复启用" : disabledStatus === "paused" ? "暂停" : "停用"}</button>}{deletable && !protectedRow && <button type="button" className="menu-action--danger" onClick={() => setDeleteTarget(item)}><Trash2 size={15} />删除</button>}</RowMenu>
           </td></tr>;
         })}</tbody></table></div>
       )}
@@ -272,6 +290,7 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
     <Drawer open={Boolean(install)} title="一键安装 Corade Agent" description={install ? `目标服务器：${install.name}` : undefined} onClose={() => setInstall(null)}>{install && <div className="install-command"><p>在目标服务器的 root shell 中执行以下命令。</p><textarea className="code-editor" readOnly rows={7} value={install.command} /><footer><Button variant="primary" onClick={() => void writeClipboard(install.command).then(() => toast("安装命令已复制")).catch(() => toast("复制失败，请手动选择命令", "error"))}><Copy size={16} />复制命令</Button></footer></div>}</Drawer>
     <ConfirmDialog open={Boolean(deleteTarget)} title={`删除${subscriptionActions ? "这个账号" : `这条${title}记录`}？`} description={deleteTarget ? subscriptionActions ? `“${resourceName(deleteTarget)}”将从订阅账号列表中移除，现有订阅链接会立即失效。流量与审计历史仍会保留。` : `“${resourceName(deleteTarget)}”将从${title}列表中移除。存在关联资源时系统会阻止删除，审计历史仍会保留。` : ""} confirmLabel="确认删除" loading={deleting} onClose={() => setDeleteTarget(null)} onConfirm={() => void deleteResource()} />
     <ConfirmDialog open={Boolean(upgradeTarget)} title="升级 Agent" description={upgradeTarget ? `将在 ${resourceName(upgradeTarget)} 的下一次心跳中领取升级任务，并从 GitHub 更新至 ${latestAgentVersion(upgradeTarget)}。当前 Agent 会在独立任务中重启。` : ""} confirmLabel="下发升级任务" confirmVariant="primary" loading={upgrading} onClose={() => { if (!upgrading) setUpgradeTarget(null); }} onConfirm={() => void requestUpgrade()} />
+    <ConfirmDialog open={Boolean(identityResetTarget)} title="重置 Agent 身份？" description={identityResetTarget ? `将清除 ${resourceName(identityResetTarget)} 当前绑定的 Agent 公钥和在线状态。仅在服务器重装系统或 Agent 身份文件丢失后使用；随后需要重新运行一键安装命令或重启 Agent。` : ""} confirmLabel="确认重置" loading={resettingIdentity} onClose={() => { if (!resettingIdentity) setIdentityResetTarget(null); }} onConfirm={() => void resetAgentIdentity()} />
   </div>;
 }
 
@@ -313,6 +332,7 @@ export function MachinesPage() {
     createLabel="添加服务器"
     installable
     upgradeable
+    identityResettable
     refreshIntervalMs={15_000}
     enabledStatus="pending"
     defaults={{ name: "", region: "", host: "", labels: "{}", notes: "" }}

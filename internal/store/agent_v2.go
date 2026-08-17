@@ -109,21 +109,38 @@ func (s *Store) TouchAgentV2(ctx context.Context, machineID string) error {
 }
 
 func (s *Store) ResetAgentIdentity(ctx context.Context, machineID string) error {
-	tag, err := s.pool.Exec(ctx, `DELETE FROM agent_identities WHERE machine_id=$1`, machineID)
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	tag, err := tx.Exec(ctx, `DELETE FROM agent_identities WHERE machine_id=$1`, machineID)
 	if err != nil {
 		return err
 	}
 	if tag.RowsAffected() == 0 {
 		var exists bool
-		if err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM machines WHERE id=$1 AND status <> 'archived')`, machineID).Scan(&exists); err != nil {
+		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM machines WHERE id=$1 AND status <> 'archived')`, machineID).Scan(&exists); err != nil {
 			return err
 		}
 		if !exists {
 			return ErrNotFound
 		}
 	}
-	_, err = s.pool.Exec(ctx, `UPDATE machines SET agent_protocol='legacy',agent_v2_last_seen_at=NULL,updated_at=now() WHERE id=$1`, machineID)
-	return err
+	if _, err := tx.Exec(ctx, `UPDATE machines SET
+		status=CASE WHEN status='disabled' THEN status ELSE 'pending' END,
+		agent_protocol='legacy',agent_v2_last_seen_at=NULL,last_heartbeat_at=NULL,
+		agent_version='',capabilities='{}'::jsonb,
+		agent_upgrade_task_id=NULL,agent_upgrade_requested_at=NULL,agent_upgrade_dispatched_at=NULL,
+		updated_at=now()
+		WHERE id=$1 AND status <> 'archived'`, machineID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM machine_metrics WHERE machine_id=$1`, machineID); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (s *Store) LegacyAgentAllowed(ctx context.Context) bool {

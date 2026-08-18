@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-const defaultAgentReleaseURL = "https://github.com/ClaraCora/CPanelde/releases/download/latest/agent-version.txt"
+const defaultAgentReleaseURL = "https://github.com/ClaraCora/CPP/releases/download/corade-latest/agent-version.txt"
 
 var semanticAgentVersionPattern = regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9a-z.-]+)?$`)
 

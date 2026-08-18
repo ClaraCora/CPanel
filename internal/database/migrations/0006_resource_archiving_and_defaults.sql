@@ -9,7 +9,7 @@ ALTER TABLE nodes ALTER COLUMN kernel_type SET DEFAULT 'xray';
 
 INSERT INTO settings(section,key,value,sensitive)
 VALUES
-    ('agent','installer_url','"https://raw.githubusercontent.com/ClaraCora/CPanelde/main/install.sh"'::jsonb,false),
+    ('agent','installer_url','"https://raw.githubusercontent.com/ClaraCora/CPP/main/corade-install.sh"'::jsonb,false),
     ('node_defaults','default_kernel','"xray"'::jsonb,false)
 ON CONFLICT(section,key) DO UPDATE SET
     value=EXCLUDED.value,sensitive=false,version=settings.version+1,updated_at=now();

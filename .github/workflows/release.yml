@@ -1,15 +1,20 @@
-name: Build latest release
+name: Build and publish CPanel
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      version:
+        description: Optional semantic version for an immutable CPP release, for example v1.0.0
+        required: false
+        type: string
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: latest-release
+  group: cpp-cpanel-release
   cancel-in-progress: true
 
 jobs:
@@ -64,23 +69,40 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/download-artifact@v4
         with:
           pattern: cpanel-linux-*
           path: dist
           merge-multiple: true
-      - name: Publish rolling latest release
+      - name: Publish to CPP
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.CPP_RELEASE_TOKEN }}
+          GH_REPO: ClaraCora/CPP
+          REQUESTED_VERSION: ${{ inputs.version }}
         run: |
-          git tag --force latest "$GITHUB_SHA"
-          git push origin refs/tags/latest --force
-          if gh release view latest >/dev/null 2>&1; then
-            gh release edit latest --title "Latest CPanel build" --prerelease --notes "Automatically built from main at ${GITHUB_SHA}."
-            gh release upload latest dist/* --clobber
+          test -n "$GH_TOKEN" || { echo "CPP_RELEASE_TOKEN is not configured" >&2; exit 1; }
+          BUILD_ID="main+${GITHUB_SHA::12}"
+          printf '%s\n' "$BUILD_ID" > dist/cpanel-version.txt
+          printf '%s\n' "$GITHUB_SHA" > dist/source-sha.txt
+          cat > dist/release-manifest.json <<EOF
+          {"component":"cpanel","version":"${BUILD_ID}","source_repository":"${GITHUB_REPOSITORY}","source_commit":"${GITHUB_SHA}"}
+          EOF
+
+          ROLLING_TAG="cpanel-latest"
+          NOTES="Rolling CPanel build ${BUILD_ID}. Checksums and source metadata are included in the assets."
+          if gh release view "$ROLLING_TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
+            gh release edit "$ROLLING_TAG" --repo "$GH_REPO" --title "CPanel latest (${BUILD_ID})" --prerelease --notes "$NOTES"
+            gh release upload "$ROLLING_TAG" dist/* --repo "$GH_REPO" --clobber
           else
-            gh release create latest dist/* --title "Latest CPanel build" --prerelease --notes "Automatically built from main at ${GITHUB_SHA}."
+            gh release create "$ROLLING_TAG" dist/* --repo "$GH_REPO" --title "CPanel latest (${BUILD_ID})" --prerelease --notes "$NOTES"
+          fi
+
+          if [ -n "$REQUESTED_VERSION" ]; then
+            printf '%s' "$REQUESTED_VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' || { echo "version must use vMAJOR.MINOR.PATCH" >&2; exit 1; }
+            VERSION_TAG="cpanel-${REQUESTED_VERSION}"
+            if gh release view "$VERSION_TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
+              echo "CPP release ${VERSION_TAG} already exists; versioned releases are immutable" >&2
+              exit 1
+            fi
+            gh release create "$VERSION_TAG" dist/* --repo "$GH_REPO" --title "CPanel ${REQUESTED_VERSION}" --notes "CPanel ${REQUESTED_VERSION}, built from ${GITHUB_SHA}."
           fi

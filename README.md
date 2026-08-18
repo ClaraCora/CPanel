@@ -13,7 +13,7 @@ CPanel 是面向 Corade Agent 的轻量设备管理平台，提供服务器、�
 支持 Debian 12 和 Ubuntu 22.04 及以上版本。使用 root 用户执行：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ClaraCora/CPanel/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/ClaraCora/CPP/main/install.sh | sudo bash
 ```
 
 默认仅监听 `127.0.0.1:8256`，不会直接暴露到公网。配置 HTTPS 反向代理后，更新 `/etc/cpanel/cpanel.env`：
@@ -26,10 +26,10 @@ CPANEL_COOKIE_SECURE=true
 
 然后运行 `systemctl restart cpanel`。反向代理的上游地址应设置为 `http://127.0.0.1:8256`。
 
-脚本会自动安装并初始化 PostgreSQL、下载已校验的 CPanel 与 CPanelde Agent 文件、创建 systemd 服务，并生成首个管理员密码。也可以预先指定站点和管理员信息：
+脚本会自动安装并初始化 PostgreSQL、下载已校验的 CPanel 与 Corade Agent 文件、创建 systemd 服务，并生成首个管理员密码。公开脚本与二进制发行均由 CPP 仓库提供。也可以预先指定站点和管理员信息：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ClaraCora/CPanel/main/install.sh | \
+curl -fsSL https://raw.githubusercontent.com/ClaraCora/CPP/main/install.sh | \
   sudo CPANEL_ADMIN_PASSWORD='replace-with-a-strong-password' bash -s -- \
   --external-url https://panel.example.com \
   --admin-email admin@example.com \
@@ -39,7 +39,7 @@ curl -fsSL https://raw.githubusercontent.com/ClaraCora/CPanel/main/install.sh | 
 升级到仓库最新构建：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ClaraCora/CPanel/main/install.sh | sudo bash -s -- upgrade
+curl -fsSL https://raw.githubusercontent.com/ClaraCora/CPP/main/install.sh | sudo bash -s -- upgrade
 ```
 
 安装完成后可通过以下命令管理服务：

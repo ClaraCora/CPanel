@@ -160,7 +160,7 @@ func (s *Server) handleMachineInstallation(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	controlURL := s.store.SettingString(r.Context(), "agent", "external_url", s.cfg.ExternalURL)
-	installerURL := s.store.SettingString(r.Context(), "agent", "installer_url", "https://raw.githubusercontent.com/ClaraCora/CPanelde/main/install.sh")
+	installerURL := s.store.SettingString(r.Context(), "agent", "installer_url", "https://raw.githubusercontent.com/ClaraCora/CPP/main/corade-install.sh")
 	panelPublicKey, err := s.agentV2.panelPublicKey(r.Context())
 	if err != nil {
 		writeError(w, r, http.StatusInternalServerError, "AGENT_IDENTITY_UNAVAILABLE", "Agent V2 面板身份无法读取", nil)

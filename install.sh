@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-REPOSITORY="ClaraCora/CPanel"
-AGENT_REPOSITORY="ClaraCora/CPanelde"
+REPOSITORY="ClaraCora/CPP"
 SERVICE_NAME="cpanel.service"
 BINARY_PATH="/usr/local/bin/cpanel"
 CONFIG_DIR="/etc/cpanel"
@@ -12,6 +11,7 @@ AGENT_ARTIFACT_DIR="${DATA_DIR}/agent-artifacts"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}"
 ACTION="install"
 VERSION="latest"
+AGENT_VERSION="latest"
 EXTERNAL_URL=""
 LISTEN_ADDRESS="${CPANEL_ADDR:-127.0.0.1:8256}"
 ADMIN_EMAIL="${CPANEL_ADMIN_EMAIL:-admin@cpanel.local}"
@@ -24,14 +24,15 @@ CPanel one-click installer for Debian and Ubuntu
 
 Usage:
   install.sh [install] [options]
-  install.sh upgrade [--version VERSION]
+  install.sh upgrade [--version VERSION] [--agent-version VERSION]
 
 Install options:
   --external-url URL       Public panel URL (auto-detected when omitted)
   --listen-address ADDR    Listen address (default: 127.0.0.1:8256)
   --admin-email EMAIL      Initial administrator email
   --admin-name NAME        Initial administrator name
-  --version VERSION        Release tag (default: latest)
+  --version VERSION        CPanel release version (default: latest)
+  --agent-version VERSION  Corade release version to cache (default: latest)
   --help                   Show this help
 
 The initial password can be supplied through CPANEL_ADMIN_PASSWORD. When it is
@@ -54,6 +55,7 @@ while [ "$#" -gt 0 ]; do
     --admin-email) ADMIN_EMAIL="${2:-}"; shift 2 ;;
     --admin-name) ADMIN_NAME="${2:-}"; shift 2 ;;
     --version) VERSION="${2:-}"; shift 2 ;;
+    --agent-version) AGENT_VERSION="${2:-}"; shift 2 ;;
     --help|-h) usage; exit 0 ;;
     *) fail "unknown argument: $1" ;;
   esac
@@ -99,12 +101,25 @@ detect_external_url() {
   printf 'http://%s:%s' "$host" "$port"
 }
 
+component_release_tag() {
+  local component="$1"
+  local requested="$2"
+  case "$requested" in
+    latest) printf '%s-latest' "$component" ;;
+    "${component}-"*) printf '%s' "$requested" ;;
+    *) printf '%s-%s' "$component" "$requested" ;;
+  esac
+}
+
 download_verified() {
-  local repository="$1"
-  local filename="$2"
-  local destination="$3"
-  local base_url="https://github.com/${repository}/releases/download/${VERSION}"
-  log "downloading ${repository} ${filename}"
+  local component="$1"
+  local requested_version="$2"
+  local filename="$3"
+  local destination="$4"
+  local release_tag
+  release_tag=$(component_release_tag "$component" "$requested_version")
+  local base_url="https://github.com/${REPOSITORY}/releases/download/${release_tag}"
+  log "downloading ${component} ${requested_version} ${filename}"
   curl --fail --location --silent --show-error --retry 5 "${base_url}/${filename}" -o "${TMP_DIR}/${filename}"
   curl --fail --location --silent --show-error --retry 5 "${base_url}/${filename}.sha256" -o "${TMP_DIR}/${filename}.sha256"
   (cd "$TMP_DIR" && sha256sum --check --status "${filename}.sha256") || fail "checksum verification failed for ${filename}"
@@ -114,8 +129,10 @@ download_verified() {
 download_agent_artifacts() {
   mkdir -p "$AGENT_ARTIFACT_DIR"
   local filename
+  local release_tag
+  release_tag=$(component_release_tag "corade" "$AGENT_VERSION")
   for filename in corade-linux-amd64 corade-linux-arm64; do
-    local base_url="https://github.com/${AGENT_REPOSITORY}/releases/download/${VERSION}"
+    local base_url="https://github.com/${REPOSITORY}/releases/download/${release_tag}"
     log "downloading Agent artifact ${filename}"
     if ! curl --fail --location --silent --show-error --retry 5 "${base_url}/${filename}" -o "${TMP_DIR}/${filename}" ||
        ! curl --fail --location --silent --show-error --retry 5 "${base_url}/${filename}.sha256" -o "${TMP_DIR}/${filename}.sha256"; then
@@ -184,7 +201,7 @@ command -v sha256sum >/dev/null 2>&1 || fail "sha256sum is required"
 if [ "$ACTION" = "upgrade" ]; then
   [ -f "$ENV_FILE" ] || fail "CPanel is not installed; run install first"
   systemctl stop "$SERVICE_NAME" >/dev/null 2>&1 || true
-  download_verified "$REPOSITORY" "cpanel-linux-${ARCH}" "$BINARY_PATH"
+  download_verified "cpanel" "$VERSION" "cpanel-linux-${ARCH}" "$BINARY_PATH"
   download_agent_artifacts
   write_service
   systemctl enable "$SERVICE_NAME" >/dev/null
@@ -244,7 +261,7 @@ CPANEL_AGENT_ARTIFACT_DIR=${AGENT_ARTIFACT_DIR}
 EOF
 install -m 640 -o root -g cpanel "${TMP_DIR}/cpanel.env" "$ENV_FILE"
 
-download_verified "$REPOSITORY" "cpanel-linux-${ARCH}" "$BINARY_PATH"
+download_verified "cpanel" "$VERSION" "cpanel-linux-${ARCH}" "$BINARY_PATH"
 download_agent_artifacts
 write_service
 

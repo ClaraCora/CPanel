@@ -98,6 +98,7 @@ func (s *Server) Handler() http.Handler {
 		ops.Patch("/tc/{id}", s.handleUpdatePlan)
 		ops.Delete("/tc/{id}", s.handleDeletePlan)
 		ops.Get("/yh", s.handleListUsers)
+		ops.Get("/yh/fwjl", s.handleListUserAccessIPs)
 		ops.Post("/yh", s.handleCreateUser)
 		ops.Post("/yh/ks/{role}", s.handleQuickCreateUser)
 		ops.Get("/yh/{id}/dy", s.handleGetUserSubscription)

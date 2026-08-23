@@ -16,6 +16,7 @@ import { NodeEditorPage } from "./pages/NodeEditorPage";
 import { NodesPage } from "./pages/NodesPage";
 import { OverviewPage } from "./pages/OverviewPage";
 import { SettingsPage, SubscriptionPage } from "./pages/SettingsPage";
+import { UserAccessIPsPage } from "./pages/UserAccessIPsPage";
 import type { Admin, Session } from "./types";
 
 export default function AuthenticatedApp({
@@ -41,6 +42,7 @@ export default function AuthenticatedApp({
             <Route path="/plans" component={PlansPage} />
             <Route path="/users" component={UsersPage} />
             <Route path="/subscription" component={SubscriptionPage} />
+            <Route path="/access-ips" component={UserAccessIPsPage} />
             <Route path="/routes" component={RoutesPage} />
             <Route path="/outbounds" component={OutboundsPage} />
             <Route path="/history" component={HistoryPage} />

@@ -307,6 +307,9 @@ html[data-theme="light"] .metric-item strong {
   color: var(--foreground);
 }
 
+html[data-theme="light"] .access-ip-address { color: #27313d; }
+html[data-theme="light"] .access-ip-drawer__summary { background: #f7f8fa; }
+
 html[data-theme="light"] .machine-metrics span,
 html[data-theme="light"] .metric-summary span {
   color: #444b54;

@@ -481,6 +481,23 @@ type SubscriptionAccessEvent struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
+type UserAccessIPAddress struct {
+	IPAddress    string    `json:"ip_address"`
+	FirstSeenAt  time.Time `json:"first_seen_at"`
+	LastSeenAt   time.Time `json:"last_seen_at"`
+	LastNodeID   *string   `json:"last_node_id"`
+	LastNodeName string    `json:"last_node_name"`
+}
+
+type UserAccessIPAccount struct {
+	UserID     string                `json:"user_id"`
+	UserName   string                `json:"user_name"`
+	Role       string                `json:"role"`
+	Status     string                `json:"status"`
+	LastSeenAt time.Time             `json:"last_seen_at"`
+	Addresses  []UserAccessIPAddress `json:"addresses"`
+}
+
 type AuditEvent struct {
 	ID           string          `json:"id"`
 	AdminID      *string         `json:"admin_id"`

@@ -61,3 +61,17 @@ func TestLoginFailureSettingRequiresSafeRange(t *testing.T) {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusUnprocessableEntity)
 	}
 }
+
+func TestUserAccessIPRecordsRequireAdministratorSession(t *testing.T) {
+	server := &Server{}
+	handler := server.commonMiddleware(server.requireAdmin(http.HandlerFunc(server.handleListUserAccessIPs)))
+	request := httptest.NewRequest(http.MethodGet, "/ca/ht/yh/fwjl", nil)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusUnauthorized)
+	}
+	if got := response.Header().Get("Cache-Control"); got != "private, no-store" {
+		t.Fatalf("Cache-Control = %q, want private, no-store", got)
+	}
+}

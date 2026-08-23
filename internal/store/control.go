@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -452,6 +453,9 @@ func (s *Store) RecordTelemetryBatch(ctx context.Context, machineID, idempotency
 	if tag.RowsAffected() == 0 {
 		return false, nil
 	}
+	if err := lockTelemetryDeviceUsers(ctx, tx, batch); err != nil {
+		return false, err
+	}
 	for _, event := range batch.Events {
 		switch event.Type {
 		case "node.telemetry":
@@ -465,6 +469,45 @@ func (s *Store) RecordTelemetryBatch(ctx context.Context, machineID, idempotency
 		}
 	}
 	return true, tx.Commit(ctx)
+}
+
+func lockTelemetryDeviceUsers(ctx context.Context, tx pgx.Tx, batch telemetryBatch) error {
+	agentIDs := make(map[int64]bool)
+	for _, event := range batch.Events {
+		if event.Type != "node.devices" {
+			continue
+		}
+		var data nodeDevicesData
+		if err := json.Unmarshal(event.Data, &data); err != nil {
+			return fmt.Errorf("decode node devices: %w", err)
+		}
+		for rawUserID := range data.Devices {
+			agentID, err := strconv.ParseInt(rawUserID, 10, 64)
+			if err == nil && agentID > 0 {
+				agentIDs[agentID] = true
+			}
+		}
+	}
+	if len(agentIDs) == 0 {
+		return nil
+	}
+	ordered := make([]int64, 0, len(agentIDs))
+	for agentID := range agentIDs {
+		ordered = append(ordered, agentID)
+	}
+	sort.Slice(ordered, func(left, right int) bool { return ordered[left] < ordered[right] })
+	rows, err := tx.Query(ctx, `SELECT id FROM users WHERE agent_id=ANY($1) ORDER BY agent_id FOR UPDATE`, ordered)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var userID string
+		if err := rows.Scan(&userID); err != nil {
+			return err
+		}
+	}
+	return rows.Err()
 }
 
 type telemetryBatch struct {
@@ -485,6 +528,11 @@ type nodeTelemetryData struct {
 
 type nodeDevicesData struct {
 	Devices map[string][]string `json:"devices"`
+}
+
+type deviceUserReport struct {
+	AgentID   int64
+	Addresses []string
 }
 
 func decodeTelemetryBatch(payload json.RawMessage) (telemetryBatch, error) {
@@ -597,30 +645,85 @@ func recordNodeDevices(ctx context.Context, tx pgx.Tx, machineID string, event t
 		return fmt.Errorf("decode node devices: %w", err)
 	}
 	sampledAt := telemetryTime(event.OccurredAt)
-	for userAgentID, addresses := range data.Devices {
-		userID, err := strconv.ParseInt(userAgentID, 10, 64)
-		if err != nil || userID <= 0 {
+	for _, report := range normalizeDeviceReports(data.Devices) {
+		var userID, nodeID, nodeName string
+		err := tx.QueryRow(ctx, `
+			SELECT u.id,n.id,n.name
+			FROM nodes n
+			JOIN access_group_nodes gn ON gn.node_id=n.id
+			JOIN users u ON u.agent_id=$3
+			LEFT JOIN plans p ON p.id=u.plan_id
+			WHERE n.machine_id=$1 AND n.agent_id=$2
+			  AND gn.access_group_id=COALESCE(u.access_group_override_id,p.access_group_id)`,
+			machineID, event.NodeID, report.AgentID).Scan(&userID, &nodeID, &nodeName)
+		if errors.Is(err, pgx.ErrNoRows) {
 			continue
 		}
-		for _, address := range addresses {
-			if net.ParseIP(address) == nil {
-				continue
-			}
+		if err != nil {
+			return err
+		}
+		for _, address := range report.Addresses {
 			_, err = tx.Exec(ctx, `
 				INSERT INTO user_devices(id,user_id,node_id,ip_address,first_seen_at,last_seen_at,online)
-				SELECT $6,u.id,n.id,$4::inet,$5,$5,true
-				FROM nodes n
-				JOIN access_group_nodes gn ON gn.node_id=n.id
-				JOIN users u ON u.agent_id=$3
-				LEFT JOIN plans p ON p.id=u.plan_id
-				WHERE n.machine_id=$1 AND n.agent_id=$2
-				  AND gn.access_group_id=COALESCE(u.access_group_override_id,p.access_group_id)
-				ON CONFLICT(user_id,node_id,ip_address) DO UPDATE SET last_seen_at=EXCLUDED.last_seen_at,online=true`,
-				machineID, event.NodeID, userID, address, sampledAt, domain.MustID("dev"))
+				VALUES($1,$2,$3,$4::inet,$5,$5,true)
+				ON CONFLICT(user_id,node_id,ip_address) DO UPDATE SET
+					last_seen_at=GREATEST(user_devices.last_seen_at,EXCLUDED.last_seen_at),online=true`,
+				domain.MustID("dev"), userID, nodeID, address, sampledAt)
+			if err != nil {
+				return err
+			}
+			_, err = tx.Exec(ctx, `
+				INSERT INTO user_access_ips(user_id,ip_address,first_seen_at,last_seen_at,last_node_id,last_node_name)
+				VALUES($1,$2::inet,$3,$3,$4,$5)
+				ON CONFLICT(user_id,ip_address) DO UPDATE SET
+					first_seen_at=LEAST(user_access_ips.first_seen_at,EXCLUDED.first_seen_at),
+					last_seen_at=GREATEST(user_access_ips.last_seen_at,EXCLUDED.last_seen_at),
+					last_node_id=CASE WHEN EXCLUDED.last_seen_at >= user_access_ips.last_seen_at THEN EXCLUDED.last_node_id ELSE user_access_ips.last_node_id END,
+					last_node_name=CASE WHEN EXCLUDED.last_seen_at >= user_access_ips.last_seen_at THEN EXCLUDED.last_node_name ELSE user_access_ips.last_node_name END`,
+				userID, address, sampledAt, nodeID, nodeName)
 			if err != nil {
 				return err
 			}
 		}
+		if _, err := tx.Exec(ctx, `
+			DELETE FROM user_access_ips
+			WHERE user_id=$1 AND ip_address IN (
+				SELECT ip_address FROM user_access_ips WHERE user_id=$1
+				ORDER BY last_seen_at DESC,ip_address DESC OFFSET 10
+			)`, userID); err != nil {
+			return err
+		}
 	}
 	return nil
+}
+
+func normalizeDeviceReports(devices map[string][]string) []deviceUserReport {
+	reports := make([]deviceUserReport, 0, len(devices))
+	for rawUserID, rawAddresses := range devices {
+		agentID, err := strconv.ParseInt(rawUserID, 10, 64)
+		if err != nil || agentID <= 0 {
+			continue
+		}
+		seen := make(map[string]bool, len(rawAddresses))
+		addresses := make([]string, 0, len(rawAddresses))
+		for _, rawAddress := range rawAddresses {
+			address := net.ParseIP(strings.TrimSpace(rawAddress))
+			if address == nil {
+				continue
+			}
+			normalized := address.String()
+			if seen[normalized] {
+				continue
+			}
+			seen[normalized] = true
+			addresses = append(addresses, normalized)
+		}
+		if len(addresses) == 0 {
+			continue
+		}
+		sort.Strings(addresses)
+		reports = append(reports, deviceUserReport{AgentID: agentID, Addresses: addresses})
+	}
+	sort.Slice(reports, func(left, right int) bool { return reports[left].AgentID < reports[right].AgentID })
+	return reports
 }

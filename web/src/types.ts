@@ -273,6 +273,23 @@ export interface DeviceHistory {
   online: boolean;
 }
 
+export interface UserAccessIPAddress {
+  ip_address: string;
+  first_seen_at: string;
+  last_seen_at: string;
+  last_node_id: string | null;
+  last_node_name: string;
+}
+
+export interface UserAccessIPAccount {
+  user_id: string;
+  user_name: string;
+  role: "admin" | "user" | "friend";
+  status: string;
+  last_seen_at: string;
+  addresses: UserAccessIPAddress[];
+}
+
 export interface Setting {
   key: string;
   value: unknown;

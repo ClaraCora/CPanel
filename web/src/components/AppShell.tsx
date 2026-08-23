@@ -6,6 +6,7 @@ import {
   ChevronDown,
   CircleGauge,
   FileClock,
+  Fingerprint,
   History,
   Group,
   LogOut,
@@ -39,6 +40,7 @@ const groups = [
       { to: "/plans", label: "套餐", icon: ShieldCheck },
       { to: "/access-groups", label: "权限组", icon: Group },
       { to: "/subscription", label: "订阅", icon: Rss },
+      { to: "/access-ips", label: "访问 IP", icon: Fingerprint },
     ],
   },
   {

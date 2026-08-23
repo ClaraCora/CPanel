@@ -56,3 +56,36 @@ func TestLoadTrafficLocationFallsBackToAsiaShanghai(t *testing.T) {
 		t.Fatalf("fallback telemetryDay = %s, want %s", got, want)
 	}
 }
+
+func TestNormalizeDeviceReportsCanonicalizesAndSorts(t *testing.T) {
+	reports := normalizeDeviceReports(map[string][]string{
+		"12": {" 2001:0db8::1 ", "2001:db8:0:0::1", "invalid"},
+		"3":  {"::ffff:192.0.2.4", "192.0.2.4", "198.51.100.9"},
+		"0":  {"203.0.113.8"},
+		"x":  {"203.0.113.9"},
+	})
+	if len(reports) != 2 {
+		t.Fatalf("reports length = %d, want 2", len(reports))
+	}
+	if reports[0].AgentID != 3 || reports[1].AgentID != 12 {
+		t.Fatalf("reports are not sorted by user: %+v", reports)
+	}
+	if got, want := reports[0].Addresses, []string{"192.0.2.4", "198.51.100.9"}; !equalStrings(got, want) {
+		t.Fatalf("IPv4 addresses = %v, want %v", got, want)
+	}
+	if got, want := reports[1].Addresses, []string{"2001:db8::1"}; !equalStrings(got, want) {
+		t.Fatalf("IPv6 addresses = %v, want %v", got, want)
+	}
+}
+
+func equalStrings(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
+}

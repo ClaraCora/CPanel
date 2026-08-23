@@ -11,6 +11,7 @@ import type {
   Setting,
   SubscriptionAccessEvent,
   User,
+  UserAccessIPAccount,
 } from "./types";
 
 const now = new Date().toISOString();
@@ -97,6 +98,23 @@ export const demoSubscriptionAccess: SubscriptionAccessEvent[] = [
   { id: "sac_demo_04", user_id: "usr_1002", user_name: "chen", ip_address: "198.51.100.24", user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.5 Safari/605.1.15", outcome: "blocked", status_code: 404, created_at: "2026-07-31T06:31:00Z" },
 ];
 
+export const demoUserAccessIPs: UserAccessIPAccount[] = [
+  {
+    user_id: "usr_1001", user_name: "li.ming", role: "user", status: "active", last_seen_at: now,
+    addresses: [
+      { ip_address: "203.0.113.8", first_seen_at: "2026-08-18T01:22:36Z", last_seen_at: now, last_node_id: "nod_1042", last_node_name: "香港 VLESS 主入口" },
+      { ip_address: "2001:db8:18::25", first_seen_at: "2026-08-17T08:14:09Z", last_seen_at: "2026-08-22T16:41:18Z", last_node_id: "nod_1088", last_node_name: "新加坡 AnyTLS" },
+      { ip_address: "198.51.100.42", first_seen_at: "2026-08-10T03:07:51Z", last_seen_at: "2026-08-20T09:18:02Z", last_node_id: "nod_1042", last_node_name: "香港 VLESS 主入口" },
+    ],
+  },
+  {
+    user_id: "usr_1002", user_name: "chen", role: "friend", status: "active", last_seen_at: "2026-08-23T01:35:12Z",
+    addresses: [
+      { ip_address: "198.51.100.24", first_seen_at: "2026-08-21T04:16:33Z", last_seen_at: "2026-08-23T01:35:12Z", last_node_id: "nod_1088", last_node_name: "新加坡 AnyTLS" },
+    ],
+  },
+];
+
 export const demoAuditEvents = [
   { id: "aud_01", admin_id: "adm_demo", admin_name: "管理员", action: "node.publish", resource_type: "node", resource_id: "nod_1042", changes: { revision: 31 }, ip_address: "127.0.0.1", request_id: "req_demo_01", created_at: now },
   { id: "aud_02", admin_id: "adm_demo", admin_name: "管理员", action: "node.update", resource_type: "node", resource_id: "nod_1046", changes: { server_port: 8443 }, ip_address: "127.0.0.1", request_id: "req_demo_02", created_at: "2026-07-29T06:42:00Z" },
@@ -117,6 +135,7 @@ export function demoResource(path: string): unknown {
   if (path === "/route-policies") return demoRoutes;
   if (path === "/outbounds") return demoOutbounds;
   if (path === "/settings/subscription/access-log") return demoSubscriptionAccess;
+  if (path === "/user-access-ips") return demoUserAccessIPs;
   if (path.startsWith("/settings/")) return demoSettings[path.split("/")[2]] ?? [];
   if (path === "/audit-events") return demoAuditEvents;
   return null;

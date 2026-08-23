@@ -797,6 +797,16 @@ a.resource-name:hover {
 .table-surface--standalone { border-radius: 0 0 10px 10px; }
 .history-muted { color: var(--secondary); }
 
+.access-ip-address { color: #d8e8f8; }
+.access-ip-count strong { color: var(--foreground); }
+.access-ip-count small { color: var(--secondary); }
+.access-ip-drawer__summary {
+  background: rgba(255, 255, 255, 0.025);
+  border-bottom-color: var(--border);
+}
+.access-ip-drawer__summary span { color: var(--secondary); }
+.access-ip-drawer__summary strong { color: var(--foreground); }
+
 .empty-state__icon {
   color: var(--primary);
   background: rgba(64, 217, 255, 0.09);

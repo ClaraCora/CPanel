@@ -216,15 +216,17 @@ a.resource-name:hover { color: var(--primary); text-decoration: underline; }
 .history-muted { color: var(--secondary); font-size: 12px; }
 
 .access-ip-table table { min-width: 1120px; }
+.access-ip-table th:nth-child(4), .access-ip-table td:nth-child(4) { width: 300px; min-width: 260px; max-width: 320px; white-space: normal; }
 .col-access-ip-action { width: 52px; text-align: right; }
 .access-ip-address { display: inline-block; max-width: 260px; overflow: hidden; color: var(--foreground); font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace; font-size: 11px; font-variant-numeric: tabular-nums; text-overflow: ellipsis; vertical-align: middle; white-space: nowrap; }
-.access-ip-location { display: flex; min-width: 0; align-items: flex-start; flex-direction: column; gap: 4px; }
-.access-ip-location__status { display: flex; min-width: 0; max-width: 280px; align-items: flex-start; flex-direction: column; gap: 3px; }
+.access-ip-location { display: flex; width: 100%; min-width: 0; align-items: flex-start; flex-direction: column; gap: 4px; white-space: normal; }
+.access-ip-location__status { display: flex; width: 100%; min-width: 0; align-items: flex-start; flex-direction: column; gap: 3px; white-space: normal; }
 .access-ip-location__lookup { display: inline-flex; min-height: 24px; align-items: center; gap: 5px; padding: 1px 2px; color: var(--primary); background: transparent; border: 0; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; }
 .access-ip-location__lookup:hover:not(:disabled) { color: var(--foreground); background: var(--muted); }
 .access-ip-location__lookup:disabled { cursor: wait; opacity: .68; }
-.access-ip-location__result { display: flex; min-width: 0; align-items: center; gap: 3px; }
-.access-ip-location__text { display: flex; min-width: 0; align-items: flex-start; gap: 4px; color: var(--secondary); font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; }
+.access-ip-location__result { display: grid; width: 100%; min-width: 0; grid-template-columns: minmax(0, 1fr) 24px; align-items: start; gap: 3px; white-space: normal; }
+.access-ip-location__text { display: grid; min-width: 0; grid-template-columns: 13px minmax(0, 1fr); align-items: flex-start; gap: 4px; color: var(--secondary); font-size: 11px; line-height: 1.45; white-space: normal; }
+.access-ip-location__text > span { min-width: 0; overflow-wrap: anywhere; word-break: break-word; white-space: normal; }
 .access-ip-location__text svg { flex: 0 0 auto; margin-top: 1px; color: var(--primary); }
 .access-ip-location__refresh { display: grid; width: 24px; height: 24px; flex: 0 0 auto; place-items: center; padding: 0; color: var(--secondary); background: transparent; border: 0; border-radius: 4px; cursor: pointer; }
 .access-ip-location__refresh:hover:not(:disabled) { color: var(--foreground); background: var(--muted); }
@@ -237,7 +239,11 @@ a.resource-name:hover { color: var(--primary); text-decoration: underline; }
 .access-ip-drawer__summary { display: grid; grid-template-columns: auto minmax(180px, 1fr) auto minmax(54px, auto); min-height: 58px; align-items: center; gap: 10px; padding: 10px 18px; background: var(--muted); border-bottom: 1px solid var(--border); }
 .access-ip-drawer__summary span { color: var(--secondary); font-size: 11px; }
 .access-ip-drawer__summary strong { color: var(--foreground); font-size: 12px; font-weight: 600; }
-.access-ip-drawer .table-scroll table { min-width: 780px; }
+.access-ip-drawer .table-scroll table { min-width: 940px; table-layout: fixed; }
+.access-ip-drawer th:first-child, .access-ip-drawer td:first-child { width: 320px; white-space: normal; }
+.access-ip-drawer th:nth-child(2), .access-ip-drawer td:nth-child(2), .access-ip-drawer th:nth-child(3), .access-ip-drawer td:nth-child(3) { width: 172px; }
+.access-ip-drawer th:nth-child(4), .access-ip-drawer td:nth-child(4) { width: 220px; }
+.access-ip-drawer th:last-child, .access-ip-drawer td:last-child { width: 52px; }
 .access-ip-drawer td { height: 58px; }
 
 .empty-state { display: flex; min-height: 240px; align-items: center; justify-content: center; flex-direction: column; padding: 32px; text-align: center; }

@@ -87,7 +87,7 @@ function IPAddressLocation({ address, request, onLookup }: { address: UserAccess
     <code className="access-ip-address">{address.ip_address}</code>
     <div className="access-ip-location__status" aria-live="polite">
       {location ? <div className="access-ip-location__result">
-        <span className="access-ip-location__text" title={`${locationLabel} · 查询于 ${formatPreciseDate(location.resolved_at)}`}><MapPin size={13} aria-hidden="true" />{locationLabel}</span>
+        <span className="access-ip-location__text" title={`${locationLabel} · 查询于 ${formatPreciseDate(location.resolved_at)}`}><MapPin size={13} aria-hidden="true" /><span>{locationLabel}</span></span>
         <button type="button" className="access-ip-location__refresh" disabled={request?.loading} aria-label={`重新查询 ${address.ip_address} 的归属地`} title="重新查询归属地" onClick={() => void onLookup(address.ip_address, true)}>{request?.loading ? <LoaderCircle className="spin" size={13} aria-hidden="true" /> : <RefreshCw size={13} aria-hidden="true" />}</button>
       </div> : <button type="button" className="access-ip-location__lookup" disabled={request?.loading} aria-label={`${request?.error ? "重试查询" : "获取"} ${address.ip_address} 的归属地`} title="获取 IP 归属地" onClick={() => void onLookup(address.ip_address)}>{request?.loading ? <LoaderCircle className="spin" size={13} aria-hidden="true" /> : <MapPin size={13} aria-hidden="true" />}{request?.loading ? "查询中" : request?.error ? "重试获取地区" : "获取地区"}</button>}
       {request?.error && <span className="access-ip-location__error" role="alert">{request.error}</span>}

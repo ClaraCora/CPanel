@@ -102,7 +102,7 @@ export const demoUserAccessIPs: UserAccessIPAccount[] = [
   {
     user_id: "usr_1001", user_name: "li.ming", role: "user", status: "active", last_seen_at: now,
     addresses: [
-      { ip_address: "203.0.113.8", first_seen_at: "2026-08-18T01:22:36Z", last_seen_at: now, last_node_id: "nod_1042", last_node_name: "香港 VLESS 主入口" },
+      { ip_address: "203.0.113.8", first_seen_at: "2026-08-18T01:22:36Z", last_seen_at: now, last_node_id: "nod_1042", last_node_name: "香港 VLESS 主入口", location: { scope: "public", country_code: "CN", country: "中国", province: "广东省", city: "深圳", isp: "中国电信", resolved_at: now } },
       { ip_address: "2001:db8:18::25", first_seen_at: "2026-08-17T08:14:09Z", last_seen_at: "2026-08-22T16:41:18Z", last_node_id: "nod_1088", last_node_name: "新加坡 AnyTLS" },
       { ip_address: "198.51.100.42", first_seen_at: "2026-08-10T03:07:51Z", last_seen_at: "2026-08-20T09:18:02Z", last_node_id: "nod_1042", last_node_name: "香港 VLESS 主入口" },
     ],

@@ -75,3 +75,18 @@ func TestUserAccessIPRecordsRequireAdministratorSession(t *testing.T) {
 		t.Fatalf("Cache-Control = %q, want private, no-store", got)
 	}
 }
+
+func TestUserAccessIPLocationRequiresAdministratorSession(t *testing.T) {
+	server := &Server{}
+	handler := server.commonMiddleware(server.requireAdmin(http.HandlerFunc(server.handleResolveUserAccessIPLocation)))
+	request := httptest.NewRequest(http.MethodPost, "/ca/ht/yh/fwjl/gs", strings.NewReader(`{"ip_address":"8.8.8.8"}`))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusUnauthorized)
+	}
+	if got := response.Header().Get("Cache-Control"); got != "private, no-store" {
+		t.Fatalf("Cache-Control = %q, want private, no-store", got)
+	}
+}

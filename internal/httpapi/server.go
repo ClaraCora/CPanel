@@ -4,9 +4,11 @@ import (
 	"context"
 	"net/http"
 	"sync"
+	"time"
 
 	"cpanel/internal/auth"
 	"cpanel/internal/config"
+	"cpanel/internal/iplocation"
 	"cpanel/internal/securebox"
 	"cpanel/internal/store"
 	webui "cpanel/web"
@@ -29,6 +31,9 @@ type Server struct {
 	telegramBot       TelegramBotService
 	loginRateMu       sync.Mutex
 	loginAttempts     map[string]loginAttempt
+	ipLocation        ipLocationResolver
+	ipLocationRateMu  sync.Mutex
+	ipLocationLookups map[string]time.Time
 }
 
 type TelegramBotService interface {
@@ -41,7 +46,12 @@ func New(cfg config.Config, dataStore *store.Store, box *securebox.Box, telegram
 	if len(telegramBots) > 0 {
 		telegramBot = telegramBots[0]
 	}
-	return &Server{cfg: cfg, store: dataStore, dummyPasswordHash: dummy, secureBox: box, agentRelease: newAgentReleaseResolver(nil, ""), agentV2: newAgentV2Service(dataStore, box), telegramBot: telegramBot, loginAttempts: make(map[string]loginAttempt)}
+	return &Server{
+		cfg: cfg, store: dataStore, dummyPasswordHash: dummy, secureBox: box,
+		agentRelease: newAgentReleaseResolver(nil, ""), agentV2: newAgentV2Service(dataStore, box),
+		telegramBot: telegramBot, loginAttempts: make(map[string]loginAttempt),
+		ipLocation: iplocation.New(nil, ""), ipLocationLookups: make(map[string]time.Time),
+	}
 }
 
 func (s *Server) Handler() http.Handler {
@@ -99,6 +109,7 @@ func (s *Server) Handler() http.Handler {
 		ops.Delete("/tc/{id}", s.handleDeletePlan)
 		ops.Get("/yh", s.handleListUsers)
 		ops.Get("/yh/fwjl", s.handleListUserAccessIPs)
+		ops.Post("/yh/fwjl/gs", s.handleResolveUserAccessIPLocation)
 		ops.Post("/yh", s.handleCreateUser)
 		ops.Post("/yh/ks/{role}", s.handleQuickCreateUser)
 		ops.Get("/yh/{id}/dy", s.handleGetUserSubscription)

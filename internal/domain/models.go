@@ -482,11 +482,22 @@ type SubscriptionAccessEvent struct {
 }
 
 type UserAccessIPAddress struct {
-	IPAddress    string    `json:"ip_address"`
-	FirstSeenAt  time.Time `json:"first_seen_at"`
-	LastSeenAt   time.Time `json:"last_seen_at"`
-	LastNodeID   *string   `json:"last_node_id"`
-	LastNodeName string    `json:"last_node_name"`
+	IPAddress    string                `json:"ip_address"`
+	FirstSeenAt  time.Time             `json:"first_seen_at"`
+	LastSeenAt   time.Time             `json:"last_seen_at"`
+	LastNodeID   *string               `json:"last_node_id"`
+	LastNodeName string                `json:"last_node_name"`
+	Location     *UserAccessIPLocation `json:"location,omitempty"`
+}
+
+type UserAccessIPLocation struct {
+	Scope       string    `json:"scope"`
+	CountryCode string    `json:"country_code"`
+	Country     string    `json:"country"`
+	Province    string    `json:"province"`
+	City        string    `json:"city"`
+	ISP         string    `json:"isp"`
+	ResolvedAt  time.Time `json:"resolved_at"`
 }
 
 type UserAccessIPAccount struct {

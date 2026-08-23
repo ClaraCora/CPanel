@@ -2,14 +2,18 @@ package store
 
 import (
 	"context"
+	"errors"
+	"time"
 
 	"cpanel/internal/domain"
+	"github.com/jackc/pgx/v5"
 )
 
 func (s *Store) ListUserAccessIPs(ctx context.Context) ([]domain.UserAccessIPAccount, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT u.id,u.name,u.role,u.status,host(a.ip_address),a.first_seen_at,a.last_seen_at,
-		       a.last_node_id,a.last_node_name
+		       a.last_node_id,a.last_node_name,a.location_scope,a.location_country_code,
+		       a.location_country,a.location_province,a.location_city,a.location_isp,a.location_updated_at
 		FROM users u
 		JOIN user_access_ips a ON a.user_id=u.id
 		WHERE u.status <> 'archived'
@@ -24,9 +28,17 @@ func (s *Store) ListUserAccessIPs(ctx context.Context) ([]domain.UserAccessIPAcc
 	for rows.Next() {
 		var userID, userName, role, status string
 		var address domain.UserAccessIPAddress
+		var location domain.UserAccessIPLocation
+		var locationUpdatedAt *time.Time
 		if err := rows.Scan(&userID, &userName, &role, &status, &address.IPAddress, &address.FirstSeenAt,
-			&address.LastSeenAt, &address.LastNodeID, &address.LastNodeName); err != nil {
+			&address.LastSeenAt, &address.LastNodeID, &address.LastNodeName, &location.Scope,
+			&location.CountryCode, &location.Country, &location.Province, &location.City, &location.ISP,
+			&locationUpdatedAt); err != nil {
 			return nil, err
+		}
+		if locationUpdatedAt != nil {
+			location.ResolvedAt = *locationUpdatedAt
+			address.Location = &location
 		}
 		position, exists := positions[userID]
 		if !exists {
@@ -40,4 +52,44 @@ func (s *Store) ListUserAccessIPs(ctx context.Context) ([]domain.UserAccessIPAcc
 		items[position].Addresses = append(items[position].Addresses, address)
 	}
 	return items, rows.Err()
+}
+
+func (s *Store) GetUserAccessIPLocation(ctx context.Context, ipAddress string) (domain.UserAccessIPLocation, bool, error) {
+	var location domain.UserAccessIPLocation
+	var resolvedAt *time.Time
+	err := s.pool.QueryRow(ctx, `
+		SELECT location_scope,location_country_code,location_country,location_province,
+		       location_city,location_isp,location_updated_at
+		FROM user_access_ips
+		WHERE ip_address=$1::inet
+		ORDER BY location_updated_at DESC NULLS LAST
+		LIMIT 1`, ipAddress).Scan(&location.Scope, &location.CountryCode, &location.Country,
+		&location.Province, &location.City, &location.ISP, &resolvedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.UserAccessIPLocation{}, false, ErrNotFound
+	}
+	if err != nil {
+		return domain.UserAccessIPLocation{}, false, err
+	}
+	if resolvedAt == nil {
+		return domain.UserAccessIPLocation{}, false, nil
+	}
+	location.ResolvedAt = *resolvedAt
+	return location, true, nil
+}
+
+func (s *Store) UpdateUserAccessIPLocation(ctx context.Context, ipAddress string, location domain.UserAccessIPLocation) error {
+	tag, err := s.pool.Exec(ctx, `
+		UPDATE user_access_ips SET
+			location_scope=$2,location_country_code=$3,location_country=$4,
+			location_province=$5,location_city=$6,location_isp=$7,location_updated_at=$8
+		WHERE ip_address=$1::inet`, ipAddress, location.Scope, location.CountryCode, location.Country,
+		location.Province, location.City, location.ISP, location.ResolvedAt)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
 }

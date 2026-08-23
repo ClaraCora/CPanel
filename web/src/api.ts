@@ -32,7 +32,7 @@ function wirePathname(path: string): string {
   if (segments[0] === "overview") return "/zl";
   if (segments[0] === "history") return "/ls";
   if (segments[0] === "audit-events") return "/sj";
-  if (segments[0] === "user-access-ips") return "/yh/fwjl";
+  if (segments[0] === "user-access-ips") return segments[1] === "location" ? "/yh/fwjl/gs" : "/yh/fwjl";
   if (segments[0] === "settings" && segments[1] === "subscription" && segments[2] === "access-log") return "/sz/dy/jl";
   if (segments[0] === "settings" && segments[1] === "tgbot" && segments[2] === "test") return "/sz/tg/cs";
   if (segments[0] === "settings") return `/sz/${settingPaths[segments[1]] ?? segments[1]}`;
@@ -93,6 +93,10 @@ async function demoRequest<T>(path: string, init: RequestInit): Promise<T> {
   }
   if (path === "/account/password" && method === "PATCH") return { password_updated: true, other_sessions_revoked: 0 } as T;
   if (path === "/settings/tgbot/test" && method === "POST") return { sent: true } as T;
+	if (path === "/user-access-ips/location" && method === "POST") {
+		const input = JSON.parse(String(init.body));
+		return { ip_address: input.ip_address, cached: false, location: { scope: "public", country_code: "CN", country: "中国", province: "广东省", city: "深圳", isp: "中国电信", resolved_at: new Date().toISOString() } } as T;
+	}
 	if (path.startsWith("/users/") && path.endsWith("/portal") && method === "POST") return { grant: "demo-portal-grant", expires_at: new Date(Date.now() + 90_000).toISOString() } as T;
   if (method === "GET") return demoResource(path) as T;
   if (path === "/nodes" && method === "POST") {

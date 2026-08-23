@@ -279,6 +279,23 @@ export interface UserAccessIPAddress {
   last_seen_at: string;
   last_node_id: string | null;
   last_node_name: string;
+  location?: UserAccessIPLocation | null;
+}
+
+export interface UserAccessIPLocation {
+  scope: "public" | "private";
+  country_code: string;
+  country: string;
+  province: string;
+  city: string;
+  isp: string;
+  resolved_at: string;
+}
+
+export interface UserAccessIPLocationResult {
+  ip_address: string;
+  location: UserAccessIPLocation;
+  cached: boolean;
 }
 
 export interface UserAccessIPAccount {

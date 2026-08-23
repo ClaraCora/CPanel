@@ -218,6 +218,18 @@ a.resource-name:hover { color: var(--primary); text-decoration: underline; }
 .access-ip-table table { min-width: 1120px; }
 .col-access-ip-action { width: 52px; text-align: right; }
 .access-ip-address { display: inline-block; max-width: 260px; overflow: hidden; color: var(--foreground); font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace; font-size: 11px; font-variant-numeric: tabular-nums; text-overflow: ellipsis; vertical-align: middle; white-space: nowrap; }
+.access-ip-location { display: flex; min-width: 0; align-items: flex-start; flex-direction: column; gap: 4px; }
+.access-ip-location__status { display: flex; min-width: 0; max-width: 280px; align-items: flex-start; flex-direction: column; gap: 3px; }
+.access-ip-location__lookup { display: inline-flex; min-height: 24px; align-items: center; gap: 5px; padding: 1px 2px; color: var(--primary); background: transparent; border: 0; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; }
+.access-ip-location__lookup:hover:not(:disabled) { color: var(--foreground); background: var(--muted); }
+.access-ip-location__lookup:disabled { cursor: wait; opacity: .68; }
+.access-ip-location__result { display: flex; min-width: 0; align-items: center; gap: 3px; }
+.access-ip-location__text { display: flex; min-width: 0; align-items: flex-start; gap: 4px; color: var(--secondary); font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; }
+.access-ip-location__text svg { flex: 0 0 auto; margin-top: 1px; color: var(--primary); }
+.access-ip-location__refresh { display: grid; width: 24px; height: 24px; flex: 0 0 auto; place-items: center; padding: 0; color: var(--secondary); background: transparent; border: 0; border-radius: 4px; cursor: pointer; }
+.access-ip-location__refresh:hover:not(:disabled) { color: var(--foreground); background: var(--muted); }
+.access-ip-location__refresh:disabled { cursor: wait; opacity: .6; }
+.access-ip-location__error { max-width: 270px; color: var(--danger); font-size: 10px; line-height: 1.4; overflow-wrap: anywhere; }
 .access-ip-count { display: inline-flex; align-items: baseline; gap: 4px; font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace; font-variant-numeric: tabular-nums; }
 .access-ip-count strong { color: var(--foreground); font-size: 14px; }
 .access-ip-count small { color: var(--secondary); font-size: 10px; }

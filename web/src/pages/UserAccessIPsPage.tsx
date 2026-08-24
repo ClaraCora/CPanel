@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Copy, Eye, Filter, LoaderCircle, MapPin, RefreshCw, Search } from "lucide-react";
 import { api } from "../api";
-import { Button, Drawer, EmptyState, PageHeader, StatusBadge, TableSkeleton, formatPreciseDate, useToast } from "../components/ui";
+import { Button, DataFreshness, Drawer, EmptyState, PageHeader, StatusBadge, TableSkeleton, formatPreciseDate, useToast } from "../components/ui";
 import { useResource } from "../hooks";
 import type { UserAccessIPAddress, UserAccessIPLocation, UserAccessIPLocationResult, UserAccessIPAccount } from "../types";
 
@@ -14,7 +14,7 @@ type LocationRequestState = {
 };
 
 export function UserAccessIPsPage() {
-  const { data, loading, error, reload } = useResource<UserAccessIPAccount[]>("/user-access-ips", [], 30_000);
+  const { data, loading, refreshing, error, refreshError, lastSuccessAt, stale, reload } = useResource<UserAccessIPAccount[]>("/user-access-ips", [], 30_000);
   const [query, setQuery] = useState("");
   const [role, setRole] = useState("all");
   const [selected, setSelected] = useState<UserAccessIPAccount | null>(null);
@@ -70,6 +70,7 @@ export function UserAccessIPsPage() {
     <div className="toolbar">
       <label className="search-box"><Search size={16} /><span className="sr-only">搜索用户访问 IP</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索账号、用户 ID、IP、地区或节点" /></label>
       <div className="toolbar__filters"><Filter size={15} /><label className="sr-only" htmlFor="access-ip-role">筛选账号分类</label><select id="access-ip-role" value={role} onChange={(event) => setRole(event.target.value)}><option value="all">全部分类</option><option value="admin">管理员</option><option value="user">用户</option><option value="friend">朋友</option></select></div>
+      <DataFreshness lastSuccessAt={lastSuccessAt} stale={stale} refreshing={refreshing} error={refreshError} />
       <span className="toolbar__count">{filtered.length} 个账号</span>
     </div>
     <div className="table-surface access-ip-table">{loading ? <TableSkeleton columns={8} rows={7} /> : error ? <EmptyState title="访问 IP 加载失败" description={error} action={<Button onClick={() => void reload()}>重新加载</Button>} /> : filtered.length === 0 ? <EmptyState title={data.length === 0 ? "暂无用户访问 IP" : "没有匹配的访问 IP"} description={data.length === 0 ? "尚未收到节点上报的账号源 IP。" : "请调整搜索内容或账号分类。"} /> : <div className="table-scroll"><table><thead><tr><th>账号</th><th>分类</th><th>状态</th><th>最近 IP</th><th>记录数</th><th>最后节点</th><th>最后访问</th><th className="col-access-ip-action"><span className="sr-only">操作</span></th></tr></thead><tbody>{filtered.map((item) => {

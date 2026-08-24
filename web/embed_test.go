@@ -28,7 +28,10 @@ func TestPublicEntryDoesNotContainAdministrativeContent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	forbidden := []string{"订阅拉取记录", "节点流量排行", "用户流量排行", "添加节点", "今日上传", "香港 VLESS 主入口"}
+	forbidden := []string{
+		"订阅", "节点", "流量", "服务器", "机场",
+		"vless://", "ss://", "cps_demo", "subscription_url", "traffic_used_bytes",
+	}
 	publicScripts := 0
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".js") {
@@ -88,6 +91,36 @@ func TestHandlerDoesNotMaskBackendOrMissingAssetRoutes(t *testing.T) {
 
 		Handler().ServeHTTP(response, request)
 
+		if response.Code != http.StatusNotFound {
+			t.Fatalf("GET %s returned %d, want 404", route, response.Code)
+		}
+	}
+}
+
+func TestHandlerRejectsParentPathSegments(t *testing.T) {
+	entries, err := assets.ReadDir("dist/assets/secure")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var assetName string
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			assetName = entry.Name()
+			break
+		}
+	}
+	if assetName == "" {
+		t.Fatal("no protected asset found")
+	}
+
+	for _, route := range []string{
+		"/assets/portal/../secure/" + assetName,
+		"/assets/%2e%2e/secure/" + assetName,
+		"/foo/../assets/secure/" + assetName,
+	} {
+		request := httptest.NewRequest(http.MethodGet, route, nil)
+		response := httptest.NewRecorder()
+		Handler().ServeHTTP(response, request)
 		if response.Code != http.StatusNotFound {
 			t.Fatalf("GET %s returned %d, want 404", route, response.Code)
 		}

@@ -209,6 +209,35 @@ func (s *Server) handleMachineAgentUpgrade(w http.ResponseWriter, r *http.Reques
 	writeData(w, r, http.StatusAccepted, task)
 }
 
+func (s *Server) handleMachineAgentUpgradeStatus(w http.ResponseWriter, r *http.Request) {
+	machineID := chi.URLParam(r, "id")
+	items, err := s.store.ListMachines(r.Context())
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	for _, item := range items {
+		if item.ID != machineID {
+			continue
+		}
+		writeData(w, r, http.StatusOK, domain.AgentUpgradeTask{
+			ID: item.AgentUpgradeTaskID, MachineID: item.ID, TargetVersion: item.AgentUpgradeTargetVersion,
+			Status: item.AgentUpgradeStatus, RequestedAt: timeValue(item.AgentUpgradeRequestedAt),
+			DispatchedAt: item.AgentUpgradeDispatchedAt, AcknowledgedAt: item.AgentUpgradeAcknowledgedAt,
+			CompletedAt: item.AgentUpgradeCompletedAt, FailedAt: item.AgentUpgradeFailedAt, Error: item.AgentUpgradeError,
+		})
+		return
+	}
+	writeStoreError(w, r, store.ErrNotFound)
+}
+
+func timeValue(value *time.Time) time.Time {
+	if value == nil {
+		return time.Time{}
+	}
+	return *value
+}
+
 func (s *Server) handleAgentArtifact(w http.ResponseWriter, r *http.Request) {
 	artifact := chi.URLParam(r, "artifact")
 	allowed := map[string]bool{
@@ -318,6 +347,11 @@ func (s *Server) handleUpdateNode(w http.ResponseWriter, r *http.Request) {
 	}
 	if !validOneOf(input.Status, "draft", "published", "disabled", "error") {
 		fields["status"] = "invalid"
+	}
+	if input.Status != nil && *input.Status == "published" {
+		// Publishing is a separate transaction that creates a revision snapshot
+		// and control event. Never allow PATCH to bypass that lifecycle.
+		fields["status"] = "请使用发布操作提交节点版本"
 	}
 	if input.Endpoints != nil {
 		validNodeEndpoints(*input.Endpoints, fields)
@@ -511,6 +545,9 @@ func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		if utf8.RuneCountInString(input.PortalPassword) < minimumLength {
 			fields["portal_password"] = fmt.Sprintf("门户密码至少需要 %d 个字符", minimumLength)
 		}
+		if !validLoginPassword(input.PortalPassword) {
+			fields["portal_password"] = "门户密码长度无效"
+		}
 		if len(fields) > 0 {
 			writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "门户登录信息不完整", fields)
 			return
@@ -596,6 +633,10 @@ func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		minimumLength := s.store.SettingInt(r.Context(), "security", "password_min_length", 8, 8)
 		if utf8.RuneCountInString(*input.PortalPassword) < minimumLength {
 			writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "门户密码不符合安全要求", map[string]string{"portal_password": fmt.Sprintf("门户密码至少需要 %d 个字符", minimumLength)})
+			return
+		}
+		if !validLoginPassword(*input.PortalPassword) {
+			writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "门户密码长度无效", map[string]string{"portal_password": "密码长度无效"})
 			return
 		}
 		hash, err := auth.HashPassword(*input.PortalPassword)
@@ -764,6 +805,10 @@ func (s *Server) handleCreateOutbound(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", err.Error(), map[string]string{"settings": err.Error()})
 		return
 	}
+	if err := validateOutboundProxyFromStore(r.Context(), s.store, "", input.ProxyTag); err != nil {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "链式出站目标不存在、已停用或形成循环", map[string]string{"proxy_tag": "请选择有效的出站"})
+		return
+	}
 	item, err := s.store.CreateOutbound(r.Context(), input)
 	if err != nil {
 		writeStoreError(w, r, err)
@@ -787,10 +832,53 @@ func (s *Server) handleUpdateOutbound(w http.ResponseWriter, r *http.Request) {
 		value := strings.ToLower(strings.TrimSpace(*input.Tag))
 		input.Tag = &value
 	}
-	if input.Tag != nil && input.Protocol != nil && input.Settings != nil {
-		if err := domain.ValidateOutbound(*input.Tag, *input.Protocol, *input.Settings); err != nil {
-			writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", err.Error(), map[string]string{"settings": err.Error()})
-			return
+	// PATCH is partial, but validation must always see the resulting complete
+	// configuration. Otherwise changing only protocol or settings can persist an
+	// invalid kernel configuration.
+	currentItems, err := s.store.ListOutbounds(r.Context())
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	var current *domain.Outbound
+	for index := range currentItems {
+		if currentItems[index].ID == chi.URLParam(r, "id") {
+			current = &currentItems[index]
+			break
+		}
+	}
+	if current == nil {
+		writeStoreError(w, r, store.ErrNotFound)
+		return
+	}
+	resultingTag, resultingProtocol, resultingSettings := current.Tag, current.Protocol, current.Settings
+	if input.Tag != nil {
+		resultingTag = *input.Tag
+	}
+	if input.Protocol != nil {
+		resultingProtocol = *input.Protocol
+	}
+	if input.Settings != nil {
+		resultingSettings = *input.Settings
+	}
+	if err := domain.ValidateOutbound(resultingTag, resultingProtocol, resultingSettings); err != nil {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", err.Error(), map[string]string{"settings": err.Error()})
+		return
+	}
+	proxyTag := current.ProxyTag
+	if input.ProxyTag != nil {
+		proxyTag = strings.TrimSpace(*input.ProxyTag)
+	}
+	if err := validateOutboundProxyItems(currentItems, current.ID, proxyTag); err != nil {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "链式出站目标不存在、已停用或形成循环", map[string]string{"proxy_tag": "请选择有效的出站"})
+		return
+	}
+	if input.Tag != nil && !strings.EqualFold(current.Tag, resultingTag) {
+		for _, outbound := range currentItems {
+			if outbound.ID != current.ID && strings.EqualFold(outbound.ProxyTag, current.Tag) {
+				writeError(w, r, http.StatusConflict, "OUTBOUND_IN_USE", "该出站仍被其他链式出站引用，不能修改标记", nil)
+				return
+			}
 		}
 	}
 	if !validOneOf(input.Status, "active", "disabled") {
@@ -813,6 +901,41 @@ func (s *Server) handleDeleteOutbound(w http.ResponseWriter, r *http.Request) {
 func auditUpdate(s *Server, r *http.Request, resourceType, resourceID string, changes any) {
 	admin := currentAdmin(r)
 	_ = s.store.WriteAudit(r.Context(), admin.ID, resourceType+".update", resourceType, resourceID, changes, clientIP(r), requestID(r))
+}
+
+func validateOutboundProxyFromStore(ctx context.Context, dataStore *store.Store, selfID, proxyTag string) error {
+	items, err := dataStore.ListOutbounds(ctx)
+	if err != nil {
+		return err
+	}
+	return validateOutboundProxyItems(items, selfID, proxyTag)
+}
+
+func validateOutboundProxyItems(items []domain.Outbound, selfID, proxyTag string) error {
+	proxyTag = strings.ToLower(strings.TrimSpace(proxyTag))
+	if proxyTag == "" {
+		return nil
+	}
+	byTag := make(map[string]domain.Outbound, len(items))
+	for _, item := range items {
+		byTag[strings.ToLower(strings.TrimSpace(item.Tag))] = item
+	}
+	if item, ok := byTag[proxyTag]; !ok || item.Status != "active" || item.ID == selfID {
+		return store.ErrConflict
+	}
+	seen := map[string]bool{}
+	for current := proxyTag; current != ""; {
+		if seen[current] {
+			return store.ErrConflict
+		}
+		seen[current] = true
+		item, ok := byTag[current]
+		if !ok || item.Status != "active" {
+			return store.ErrConflict
+		}
+		current = strings.ToLower(strings.TrimSpace(item.ProxyTag))
+	}
+	return nil
 }
 
 func (s *Server) handleArchiveResource(w http.ResponseWriter, r *http.Request, resourceType string, archive func(context.Context, string) error) {

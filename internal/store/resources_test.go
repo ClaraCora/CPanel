@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"cpanel/internal/domain"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -28,6 +29,75 @@ func TestMapNodeErrorIdentifiesPortConflict(t *testing.T) {
 		if !errors.Is(err, ErrNodePortInUse) {
 			t.Fatalf("constraint %q mapped to %v, want ErrNodePortInUse", constraint, err)
 		}
+	}
+}
+
+func TestNormalizeResourceStates(t *testing.T) {
+	if got, err := normalizeMachineKernel(""); err != nil || got != "xray" {
+		t.Fatalf("normalizeMachineKernel(empty) = %q, %v; want xray", got, err)
+	}
+	if got, err := normalizeMachineKernel(" SINGBOX "); err != nil || got != "singbox" {
+		t.Fatalf("normalizeMachineKernel(singbox) = %q, %v", got, err)
+	}
+	if _, err := normalizeMachineKernel("unknown"); !errors.Is(err, ErrConflict) {
+		t.Fatalf("invalid machine kernel error = %v, want ErrConflict", err)
+	}
+	if _, err := normalizeMachineStatus("archived"); !errors.Is(err, ErrConflict) {
+		t.Fatalf("archived machine status error = %v, want ErrConflict", err)
+	}
+	if _, err := normalizeNodeStatus("published"); !errors.Is(err, ErrConflict) {
+		t.Fatalf("published node PATCH status error = %v, want ErrConflict", err)
+	}
+	if got, err := normalizeRoutePolicyStatus(" DISABLED "); err != nil || got != "disabled" {
+		t.Fatalf("normalizeRoutePolicyStatus(disabled) = %q, %v", got, err)
+	}
+}
+
+func TestNormalizeKernelSupport(t *testing.T) {
+	got, err := normalizeKernelSupport([]string{" xray ", "singbox", "XRAY"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0] != "singbox" || got[1] != "xray" {
+		t.Fatalf("normalizeKernelSupport() = %#v", got)
+	}
+	for _, invalid := range [][]string{nil, {}, {"xray", "unknown"}} {
+		if _, err := normalizeKernelSupport(invalid); !errors.Is(err, ErrOutboundKernelInvalid) {
+			t.Fatalf("normalizeKernelSupport(%#v) error = %v, want ErrOutboundKernelInvalid", invalid, err)
+		}
+	}
+}
+
+func TestRoutePolicyTargetsIgnoreDisabledRules(t *testing.T) {
+	rules := []domain.RoutePolicyRule{
+		{Disabled: true, Action: domain.RoutePolicyAction{Type: "route", Target: "unused"}},
+		{Action: domain.RoutePolicyAction{Type: "route", Target: " WARP "}},
+		{Action: domain.RoutePolicyAction{Type: "direct", Target: "ignored"}},
+	}
+	targets := routePolicyTargets(rules, "fallback")
+	for _, want := range []string{"warp", "fallback"} {
+		if _, ok := targets[want]; !ok {
+			t.Fatalf("target %q missing from %#v", want, targets)
+		}
+	}
+	if _, ok := targets["unused"]; ok {
+		t.Fatalf("disabled rule unexpectedly referenced outbound: %#v", targets)
+	}
+}
+
+func TestValidateOutboundChainEnforcesKernelAndCycles(t *testing.T) {
+	outbounds := map[string]outboundReference{
+		"warp": {Tag: "warp", Status: "active", Protocol: "wireguard", KernelSupport: []string{"xray"}},
+		"loop": {Tag: "loop", Status: "active", Protocol: "socks", ProxyTag: "loop", KernelSupport: []string{"xray", "singbox"}},
+	}
+	if err := validateOutboundChain("warp", outbounds, []string{"xray"}, map[string]bool{}); err != nil {
+		t.Fatalf("valid xray outbound rejected: %v", err)
+	}
+	if err := validateOutboundChain("warp", outbounds, []string{"singbox"}, map[string]bool{}); !errors.Is(err, ErrOutboundKernelUnsupported) {
+		t.Fatalf("kernel mismatch error = %v, want ErrOutboundKernelUnsupported", err)
+	}
+	if err := validateOutboundChain("loop", outbounds, []string{"xray"}, map[string]bool{}); !errors.Is(err, ErrRouteOutboundUnavailable) {
+		t.Fatalf("cycle error = %v, want ErrRouteOutboundUnavailable", err)
 	}
 }
 

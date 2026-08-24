@@ -91,6 +91,7 @@ func (s *Server) Handler() http.Handler {
 		ops.Delete("/fwq/{id}", s.handleDeleteMachine)
 		ops.Get("/fwq/{id}/az", s.handleMachineInstallation)
 		ops.Post("/fwq/{id}/sj", s.handleMachineAgentUpgrade)
+		ops.Get("/fwq/{id}/sj", s.handleMachineAgentUpgradeStatus)
 		ops.Delete("/fwq/{id}/sf", s.handleResetMachineAgentIdentity)
 		ops.Post("/fwq/{id}/pz", s.handleCreateMachineCredential)
 		ops.Get("/jd", s.handleListNodes)
@@ -146,11 +147,13 @@ func (s *Server) Handler() http.Handler {
 		control.Post("/bg", s.requireAgentV2(http.HandlerFunc(s.handleAgentV2Changes)).ServeHTTP)
 		control.Post("/yc", s.dualAgentEndpoint(s.handleAgentTelemetry, s.handleAgentV2Telemetry))
 		control.Post("/fwq/xt", s.dualAgentEndpoint(s.handleAgentHeartbeat, s.handleAgentV2Heartbeat))
+		control.Post("/fwq/jg", s.dualAgentEndpoint(s.handleAgentUpgradeResult, s.handleAgentV2UpgradeResult))
 		control.Get("/td", s.handleAgentStreamEntry)
 	})
 
 	webHandler := webui.Handler()
 	router.With(s.requireAdmin).Handle("/assets/secure/*", webHandler)
+	router.With(s.requirePortal).Handle("/assets/portal/*", webHandler)
 	router.NotFound(webHandler.ServeHTTP)
 
 	return router

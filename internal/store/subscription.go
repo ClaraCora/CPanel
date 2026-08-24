@@ -10,10 +10,9 @@ import (
 
 func (s *Store) SubscriptionByToken(ctx context.Context, tokenHash []byte) (domain.Subscription, error) {
 	var userID string
-	err := s.pool.QueryRow(ctx, `
-		SELECT id FROM users
-		WHERE subscription_token_hash=$1 AND status='active'
-		  AND (expires_at IS NULL OR expires_at > now())`, tokenHash,
+	err := s.pool.QueryRow(ctx, runtimeEligibleUsersCTE+`
+		SELECT id FROM runtime_eligible_users
+		WHERE subscription_token_hash=$1`, tokenHash,
 	).Scan(&userID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.Subscription{}, ErrNotFound
@@ -26,9 +25,9 @@ func (s *Store) SubscriptionByToken(ctx context.Context, tokenHash []byte) (doma
 
 func (s *Store) SubscriptionByUserID(ctx context.Context, userID string) (domain.Subscription, error) {
 	var subscription domain.Subscription
-	err := s.pool.QueryRow(ctx, `
-		SELECT id,name,role,expires_at FROM users
-		WHERE id=$1 AND status='active' AND (expires_at IS NULL OR expires_at > now())`, userID,
+	err := s.pool.QueryRow(ctx, runtimeEligibleUsersCTE+`
+		SELECT id,name,role,expires_at FROM runtime_eligible_users
+		WHERE id=$1`, userID,
 	).Scan(&subscription.UserID, &subscription.UserName, &subscription.Role, &subscription.ExpiresAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.Subscription{}, ErrNotFound
@@ -36,13 +35,12 @@ func (s *Store) SubscriptionByUserID(ctx context.Context, userID string) (domain
 	if err != nil {
 		return domain.Subscription{}, err
 	}
-	rows, err := s.pool.Query(ctx, `
+	rows, err := s.pool.Query(ctx, runtimeEligibleUsersCTE+`
 		SELECT n.name,e.name,e.host,e.port,n.protocol,
 		       CASE WHEN m.status='online' AND n.last_report_at > now() - interval '3 minutes' THEN 'online' ELSE 'offline' END,
 		       u.uuid,n.config
-		FROM users u
-		LEFT JOIN plans p ON p.id=u.plan_id
-		JOIN access_group_nodes gn ON gn.access_group_id=COALESCE(u.access_group_override_id,p.access_group_id)
+		FROM runtime_eligible_users u
+		JOIN access_group_nodes gn ON gn.access_group_id=u.access_group_id
 		JOIN nodes n ON n.id=gn.node_id AND n.status='published'
 		JOIN machines m ON m.id=n.machine_id AND m.status NOT IN ('disabled','archived')
 		JOIN LATERAL (

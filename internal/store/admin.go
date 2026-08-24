@@ -207,7 +207,7 @@ func (s *Store) RevokeAdminSession(ctx context.Context, tokenHash []byte) error 
 }
 
 func (s *Store) WriteAudit(ctx context.Context, adminID, action, resourceType, resourceID string, changes any, ipAddress, requestID string) error {
-	data, err := json.Marshal(changes)
+	data, err := marshalAuditChanges(resourceType, changes)
 	if err != nil {
 		return err
 	}
@@ -221,6 +221,81 @@ func (s *Store) WriteAudit(ctx context.Context, adminID, action, resourceType, r
 		domain.MustID("aud"), nullableText(adminID), action, resourceType, resourceID, data, ip, requestID,
 	)
 	return err
+}
+
+const auditRedactedValue = "[REDACTED]"
+
+func marshalAuditChanges(resourceType string, changes any) ([]byte, error) {
+	data, err := json.Marshal(changes)
+	if err != nil {
+		return nil, err
+	}
+	var value any
+	if err := json.Unmarshal(data, &value); err != nil {
+		return nil, err
+	}
+	if object, ok := value.(map[string]any); ok {
+		if resourceType == "node" {
+			redactAuditField(object, "config")
+		}
+		if resourceType == "outbound" {
+			redactAuditField(object, "settings")
+		}
+	}
+	return json.Marshal(redactAuditValue(value))
+}
+
+func redactAuditField(value map[string]any, field string) {
+	for key := range value {
+		if strings.EqualFold(strings.TrimSpace(key), field) {
+			value[key] = auditRedactedValue
+		}
+	}
+}
+
+func redactAuditValue(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		for key, nested := range typed {
+			if sensitiveAuditKey(key) {
+				typed[key] = auditRedactedValue
+				continue
+			}
+			typed[key] = redactAuditValue(nested)
+		}
+		return typed
+	case []any:
+		for index, nested := range typed {
+			typed[index] = redactAuditValue(nested)
+		}
+		return typed
+	default:
+		return value
+	}
+}
+
+func sensitiveAuditKey(key string) bool {
+	normalized := strings.Map(func(character rune) rune {
+		if character >= 'A' && character <= 'Z' {
+			return character + ('a' - 'A')
+		}
+		if character >= 'a' && character <= 'z' || character >= '0' && character <= '9' {
+			return character
+		}
+		return -1
+	}, key)
+	switch normalized {
+	case "password", "passwordhash", "portalpassword", "portalpasswordhash",
+		"privatekey", "secretkey", "serverkey", "keycontent",
+		"token", "tokenhash", "bottoken", "dnsapitoken", "apitoken", "apikey",
+		"communicationkey", "subscriptiontoken", "subscriptiontokenplain",
+		"authorization", "credential", "credentials", "obfspassword", "uuid", "udid":
+		return true
+	default:
+		return strings.HasSuffix(normalized, "password") ||
+			strings.HasSuffix(normalized, "privatekey") ||
+			strings.HasSuffix(normalized, "secretkey")
+	}
 }
 
 func (s *Store) ListAuditEvents(ctx context.Context, limit int) ([]domain.AuditEvent, error) {

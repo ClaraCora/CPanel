@@ -12,15 +12,36 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+// portalEligibleUsersCTE is the entitlement gate for the user portal.  Portal
+// sessions must stop working as soon as the effective access group is
+// disabled/archived; checking this in every lookup also prevents a stale
+// session from exposing account or subscription metadata.
+const portalEligibleUsersCTE = `
+WITH portal_eligible_users AS (
+	SELECT u.id,u.name,u.email,u.role,u.status,u.portal_login,
+	       COALESCE(u.portal_password_hash,'') AS portal_password_hash,
+	       u.traffic_used_bytes,u.traffic_limit_override_bytes,
+	       u.speed_limit_override_mbps,u.device_limit_override,
+	       u.traffic_reset_at,u.expires_at,u.plan_id,
+	       p.name AS plan_name,p.traffic_limit_bytes,p.speed_limit_mbps,p.device_limit,
+	       g.id AS access_group_id
+	FROM users u
+	LEFT JOIN plans p ON p.id=u.plan_id
+	JOIN access_groups g
+	  ON g.id=COALESCE(u.access_group_override_id,p.access_group_id)
+	 AND g.status='active'
+	WHERE u.status='active'
+	  AND (u.expires_at IS NULL OR u.expires_at > now())
+)
+`
+
 func (s *Store) FindPortalUserByLogin(ctx context.Context, login string) (domain.PortalUserAuth, error) {
 	var item domain.PortalUserAuth
-	err := s.pool.QueryRow(ctx, `
+	err := s.pool.QueryRow(ctx, portalEligibleUsersCTE+`
 		SELECT id,name,email,role,status,COALESCE(portal_password_hash,'')
-		FROM users
+		FROM portal_eligible_users
 		WHERE lower(portal_login)=lower($1)
-		  AND role IN ('user','friend')
-		  AND status='active'
-		  AND (expires_at IS NULL OR expires_at > now())`, strings.TrimSpace(login),
+		  AND role IN ('user','friend')`, strings.TrimSpace(login),
 	).Scan(&item.ID, &item.Name, &item.Email, &item.Role, &item.Status, &item.PasswordHash)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.PortalUserAuth{}, ErrNotFound
@@ -30,10 +51,10 @@ func (s *Store) FindPortalUserByLogin(ctx context.Context, login string) (domain
 
 func (s *Store) FindPortalUserByID(ctx context.Context, userID string) (domain.PortalUserAuth, error) {
 	var item domain.PortalUserAuth
-	err := s.pool.QueryRow(ctx, `
+	err := s.pool.QueryRow(ctx, portalEligibleUsersCTE+`
 		SELECT id,name,email,role,status,COALESCE(portal_password_hash,'')
-		FROM users
-		WHERE id=$1 AND status='active' AND (expires_at IS NULL OR expires_at > now())`, userID,
+		FROM portal_eligible_users
+		WHERE id=$1`, userID,
 	).Scan(&item.ID, &item.Name, &item.Email, &item.Role, &item.Status, &item.PasswordHash)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.PortalUserAuth{}, ErrNotFound
@@ -47,25 +68,28 @@ func (s *Store) CreatePortalSession(ctx context.Context, userID string, tokenHas
 	if parsed := net.ParseIP(ipAddress); parsed != nil {
 		ip = parsed.String()
 	}
-	_, err := s.pool.Exec(ctx, `
+	command, err := s.pool.Exec(ctx, portalEligibleUsersCTE+`
 		INSERT INTO user_sessions(id,user_id,token_hash,csrf_token,delegated_by_admin_id,read_only,ip_address,user_agent,expires_at)
-		VALUES($1,$2,$3,$4,NULLIF($5,''),$6,$7,$8,$9)`,
+		SELECT $1,u.id,$3,$4,NULLIF($5,''),$6,$7,$8,$9
+		FROM portal_eligible_users u WHERE u.id=$2`,
 		id, userID, tokenHash, csrfToken, delegatedByAdminID, readOnly, ip, userAgent, expiresAt,
 	)
+	if err == nil && command.RowsAffected() == 0 {
+		return "", ErrNotFound
+	}
 	return id, mapError(err)
 }
 
 func (s *Store) FindPortalSession(ctx context.Context, tokenHash []byte) (domain.PortalSession, error) {
 	var session domain.PortalSession
-	err := s.pool.QueryRow(ctx, `
+	err := s.pool.QueryRow(ctx, portalEligibleUsersCTE+`
 		SELECT s.id,s.csrf_token,s.expires_at,s.read_only,
 		       COALESCE(s.delegated_by_admin_id,''),COALESCE(a.name,''),
 		       u.id,u.name,u.email,u.role,u.status
 		FROM user_sessions s
-		JOIN users u ON u.id=s.user_id
+		JOIN portal_eligible_users u ON u.id=s.user_id
 		LEFT JOIN admins a ON a.id=s.delegated_by_admin_id
-		WHERE s.token_hash=$1 AND s.revoked_at IS NULL AND s.expires_at > now()
-		  AND u.status='active' AND (u.expires_at IS NULL OR u.expires_at > now())`, tokenHash,
+		WHERE s.token_hash=$1 AND s.revoked_at IS NULL AND s.expires_at > now()`, tokenHash,
 	).Scan(&session.ID, &session.CSRFToken, &session.ExpiresAt, &session.ReadOnly,
 		&session.DelegatedByID, &session.DelegatedByName,
 		&session.User.ID, &session.User.Name, &session.User.Email, &session.User.Role, &session.User.Status)
@@ -86,8 +110,8 @@ func (s *Store) UpdatePortalPassword(ctx context.Context, userID, currentSession
 		return 0, err
 	}
 	defer tx.Rollback(ctx)
-	command, err := tx.Exec(ctx, `UPDATE users SET portal_password_hash=$2,portal_enabled_at=now(),updated_at=now()
-		WHERE id=$1 AND status='active'`, userID, passwordHash)
+	command, err := tx.Exec(ctx, portalEligibleUsersCTE+`UPDATE users SET portal_password_hash=$2,portal_enabled_at=now(),updated_at=now()
+		WHERE id=$1 AND EXISTS (SELECT 1 FROM portal_eligible_users WHERE id=$1)`, userID, passwordHash)
 	if err != nil {
 		return 0, mapError(err)
 	}
@@ -106,24 +130,21 @@ func (s *Store) UpdatePortalPassword(ctx context.Context, userID, currentSession
 }
 
 func (s *Store) CreatePortalGrant(ctx context.Context, adminID, userID string, tokenHash []byte, expiresAt time.Time) error {
-	var exists bool
-	err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM users WHERE id=$1 AND status <> 'archived')`, userID).Scan(&exists)
-	if err != nil {
-		return err
-	}
-	if !exists {
+	command, err := s.pool.Exec(ctx, portalEligibleUsersCTE+`
+		INSERT INTO user_portal_grants(id,user_id,admin_id,token_hash,expires_at)
+		SELECT $1,u.id,$3,$4,$5 FROM portal_eligible_users u WHERE u.id=$2`,
+		domain.MustID("edg"), userID, adminID, tokenHash, expiresAt)
+	if err == nil && command.RowsAffected() == 0 {
 		return ErrNotFound
 	}
-	_, err = s.pool.Exec(ctx, `
-		INSERT INTO user_portal_grants(id,user_id,admin_id,token_hash,expires_at)
-		VALUES($1,$2,$3,$4,$5)`, domain.MustID("edg"), userID, adminID, tokenHash, expiresAt)
 	return mapError(err)
 }
 
 func (s *Store) RedeemPortalGrant(ctx context.Context, tokenHash []byte) (userID, adminID string, err error) {
-	err = s.pool.QueryRow(ctx, `
+	err = s.pool.QueryRow(ctx, portalEligibleUsersCTE+`
 		UPDATE user_portal_grants SET redeemed_at=now()
 		WHERE token_hash=$1 AND redeemed_at IS NULL AND expires_at > now()
+		  AND EXISTS (SELECT 1 FROM portal_eligible_users u WHERE u.id=user_portal_grants.user_id)
 		RETURNING user_id,admin_id`, tokenHash,
 	).Scan(&userID, &adminID)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -134,13 +155,13 @@ func (s *Store) RedeemPortalGrant(ctx context.Context, tokenHash []byte) (userID
 
 func (s *Store) PortalDashboard(ctx context.Context, userID string) (domain.PortalDashboard, error) {
 	var item domain.PortalDashboard
-	err := s.pool.QueryRow(ctx, `
-		SELECT u.id,u.name,u.role,u.email,p.name,u.status,u.traffic_used_bytes,
-		       COALESCE(u.traffic_limit_override_bytes,p.traffic_limit_bytes,0),u.traffic_reset_at,u.expires_at,
-		       COALESCE(u.speed_limit_override_mbps,p.speed_limit_mbps,0),
-		       COALESCE(u.device_limit_override,p.device_limit,0)
-		FROM users u LEFT JOIN plans p ON p.id=u.plan_id
-		WHERE u.id=$1 AND u.status='active' AND (u.expires_at IS NULL OR u.expires_at > now())`, userID,
+	err := s.pool.QueryRow(ctx, portalEligibleUsersCTE+`
+		SELECT u.id,u.name,u.role,u.email,u.plan_name,u.status,u.traffic_used_bytes,
+		       COALESCE(u.traffic_limit_override_bytes,u.traffic_limit_bytes,0),u.traffic_reset_at,u.expires_at,
+		       COALESCE(u.speed_limit_override_mbps,u.speed_limit_mbps,0),
+		       COALESCE(u.device_limit_override,u.device_limit,0)
+		FROM portal_eligible_users u
+		WHERE u.id=$1`, userID,
 	).Scan(&item.ID, &item.Name, &item.Role, &item.Email, &item.PlanName, &item.Status, &item.TrafficUsedBytes,
 		&item.TrafficLimitBytes, &item.TrafficResetAt, &item.ExpiresAt, &item.SpeedLimitMbps, &item.DeviceLimit)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -154,8 +175,8 @@ func (s *Store) RotateUserSubscriptionToken(ctx context.Context, userID string) 
 	if err != nil {
 		return "", err
 	}
-	command, err := s.pool.Exec(ctx, `UPDATE users SET subscription_token_hash=$2,subscription_token_prefix=$3,
-		subscription_token_plain=$4,updated_at=now() WHERE id=$1 AND status='active'`,
+	command, err := s.pool.Exec(ctx, portalEligibleUsersCTE+`UPDATE users SET subscription_token_hash=$2,subscription_token_prefix=$3,
+		subscription_token_plain=$4,updated_at=now() WHERE id=$1 AND EXISTS (SELECT 1 FROM portal_eligible_users WHERE id=$1)`,
 		userID, hash, auth.Prefix(plain, 12), plain)
 	if err != nil {
 		return "", mapError(err)

@@ -33,17 +33,45 @@ export function TableSkeleton({ columns = 6, rows = 6 }: { columns?: number; row
   return <div className="table-skeleton" aria-label="正在加载"><div className="skeleton-row" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>{Array.from({ length: columns }).map((_, i) => <i key={i} />)}</div>{Array.from({ length: rows }).map((_, row) => <div className="skeleton-row" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }} key={row}>{Array.from({ length: columns }).map((_, col) => <i key={col} />)}</div>)}</div>;
 }
 
+export function DataFreshness({ lastSuccessAt, stale = false, refreshing = false, error = "" }: { lastSuccessAt: number | null; stale?: boolean; refreshing?: boolean; error?: string }) {
+  if (!lastSuccessAt) return refreshing ? <span className="data-freshness" role="status">正在更新…</span> : null;
+  const time = new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).format(lastSuccessAt);
+  return <span className={`data-freshness ${stale ? "data-freshness--stale" : ""}`} role={stale ? "alert" : "status"} title={stale && error ? error : undefined}>{stale ? `更新失败，上次成功 ${time}` : refreshing ? `正在更新 · 上次 ${time}` : `更新于 ${time}`}</span>;
+}
+
 export function Drawer({ open, wide = false, title, description, children, onClose }: { open: boolean; wide?: boolean; title: string; description?: string; children: ReactNode; onClose: () => void }) {
   const titleID = useId();
+  const descriptionID = useId();
+  const dialogRef = useRef<HTMLElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const onCloseRef = useRef(onClose);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
+  onCloseRef.current = onClose;
   useEffect(() => {
     if (!open) return;
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    restoreFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const onKey = (event: KeyboardEvent) => {
+      if (!isTopmostModal(dialogRef.current)) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      trapFocus(event, dialogRef.current);
+    };
     document.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
-    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
-  }, [open, onClose]);
+    closeRef.current?.focus();
+    const unlockScroll = lockDocumentScroll();
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      unlockScroll();
+      if (restoreFocusRef.current?.isConnected) restoreFocusRef.current.focus();
+      restoreFocusRef.current = null;
+    };
+  }, [open]);
   if (!open) return null;
-  return createPortal(<div className="drawer-layer"><button className="drawer-backdrop" aria-label="关闭" onClick={onClose} /><aside className={`drawer ${wide ? "drawer--wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby={titleID}><header className="drawer__header"><div><h2 id={titleID}>{title}</h2>{description && <p>{description}</p>}</div><button className="icon-button" aria-label="关闭" title="关闭" onClick={onClose}><X size={19} /></button></header><div className="drawer__body">{children}</div></aside></div>, document.body);
+  return createPortal(<div className="drawer-layer"><button type="button" className="drawer-backdrop" aria-label="关闭抽屉" onClick={() => onCloseRef.current()} /><aside ref={dialogRef} data-modal-root className={`drawer ${wide ? "drawer--wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby={titleID} aria-describedby={description ? descriptionID : undefined} tabIndex={-1}><header className="drawer__header"><div><h2 id={titleID}>{title}</h2>{description && <p id={descriptionID}>{description}</p>}</div><button ref={closeRef} type="button" className="icon-button" aria-label="关闭" title="关闭" onClick={() => onCloseRef.current()}><X size={19} /></button></header><div className="drawer__body">{children}</div></aside></div>, document.body);
 }
 
 export function RowMenu({ label, children }: { label: string; children: ReactNode }) {
@@ -99,16 +127,88 @@ function MoreHorizontalIcon() {
 export function ConfirmDialog({ open, title, description, confirmLabel = "确认", confirmVariant = "danger", loading = false, onConfirm, onClose }: { open: boolean; title: string; description: string; confirmLabel?: string; confirmVariant?: ButtonVariant; loading?: boolean; onConfirm: () => void; onClose: () => void }) {
   const titleID = useId();
   const descriptionID = useId();
+  const dialogRef = useRef<HTMLElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const onCloseRef = useRef(onClose);
+  const loadingRef = useRef(loading);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
+  onCloseRef.current = onClose;
+  loadingRef.current = loading;
   useEffect(() => {
     if (!open) return;
-    cancelRef.current?.focus();
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape" && !loading) onClose(); };
+    restoreFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (cancelRef.current && !cancelRef.current.disabled) cancelRef.current.focus();
+    else dialogRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (!isTopmostModal(dialogRef.current)) return;
+      if (event.key === "Escape" && !loadingRef.current) {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key === "Tab") trapFocus(event, dialogRef.current);
+    };
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [loading, onClose, open]);
+    const unlockScroll = lockDocumentScroll();
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      unlockScroll();
+      if (restoreFocusRef.current?.isConnected) restoreFocusRef.current.focus();
+      restoreFocusRef.current = null;
+    };
+  }, [open]);
   if (!open) return null;
-  return createPortal(<div className="confirm-layer"><button type="button" className="confirm-backdrop" aria-label="取消并关闭" onClick={() => { if (!loading) onClose(); }} /><section className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby={titleID} aria-describedby={descriptionID}><h2 id={titleID}>{title}</h2><p id={descriptionID}>{description}</p><footer><button ref={cancelRef} type="button" className="button button--secondary" onClick={onClose} disabled={loading}>取消</button><Button type="button" variant={confirmVariant} loading={loading} onClick={onConfirm}>{confirmLabel}</Button></footer></section></div>, document.body);
+  return createPortal(<div className="confirm-layer"><button type="button" className="confirm-backdrop" aria-label="取消并关闭" onClick={() => { if (!loading) onCloseRef.current(); }} /><section ref={dialogRef} data-modal-root className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby={titleID} aria-describedby={descriptionID} tabIndex={-1}><h2 id={titleID}>{title}</h2><p id={descriptionID}>{description}</p><footer><button ref={cancelRef} type="button" className="button button--secondary" onClick={() => onCloseRef.current()} disabled={loading}>取消</button><Button type="button" variant={confirmVariant} loading={loading} onClick={onConfirm}>{confirmLabel}</Button></footer></section></div>, document.body);
+}
+
+const focusableSelector = [
+  "a[href]",
+  "area[href]",
+  "button:not([disabled])",
+  "input:not([disabled]):not([type=hidden])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "[contenteditable=true]",
+  "[tabindex]:not([tabindex='-1'])",
+].join(",");
+
+function trapFocus(event: KeyboardEvent, root: HTMLElement | null) {
+  if (!root) return;
+  const elements = Array.from(root.querySelectorAll<HTMLElement>(focusableSelector)).filter((element) => !element.hidden && element.getAttribute("aria-hidden") !== "true");
+  if (elements.length === 0) {
+    event.preventDefault();
+    root.focus();
+    return;
+  }
+  const first = elements[0];
+  const last = elements[elements.length - 1];
+  const active = document.activeElement;
+  if (event.shiftKey && (active === first || !root.contains(active))) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && (active === last || !root.contains(active))) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+function isTopmostModal(root: HTMLElement | null) {
+  if (!root) return false;
+  const modals = document.querySelectorAll<HTMLElement>("[data-modal-root]");
+  return modals.length > 0 && modals[modals.length - 1] === root;
+}
+
+let documentScrollLocks = 0;
+let documentOverflowBeforeLock = "";
+
+function lockDocumentScroll() {
+  if (documentScrollLocks === 0) documentOverflowBeforeLock = document.body.style.overflow;
+  documentScrollLocks += 1;
+  document.body.style.overflow = "hidden";
+  return () => {
+    documentScrollLocks = Math.max(0, documentScrollLocks - 1);
+    if (documentScrollLocks === 0) document.body.style.overflow = documentOverflowBeforeLock;
+  };
 }
 
 export function Field({ label, required, error, helper, group = false, children }: { label: string; required?: boolean; error?: string; helper?: string; group?: boolean; children: ReactNode }) {

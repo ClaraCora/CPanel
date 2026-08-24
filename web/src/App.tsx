@@ -1,5 +1,5 @@
 import { Component, Suspense, lazy, useEffect, useState, type ReactNode } from "react";
-import { authApi, demoMode } from "./auth";
+import { adminSessionExpiredEvent, authApi, demoMode } from "./auth";
 import { ToastProvider } from "./components/ui";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { LoginPage } from "./pages/LoginPage";
@@ -10,6 +10,7 @@ const AuthenticatedApp = lazy(() => import("./AuthenticatedApp"));
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [checking, setChecking] = useState(!demoMode);
+  const [sessionNotice, setSessionNotice] = useState("");
 
   useEffect(() => {
     if (demoMode) return;
@@ -18,6 +19,16 @@ export default function App() {
       .then(setSession)
       .catch(() => setSession(null))
       .finally(() => setChecking(false));
+  }, []);
+
+  useEffect(() => {
+    const expireSession = () => {
+      setSession(null);
+      setSessionNotice("登录状态已过期，请重新登录");
+      window.history.replaceState(null, "", "/");
+    };
+    window.addEventListener(adminSessionExpiredEvent, expireSession);
+    return () => window.removeEventListener(adminSessionExpiredEvent, expireSession);
   }, []);
 
   async function logout() {
@@ -40,7 +51,7 @@ export default function App() {
   if (!session)
     return (
       <ToastProvider>
-        <LoginPage onLogin={setSession} />
+        <LoginPage initialError={sessionNotice} onLogin={(value) => { setSessionNotice(""); setSession(value); }} />
       </ToastProvider>
     );
 

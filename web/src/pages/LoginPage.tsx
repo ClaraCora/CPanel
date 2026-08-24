@@ -5,12 +5,12 @@ import { Button, Field } from "../components/ui";
 import { ThemeToggle } from "../components/ThemeToggle";
 import type { Session } from "../types";
 
-export function LoginPage({ onLogin }: { onLogin: (session: Session) => void }) {
+export function LoginPage({ initialError = "", onLogin }: { initialError?: string; onLogin: (session: Session) => void }) {
   const [email, setEmail] = useState(demoMode ? "admin@cpanel.local" : "");
   const [password, setPassword] = useState(demoMode ? "demo-password" : "");
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(initialError);
 
   async function submit(event: FormEvent) {
     event.preventDefault();

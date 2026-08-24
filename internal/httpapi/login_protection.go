@@ -89,7 +89,11 @@ func (s *Server) pruneLoginAttemptsLocked(now time.Time) {
 }
 
 func loginAccountKey(scope, ipAddress, login string) string {
-	return "account\x00" + scope + "\x00" + strings.TrimSpace(ipAddress) + "\x00" + strings.ToLower(strings.TrimSpace(login))
+	login = strings.TrimSpace(login)
+	if len(login) > 254 {
+		login = login[:254]
+	}
+	return "account\x00" + scope + "\x00" + strings.TrimSpace(ipAddress) + "\x00" + strings.ToLower(login)
 }
 
 func loginIPKey(scope, ipAddress string) string {

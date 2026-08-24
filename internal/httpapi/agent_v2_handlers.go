@@ -95,7 +95,7 @@ func (s *Server) requireAgentV2(next http.Handler) http.Handler {
 		if !ok {
 			return
 		}
-		record, err := s.agentV2.sessionForEnvelope(envelope, time.Now().UTC())
+		record, err := s.agentV2.sessionForEnvelope(r.Context(), envelope, time.Now().UTC())
 		if err != nil {
 			writeAgentV2FixedError(w, http.StatusPreconditionFailed)
 			return
@@ -328,9 +328,32 @@ func (s *Server) handleAgentV2Heartbeat(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if claimed {
-		commands = append(commands, map[string]string{"bh": command.ID, "lx": command.Type})
+		commands = append(commands, map[string]string{"bh": command.ID, "lx": command.Type, "bb": command.TargetVersion})
 	}
 	writeAgentV2(w, r, http.StatusOK, map[string]any{"js": true, "rw": commands})
+}
+
+func (s *Server) handleAgentV2UpgradeResult(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		TaskID  string `json:"bh"`
+		Status  string `json:"zt"`
+		Version string `json:"bb"`
+		Error   string `json:"cw"`
+	}
+	if !decodeAgentV2(w, r, &input) {
+		return
+	}
+	if strings.TrimSpace(input.TaskID) == "" || strings.TrimSpace(input.Status) == "" {
+		writeAgentV2Error(w, r, http.StatusBadRequest, "sj")
+		return
+	}
+	machine := currentAgent(r)
+	task, err := s.store.ReportMachineAgentUpgrade(r.Context(), machine.ID, strings.TrimSpace(input.TaskID), input.Status, input.Version, input.Error)
+	if err != nil {
+		writeAgentV2StoreError(w, r, err)
+		return
+	}
+	writeAgentV2(w, r, http.StatusOK, map[string]any{"js": true, "rw": task})
 }
 
 type agentV2TelemetryEvent struct {
@@ -396,7 +419,7 @@ func (s *Server) handleAgentV2Stream(w http.ResponseWriter, r *http.Request) {
 		_ = conn.Close(websocket.StatusPolicyViolation, "")
 		return
 	}
-	record, err := s.agentV2.sessionByID(response.SessionID, time.Now().UTC())
+	record, err := s.agentV2.sessionByID(r.Context(), response.SessionID, time.Now().UTC())
 	if err != nil {
 		_ = conn.Close(websocket.StatusInternalError, "")
 		return
@@ -464,7 +487,7 @@ func (s *Server) handleAgentV2Stream(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		case <-pollTicker.C:
-			if _, sessionErr := s.agentV2.sessionByID(response.SessionID, time.Now().UTC()); sessionErr != nil {
+			if _, sessionErr := s.agentV2.sessionByID(streamCtx, response.SessionID, time.Now().UTC()); sessionErr != nil {
 				_ = conn.Close(websocket.StatusPolicyViolation, "")
 				return
 			}

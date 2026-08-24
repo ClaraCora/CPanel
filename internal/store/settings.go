@@ -102,6 +102,31 @@ func (s *Store) SetAgentSharedCredential(ctx context.Context, adminID string, to
 }
 
 func (s *Store) UpsertSettings(ctx context.Context, section, adminID string, values map[string]json.RawMessage, sensitive map[string]bool) error {
+	return s.upsertSettings(ctx, section, adminID, values, sensitive, nil, "")
+}
+
+// UpsertSettingsWithAgentCredential updates the encrypted Agent communication
+// key and its authentication digest atomically. This prevents installation
+// commands from receiving a key that the control endpoint does not yet accept.
+func (s *Store) UpsertSettingsWithAgentCredential(
+	ctx context.Context,
+	section, adminID string,
+	values map[string]json.RawMessage,
+	sensitive map[string]bool,
+	tokenHash []byte,
+	prefix string,
+) error {
+	return s.upsertSettings(ctx, section, adminID, values, sensitive, tokenHash, prefix)
+}
+
+func (s *Store) upsertSettings(
+	ctx context.Context,
+	section, adminID string,
+	values map[string]json.RawMessage,
+	sensitive map[string]bool,
+	agentTokenHash []byte,
+	agentTokenPrefix string,
+) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -115,6 +140,16 @@ func (s *Store) UpsertSettings(ctx context.Context, section, adminID string, val
 			value=excluded.value,sensitive=excluded.sensitive,version=settings.version+1,
 			updated_by=excluded.updated_by,updated_at=now()`,
 			section, key, value, sensitive[key], adminID)
+		if err != nil {
+			return err
+		}
+	}
+	if len(agentTokenHash) > 0 {
+		_, err := tx.Exec(ctx, `INSERT INTO agent_shared_credentials(singleton,token_hash,token_prefix,updated_by)
+			VALUES(1,$1,$2,$3) ON CONFLICT(singleton) DO UPDATE SET
+			token_hash=EXCLUDED.token_hash,token_prefix=EXCLUDED.token_prefix,
+			updated_by=EXCLUDED.updated_by,updated_at=now()`,
+			agentTokenHash, agentTokenPrefix, adminID)
 		if err != nil {
 			return err
 		}

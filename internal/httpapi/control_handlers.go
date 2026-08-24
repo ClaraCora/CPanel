@@ -175,6 +175,29 @@ func (s *Server) handleAgentHeartbeat(w http.ResponseWriter, r *http.Request) {
 	writeData(w, r, http.StatusOK, map[string]any{"accepted": true, "commands": commands})
 }
 
+func (s *Server) handleAgentUpgradeResult(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		TaskID  string `json:"task_id"`
+		Status  string `json:"status"`
+		Version string `json:"version"`
+		Error   string `json:"error"`
+	}
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	if strings.TrimSpace(input.TaskID) == "" || strings.TrimSpace(input.Status) == "" {
+		writeError(w, r, http.StatusBadRequest, "INVALID_AGENT_UPGRADE_RESULT", "升级任务结果不完整", nil)
+		return
+	}
+	machine := currentAgent(r)
+	task, err := s.store.ReportMachineAgentUpgrade(r.Context(), machine.ID, strings.TrimSpace(input.TaskID), input.Status, input.Version, input.Error)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	writeData(w, r, http.StatusOK, map[string]any{"accepted": true, "task": task})
+}
+
 func (s *Server) handleAgentTelemetry(w http.ResponseWriter, r *http.Request) {
 	key := strings.TrimSpace(r.Header.Get("Idempotency-Key"))
 	if key == "" || len(key) > 128 {

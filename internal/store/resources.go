@@ -120,6 +120,9 @@ func (s *Store) ListMachines(ctx context.Context) ([]domain.Machine, error) {
 		       m.agent_version, m.kernel_type, m.capabilities, m.last_heartbeat_at,
 		       COALESCE(mm.metrics,'{}'::jsonb),mm.sampled_at,
 		       COALESCE(m.agent_upgrade_task_id,''),m.agent_upgrade_requested_at,m.agent_upgrade_dispatched_at,
+		       COALESCE(m.agent_upgrade_target_version,''),COALESCE(m.agent_upgrade_status,''),
+		       m.agent_upgrade_acknowledged_at,m.agent_upgrade_completed_at,m.agent_upgrade_failed_at,
+		       COALESCE(m.agent_upgrade_error,''),
 		       m.agent_protocol,m.agent_v2_last_seen_at,
 		       (SELECT count(*) FROM nodes n WHERE n.machine_id=m.id AND n.status <> 'archived'),
 		       m.created_at, m.updated_at
@@ -137,7 +140,9 @@ func (s *Store) ListMachines(ctx context.Context) ([]domain.Machine, error) {
 		if err := rows.Scan(&item.ID, &item.Name, &item.Region, &item.Host, &item.Labels, &item.Notes,
 			&item.Status, &item.AgentVersion, &item.KernelType, &item.Capabilities, &item.LastHeartbeat,
 			&item.Metrics, &item.MetricsSampledAt, &item.AgentUpgradeTaskID, &item.AgentUpgradeRequestedAt,
-			&item.AgentUpgradeDispatchedAt, &item.AgentProtocol, &item.AgentV2LastSeenAt,
+			&item.AgentUpgradeDispatchedAt, &item.AgentUpgradeTargetVersion, &item.AgentUpgradeStatus,
+			&item.AgentUpgradeAcknowledgedAt, &item.AgentUpgradeCompletedAt, &item.AgentUpgradeFailedAt,
+			&item.AgentUpgradeError, &item.AgentProtocol, &item.AgentV2LastSeenAt,
 			&item.NodeCount, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
@@ -164,6 +169,18 @@ func (s *Store) reconcileMachinePresence(ctx context.Context, threshold time.Dur
 	if err != nil {
 		return 0, err
 	}
+	// Do not leave a dispatched upgrade permanently stuck when the Agent
+	// disappeared during the detached installer. A terminal timeout remains
+	// visible for audit purposes and can be requested again safely.
+	if _, err := s.pool.Exec(ctx, `UPDATE machines SET
+		agent_upgrade_status='timed_out',agent_upgrade_failed_at=COALESCE(agent_upgrade_failed_at,now()),
+		agent_upgrade_error=CASE WHEN agent_upgrade_error='' THEN 'Agent upgrade timed out' ELSE agent_upgrade_error END,
+		updated_at=now()
+		WHERE agent_upgrade_task_id IS NOT NULL
+		  AND agent_upgrade_status IN ('dispatched','acknowledged')
+		  AND agent_upgrade_dispatched_at < now() - interval '15 minutes'`); err != nil {
+		return 0, err
+	}
 	return tag.RowsAffected(), nil
 }
 
@@ -180,8 +197,11 @@ func effectiveMachineStatus(status string, lastHeartbeat *time.Time, now time.Ti
 func (s *Store) RequestMachineAgentUpgrade(ctx context.Context, machineID, latestVersion string) (domain.AgentUpgradeTask, error) {
 	var connected, pending bool
 	var currentVersion string
-	err := s.pool.QueryRow(ctx, `SELECT last_heartbeat_at IS NOT NULL,agent_version,agent_upgrade_task_id IS NOT NULL FROM machines
-		WHERE id=$1 AND status <> 'archived'`, machineID).Scan(&connected, &currentVersion, &pending)
+	threshold := s.machineOfflineThreshold(ctx)
+	err := s.pool.QueryRow(ctx, `SELECT status='online' AND last_heartbeat_at IS NOT NULL
+		AND last_heartbeat_at >= now() - ($2::bigint * interval '1 second'),
+		agent_version,agent_upgrade_task_id IS NOT NULL AND agent_upgrade_status IN ('queued','dispatched','acknowledged')
+		FROM machines WHERE id=$1 AND status NOT IN ('archived','disabled')`, machineID, int64(threshold/time.Second)).Scan(&connected, &currentVersion, &pending)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.AgentUpgradeTask{}, ErrNotFound
 	}
@@ -194,13 +214,16 @@ func (s *Store) RequestMachineAgentUpgrade(ctx context.Context, machineID, lates
 	if pending {
 		return domain.AgentUpgradeTask{}, ErrAgentUpgradePending
 	}
-	if latestVersion != "" && strings.EqualFold(strings.TrimSpace(currentVersion), strings.TrimSpace(latestVersion)) {
+	if latestVersion != "" && sameAgentVersion(currentVersion, latestVersion) {
 		return domain.AgentUpgradeTask{}, ErrAgentAlreadyLatest
 	}
-	task := domain.AgentUpgradeTask{ID: domain.MustID("upg"), MachineID: machineID}
+	task := domain.AgentUpgradeTask{ID: domain.MustID("upg"), MachineID: machineID, TargetVersion: strings.TrimSpace(latestVersion), Status: "queued"}
 	err = s.pool.QueryRow(ctx, `UPDATE machines SET agent_upgrade_task_id=$2,
-		agent_upgrade_requested_at=now(),agent_upgrade_dispatched_at=NULL,updated_at=now()
-		WHERE id=$1 RETURNING agent_upgrade_requested_at`, machineID, task.ID).Scan(&task.RequestedAt)
+		agent_upgrade_requested_at=now(),agent_upgrade_dispatched_at=NULL,
+		agent_upgrade_target_version=$3,agent_upgrade_status='queued',
+		agent_upgrade_acknowledged_at=NULL,agent_upgrade_completed_at=NULL,
+		agent_upgrade_failed_at=NULL,agent_upgrade_error='',updated_at=now()
+		WHERE id=$1 RETURNING agent_upgrade_requested_at`, machineID, task.ID, task.TargetVersion).Scan(&task.RequestedAt)
 	return task, err
 }
 
@@ -210,10 +233,12 @@ func (s *Store) CreateMachine(ctx context.Context, input domain.MachineCreate) (
 	if len(labels) == 0 {
 		labels = json.RawMessage(`{}`)
 	}
-	if input.KernelType == "" {
-		input.KernelType = "xray"
+	var err error
+	input.KernelType, err = normalizeMachineKernel(input.KernelType)
+	if err != nil {
+		return domain.Machine{}, err
 	}
-	err := s.pool.QueryRow(ctx, `
+	err = s.pool.QueryRow(ctx, `
 		INSERT INTO machines(id,name,region,host,labels,notes,kernel_type)
 		VALUES($1,$2,$3,$4,$5,$6,$7)
 		RETURNING name,region,host,labels,notes,status,agent_version,kernel_type,capabilities,
@@ -226,35 +251,87 @@ func (s *Store) CreateMachine(ctx context.Context, input domain.MachineCreate) (
 }
 
 func (s *Store) ArchiveMachine(ctx context.Context, machineID string) error {
-	var exists bool
-	var nodeCount int
-	if err := s.pool.QueryRow(ctx, `SELECT
-		EXISTS(SELECT 1 FROM machines WHERE id=$1 AND status <> 'archived'),
-		(SELECT count(*) FROM nodes WHERE machine_id=$1 AND status <> 'archived')`, machineID).Scan(&exists, &nodeCount); err != nil {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
 		return err
 	}
-	if !exists {
+	defer tx.Rollback(ctx)
+	if err := lockResourceConsistencyTx(ctx, tx); err != nil {
+		return err
+	}
+	var status string
+	if err := tx.QueryRow(ctx, `SELECT status FROM machines WHERE id=$1 FOR UPDATE`, machineID).Scan(&status); errors.Is(err, pgx.ErrNoRows) {
 		return ErrNotFound
+	} else if err != nil {
+		return err
+	}
+	if status == "archived" {
+		return ErrNotFound
+	}
+	var nodeCount int
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM nodes WHERE machine_id=$1 AND status <> 'archived'`, machineID).Scan(&nodeCount); err != nil {
+		return err
 	}
 	if nodeCount > 0 {
 		return ErrMachineHasNodes
 	}
-	_, err := s.pool.Exec(ctx, `UPDATE machines SET status='archived',updated_at=now() WHERE id=$1`, machineID)
-	return err
+	if _, err := tx.Exec(ctx, `UPDATE machines SET status='archived',updated_at=now() WHERE id=$1`, machineID); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (s *Store) UpdateMachine(ctx context.Context, machineID string, input domain.MachineUpdate) (domain.Machine, error) {
-	command, err := s.pool.Exec(ctx, `UPDATE machines SET
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return domain.Machine{}, err
+	}
+	defer tx.Rollback(ctx)
+	if err := lockResourceConsistencyTx(ctx, tx); err != nil {
+		return domain.Machine{}, err
+	}
+	var currentStatus, currentKernel string
+	if err := tx.QueryRow(ctx, `SELECT status,kernel_type FROM machines WHERE id=$1 AND status <> 'archived' FOR UPDATE`, machineID).Scan(&currentStatus, &currentKernel); errors.Is(err, pgx.ErrNoRows) {
+		return domain.Machine{}, ErrNotFound
+	} else if err != nil {
+		return domain.Machine{}, err
+	}
+	resultingKernel := currentKernel
+	if input.KernelType != nil {
+		resultingKernel, err = normalizeMachineKernel(*input.KernelType)
+		if err != nil {
+			return domain.Machine{}, err
+		}
+	}
+	resultingStatus := currentStatus
+	if input.Status != nil {
+		resultingStatus, err = normalizeMachineStatus(*input.Status)
+		if err != nil {
+			return domain.Machine{}, err
+		}
+	}
+	if resultingStatus == "disabled" && currentStatus != "disabled" {
+		var nodeCount int
+		if err := tx.QueryRow(ctx, `SELECT count(*) FROM nodes WHERE machine_id=$1 AND status <> 'archived'`, machineID).Scan(&nodeCount); err != nil {
+			return domain.Machine{}, err
+		}
+		if nodeCount > 0 {
+			return domain.Machine{}, ErrMachineHasNodes
+		}
+	}
+	command, err := tx.Exec(ctx, `UPDATE machines SET
 		name=COALESCE(NULLIF(BTRIM($2),''),name),region=COALESCE($3,region),host=COALESCE($4,host),
-		labels=COALESCE($5,labels),notes=COALESCE($6,notes),kernel_type=COALESCE($7,kernel_type),
-		status=COALESCE($8,status),updated_at=now()
+		labels=COALESCE($5,labels),notes=COALESCE($6,notes),kernel_type=$7,status=$8,updated_at=now()
 		WHERE id=$1 AND status <> 'archived'`, machineID, input.Name, input.Region, input.Host,
-		input.Labels, input.Notes, input.KernelType, input.Status)
+		input.Labels, input.Notes, resultingKernel, resultingStatus)
 	if err != nil {
 		return domain.Machine{}, mapError(err)
 	}
 	if command.RowsAffected() == 0 {
 		return domain.Machine{}, ErrNotFound
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return domain.Machine{}, err
 	}
 	items, err := s.ListMachines(ctx)
 	if err != nil {
@@ -391,6 +468,7 @@ func (s *Store) CreateNode(ctx context.Context, input domain.NodeCreate) (domain
 	if input.KernelType == "" {
 		input.KernelType = "xray"
 	}
+	input.KernelType = strings.ToLower(strings.TrimSpace(input.KernelType))
 	if len(input.Config) == 0 {
 		input.Config = json.RawMessage(`{}`)
 	}
@@ -399,6 +477,12 @@ func (s *Store) CreateNode(ctx context.Context, input domain.NodeCreate) (domain
 		return domain.Node{}, err
 	}
 	defer tx.Rollback(ctx)
+	if err := lockResourceConsistencyTx(ctx, tx); err != nil {
+		return domain.Node{}, err
+	}
+	if err := s.validateNodeBindingsTx(ctx, tx, input.MachineID, input.RoutePolicyID, input.AdminRoutePolicyID, input.MemberRoutePolicyID, input.KernelType); err != nil {
+		return domain.Node{}, err
+	}
 	err = tx.QueryRow(ctx, `
 		INSERT INTO nodes(id,machine_id,route_policy_id,admin_route_policy_id,member_route_policy_id,name,protocol,listen_ip,server_port,kernel_type,config)
 		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
@@ -455,6 +539,9 @@ func (s *Store) ArchiveNode(ctx context.Context, nodeID string) error {
 		return err
 	}
 	defer tx.Rollback(ctx)
+	if err := lockResourceConsistencyTx(ctx, tx); err != nil {
+		return err
+	}
 	var machineID string
 	var agentID int64
 	var revision int
@@ -483,7 +570,25 @@ func machineNodesReplacePayload(agentID int64) json.RawMessage {
 }
 
 func (s *Store) UpdateNode(ctx context.Context, nodeID string, input domain.NodeUpdate) (domain.Node, error) {
-	item, err := s.GetNode(ctx, nodeID)
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return domain.Node{}, err
+	}
+	defer tx.Rollback(ctx)
+	if err := lockResourceConsistencyTx(ctx, tx); err != nil {
+		return domain.Node{}, err
+	}
+	var item domain.Node
+	err = tx.QueryRow(ctx, `
+		SELECT id,agent_id,machine_id,route_policy_id,admin_route_policy_id,member_route_policy_id,name,protocol,listen_ip,
+		       server_port,kernel_type,config,status,current_revision,applied_revision,last_report_at,last_error,created_at,updated_at
+		FROM nodes WHERE id=$1 AND status <> 'archived' FOR UPDATE`, nodeID).Scan(
+		&item.ID, &item.AgentID, &item.MachineID, &item.RoutePolicyID, &item.AdminRoutePolicyID, &item.MemberRoutePolicyID,
+		&item.Name, &item.Protocol, &item.ListenIP, &item.ServerPort, &item.KernelType, &item.Config, &item.Status,
+		&item.CurrentRevision, &item.AppliedRevision, &item.LastReport, &item.LastError, &item.CreatedAt, &item.UpdatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Node{}, ErrNotFound
+	}
 	if err != nil {
 		return domain.Node{}, err
 	}
@@ -538,14 +643,17 @@ func (s *Store) UpdateNode(ctx context.Context, nodeID string, input domain.Node
 		item.Config = *input.Config
 	}
 	if input.Status != nil {
-		item.Status = strings.ToLower(strings.TrimSpace(*input.Status))
+		status, statusErr := normalizeNodeStatus(*input.Status)
+		if statusErr != nil {
+			return domain.Node{}, statusErr
+		}
+		item.Status = status
+	} else if item.Status != "disabled" {
+		item.Status = "draft"
 	}
-
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
+	if err := s.validateNodeBindingsTx(ctx, tx, item.MachineID, item.RoutePolicyID, item.AdminRoutePolicyID, item.MemberRoutePolicyID, item.KernelType); err != nil {
 		return domain.Node{}, err
 	}
-	defer tx.Rollback(ctx)
 	command, err := tx.Exec(ctx, `
 		UPDATE nodes SET machine_id=$2,route_policy_id=$3,admin_route_policy_id=$4,member_route_policy_id=$5,name=$6,protocol=$7,listen_ip=$8,
 		       server_port=$9,kernel_type=$10,config=$11,
@@ -589,6 +697,9 @@ func (s *Store) PublishNode(ctx context.Context, nodeID, adminID string) (domain
 		return domain.Node{}, err
 	}
 	defer tx.Rollback(ctx)
+	if err := lockResourceConsistencyTx(ctx, tx); err != nil {
+		return domain.Node{}, err
+	}
 	var item domain.Node
 	err = tx.QueryRow(ctx, `
 		UPDATE nodes SET current_revision=current_revision+1,status='published',updated_at=now()
@@ -602,6 +713,9 @@ func (s *Store) PublishNode(ctx context.Context, nodeID, adminID string) (domain
 		return domain.Node{}, ErrNotFound
 	}
 	if err != nil {
+		return domain.Node{}, err
+	}
+	if err := s.validateNodeBindingsTx(ctx, tx, item.MachineID, item.RoutePolicyID, item.AdminRoutePolicyID, item.MemberRoutePolicyID, item.KernelType); err != nil {
 		return domain.Node{}, err
 	}
 	_, err = tx.Exec(ctx, `INSERT INTO node_revisions(id,node_id,revision,config,published_by) VALUES($1,$2,$3,$4,$5)`,
@@ -903,8 +1017,13 @@ func (s *Store) CreateUser(ctx context.Context, input domain.UserCreate) (domain
 }
 
 func (s *Store) UpdateUser(ctx context.Context, userID string, input domain.UserUpdate) (domain.User, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return domain.User{}, err
+	}
+	defer tx.Rollback(ctx)
 	var adminLinked bool
-	if err := s.pool.QueryRow(ctx, `SELECT admin_id IS NOT NULL FROM users
+	if err := tx.QueryRow(ctx, `SELECT admin_id IS NOT NULL FROM users
 		WHERE id=$1 AND status <> 'archived'`, userID).Scan(&adminLinked); errors.Is(err, pgx.ErrNoRows) {
 		return domain.User{}, ErrNotFound
 	} else if err != nil {
@@ -916,7 +1035,7 @@ func (s *Store) UpdateUser(ctx context.Context, userID string, input domain.User
 	if !adminLinked && input.Role != nil && *input.Role == "admin" {
 		return domain.User{}, ErrConflict
 	}
-	command, err := s.pool.Exec(ctx, `UPDATE users SET
+	command, err := tx.Exec(ctx, `UPDATE users SET
 		role=COALESCE($2,role),uuid=COALESCE(NULLIF(BTRIM($3),''),uuid),
 		plan_id=CASE WHEN $4::text IS NULL THEN plan_id ELSE NULLIF(BTRIM($4),'') END,
 		access_group_override_id=CASE WHEN $5::text IS NULL THEN access_group_override_id ELSE NULLIF(BTRIM($5),'') END,
@@ -934,6 +1053,15 @@ func (s *Store) UpdateUser(ctx context.Context, userID string, input domain.User
 	}
 	if command.RowsAffected() == 0 {
 		return domain.User{}, ErrNotFound
+	}
+	if input.PortalPasswordHash != nil && *input.PortalPasswordHash != "" {
+		if _, err := tx.Exec(ctx, `UPDATE user_sessions SET revoked_at=now()
+			WHERE user_id=$1 AND revoked_at IS NULL`, userID); err != nil {
+			return domain.User{}, err
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return domain.User{}, err
 	}
 	if err := s.NotifyAllPublishedNodes(ctx); err != nil {
 		return domain.User{}, err
@@ -1020,9 +1148,6 @@ func (s *Store) ListRoutePolicies(ctx context.Context) ([]domain.RoutePolicy, er
 func (s *Store) CreateRoutePolicy(ctx context.Context, name, notes, scope, defaultOutboundTag, adminID string, rules []domain.RoutePolicyRule) (domain.RoutePolicy, error) {
 	scope = normalizeRoutePolicyScope(scope)
 	defaultOutboundTag = strings.ToLower(strings.TrimSpace(defaultOutboundTag))
-	if err := s.validateRoutePolicyTargets(ctx, rules, defaultOutboundTag); err != nil {
-		return domain.RoutePolicy{}, err
-	}
 	rawRules, err := json.Marshal(rules)
 	if err != nil {
 		return domain.RoutePolicy{}, err
@@ -1032,6 +1157,12 @@ func (s *Store) CreateRoutePolicy(ctx context.Context, name, notes, scope, defau
 		return domain.RoutePolicy{}, err
 	}
 	defer tx.Rollback(ctx)
+	if err := lockResourceConsistencyTx(ctx, tx); err != nil {
+		return domain.RoutePolicy{}, err
+	}
+	if err := validateRouteTargetsAgainstOutbounds(ctx, tx, rules, defaultOutboundTag, nil); err != nil {
+		return domain.RoutePolicy{}, err
+	}
 	item := domain.RoutePolicy{ID: domain.MustID("rte"), Rules: rules, Scope: scope}
 	err = tx.QueryRow(ctx, `INSERT INTO route_policies(id,name,notes,scope,default_outbound_tag,status,current_revision) VALUES($1,$2,$3,$4,$5,'published',1)
 		RETURNING name,status,scope,current_revision,default_outbound_tag,notes,created_at,updated_at`,
@@ -1048,21 +1179,34 @@ func (s *Store) CreateRoutePolicy(ctx context.Context, name, notes, scope, defau
 }
 
 func (s *Store) ArchiveRoutePolicy(ctx context.Context, routeID string) error {
-	var exists bool
-	var nodeCount int
-	if err := s.pool.QueryRow(ctx, `SELECT
-		EXISTS(SELECT 1 FROM route_policies WHERE id=$1 AND status <> 'archived'),
-		(SELECT count(*) FROM nodes WHERE $1 IN (route_policy_id,admin_route_policy_id,member_route_policy_id) AND status <> 'archived')`, routeID).Scan(&exists, &nodeCount); err != nil {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
 		return err
 	}
-	if !exists {
+	defer tx.Rollback(ctx)
+	if err := lockResourceConsistencyTx(ctx, tx); err != nil {
+		return err
+	}
+	var status string
+	if err := tx.QueryRow(ctx, `SELECT status FROM route_policies WHERE id=$1 FOR UPDATE`, routeID).Scan(&status); errors.Is(err, pgx.ErrNoRows) {
 		return ErrNotFound
+	} else if err != nil {
+		return err
+	}
+	if status == "archived" {
+		return ErrNotFound
+	}
+	var nodeCount int
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM nodes WHERE $1 IN (route_policy_id,admin_route_policy_id,member_route_policy_id) AND status <> 'archived'`, routeID).Scan(&nodeCount); err != nil {
+		return err
 	}
 	if nodeCount > 0 {
 		return ErrRoutePolicyInUse
 	}
-	_, err := s.pool.Exec(ctx, `UPDATE route_policies SET status='archived',updated_at=now() WHERE id=$1`, routeID)
-	return err
+	if _, err := tx.Exec(ctx, `UPDATE route_policies SET status='archived',updated_at=now() WHERE id=$1`, routeID); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (s *Store) UpdateRoutePolicy(ctx context.Context, routeID, adminID string, input domain.RoutePolicyUpdate) (domain.RoutePolicy, error) {
@@ -1070,48 +1214,68 @@ func (s *Store) UpdateRoutePolicy(ctx context.Context, routeID, adminID string, 
 		value := strings.ToLower(strings.TrimSpace(*input.DefaultOutboundTag))
 		input.DefaultOutboundTag = &value
 	}
-	if input.Rules != nil || input.DefaultOutboundTag != nil {
-		currentRules, currentDefaultOutboundTag, err := s.routePolicyTargets(ctx, routeID)
-		if err != nil {
-			return domain.RoutePolicy{}, err
-		}
-		if input.Rules != nil {
-			currentRules = *input.Rules
-		}
-		if input.DefaultOutboundTag != nil {
-			currentDefaultOutboundTag = *input.DefaultOutboundTag
-		}
-		if err := s.validateRoutePolicyTargets(ctx, currentRules, currentDefaultOutboundTag); err != nil {
-			return domain.RoutePolicy{}, err
-		}
-	}
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return domain.RoutePolicy{}, err
 	}
 	defer tx.Rollback(ctx)
+	if err := lockResourceConsistencyTx(ctx, tx); err != nil {
+		return domain.RoutePolicy{}, err
+	}
 	var currentRevision int
-	err = tx.QueryRow(ctx, `UPDATE route_policies SET
-		name=COALESCE(NULLIF(BTRIM($2),''),name),notes=COALESCE($3,notes),status=COALESCE($4,status),scope=COALESCE($5,scope),
-		default_outbound_tag=COALESCE($6,default_outbound_tag),updated_at=now()
-		WHERE id=$1 AND status <> 'archived' RETURNING current_revision`, routeID, input.Name, input.Notes, input.Status, input.Scope, input.DefaultOutboundTag).Scan(&currentRevision)
+	var currentStatus, currentScope, currentDefaultTag string
+	var rawRules []byte
+	err = tx.QueryRow(ctx, `SELECT current_revision,status,scope,COALESCE(default_outbound_tag,''),
+		COALESCE((SELECT rr.rules FROM route_policy_revisions rr WHERE rr.route_policy_id=r.id ORDER BY rr.revision DESC LIMIT 1),'[]'::jsonb)
+		FROM route_policies r WHERE id=$1 AND status <> 'archived' FOR UPDATE`, routeID).Scan(&currentRevision, &currentStatus, &currentScope, &currentDefaultTag, &rawRules)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.RoutePolicy{}, ErrNotFound
 	}
 	if err != nil {
-		return domain.RoutePolicy{}, mapError(err)
+		return domain.RoutePolicy{}, err
 	}
-	if input.Rules != nil {
-		rawRules, err := json.Marshal(*input.Rules)
+	var currentRules []domain.RoutePolicyRule
+	if err := json.Unmarshal(rawRules, &currentRules); err != nil {
+		return domain.RoutePolicy{}, err
+	}
+	resultingStatus, resultingScope, resultingDefaultTag := currentStatus, normalizeRoutePolicyScope(currentScope), currentDefaultTag
+	if input.Status != nil {
+		resultingStatus, err = normalizeRoutePolicyStatus(*input.Status)
 		if err != nil {
 			return domain.RoutePolicy{}, err
 		}
-		currentRevision++
-		if _, err := tx.Exec(ctx, `UPDATE route_policies SET current_revision=$2 WHERE id=$1`, routeID, currentRevision); err != nil {
+	}
+	if input.Scope != nil {
+		resultingScope = normalizeRoutePolicyScope(*input.Scope)
+	}
+	if input.DefaultOutboundTag != nil {
+		resultingDefaultTag = *input.DefaultOutboundTag
+	}
+	resultingRules := currentRules
+	if input.Rules != nil {
+		resultingRules = *input.Rules
+	}
+	if err := s.validateRoutePolicyMutationTx(ctx, tx, routeID, resultingStatus, resultingScope, resultingDefaultTag, resultingRules); err != nil {
+		return domain.RoutePolicy{}, err
+	}
+	var updatedRevision = currentRevision
+	if input.Rules != nil || input.DefaultOutboundTag != nil || input.Scope != nil || input.Status != nil {
+		updatedRevision++
+	}
+	_, err = tx.Exec(ctx, `UPDATE route_policies SET
+		name=COALESCE(NULLIF(BTRIM($2),''),name),notes=COALESCE($3,notes),status=$4,scope=$5,
+		default_outbound_tag=$6,current_revision=$7,updated_at=now()
+		WHERE id=$1`, routeID, input.Name, input.Notes, resultingStatus, resultingScope, resultingDefaultTag, updatedRevision)
+	if err != nil {
+		return domain.RoutePolicy{}, mapError(err)
+	}
+	if input.Rules != nil || input.DefaultOutboundTag != nil || input.Scope != nil || input.Status != nil {
+		rawRules, err := json.Marshal(resultingRules)
+		if err != nil {
 			return domain.RoutePolicy{}, err
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO route_policy_revisions(id,route_policy_id,revision,rules,published_by)
-			VALUES($1,$2,$3,$4,$5)`, domain.MustID("rrv"), routeID, currentRevision, rawRules, adminID); err != nil {
+			VALUES($1,$2,$3,$4,$5)`, domain.MustID("rrv"), routeID, updatedRevision, rawRules, adminID); err != nil {
 			return domain.RoutePolicy{}, mapError(err)
 		}
 	}
@@ -1166,39 +1330,7 @@ func normalizeRoutePolicyScope(scope string) string {
 }
 
 func (s *Store) validateRoutePolicyTargets(ctx context.Context, rules []domain.RoutePolicyRule, defaultOutboundTag string) error {
-	targets := make(map[string]struct{})
-	for _, rule := range rules {
-		if rule.Action.Type == "route" {
-			targets[strings.ToLower(strings.TrimSpace(rule.Action.Target))] = struct{}{}
-		}
-	}
-	if value := strings.ToLower(strings.TrimSpace(defaultOutboundTag)); value != "" {
-		targets[value] = struct{}{}
-	}
-	if len(targets) == 0 {
-		return nil
-	}
-	rows, err := s.pool.Query(ctx, `SELECT lower(tag) FROM outbounds
-		WHERE status='active' AND protocol NOT IN ('direct','block')
-		  AND 'xray'=ANY(kernel_support)`)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var tag string
-		if err := rows.Scan(&tag); err != nil {
-			return err
-		}
-		delete(targets, tag)
-	}
-	if err := rows.Err(); err != nil {
-		return err
-	}
-	if len(targets) > 0 {
-		return ErrRouteOutboundUnavailable
-	}
-	return nil
+	return validateRouteTargetsAgainstOutbounds(ctx, s.pool, rules, defaultOutboundTag, nil)
 }
 
 func notifyRoutePolicyNodes(ctx context.Context, tx pgx.Tx, routeID string) error {
@@ -1238,9 +1370,14 @@ func (s *Store) ArchiveOutbound(ctx context.Context, outboundID string) error {
 		return err
 	}
 	defer tx.Rollback(ctx)
+	if err := lockResourceConsistencyTx(ctx, tx); err != nil {
+		return err
+	}
 
-	var tag string
-	err = tx.QueryRow(ctx, `SELECT tag FROM outbounds WHERE id=$1 AND status <> 'archived' FOR UPDATE`, outboundID).Scan(&tag)
+	var current outboundReference
+	err = tx.QueryRow(ctx, `SELECT lower(tag),protocol,status,lower(NULLIF(proxy_tag,'')),kernel_support
+		FROM outbounds WHERE id=$1 AND status <> 'archived' FOR UPDATE`, outboundID).Scan(
+		&current.Tag, &current.Protocol, &current.Status, &current.ProxyTag, &current.KernelSupport)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrNotFound
 	}
@@ -1248,29 +1385,13 @@ func (s *Store) ArchiveOutbound(ctx context.Context, outboundID string) error {
 		return err
 	}
 
-	var inUse bool
-	err = tx.QueryRow(ctx, `SELECT
-		EXISTS(SELECT 1 FROM outbounds o WHERE o.id <> $1 AND o.status <> 'archived' AND lower(o.proxy_tag)=lower($2))
-		OR EXISTS(SELECT 1 FROM route_policies r WHERE r.status <> 'archived' AND lower(r.default_outbound_tag)=lower($2))
-		OR EXISTS(
-			SELECT 1 FROM route_policies r
-			CROSS JOIN LATERAL (
-				SELECT rr.rules FROM route_policy_revisions rr
-				WHERE rr.route_policy_id=r.id ORDER BY rr.revision DESC LIMIT 1
-			) latest
-			WHERE r.status <> 'archived' AND EXISTS(
-				SELECT 1 FROM jsonb_array_elements(latest.rules) rule
-				WHERE lower(COALESCE(rule->'action'->>'type',''))='route'
-				  AND lower(COALESCE(rule->'action'->>'target',''))=lower($2)
-			)
-		)`, outboundID, tag).Scan(&inUse)
+	inUse, err := s.outboundTagReferencedTx(ctx, tx, current.Tag)
 	if err != nil {
 		return err
 	}
 	if inUse {
 		return ErrOutboundInUse
 	}
-
 	if _, err := tx.Exec(ctx, `UPDATE outbounds SET status='archived',updated_at=now() WHERE id=$1`, outboundID); err != nil {
 		return err
 	}
@@ -1288,14 +1409,54 @@ func (s *Store) CreateOutbound(ctx context.Context, input domain.Outbound) (doma
 	if len(input.KernelSupport) == 0 {
 		input.KernelSupport = []string{"xray"}
 	}
-	err := s.pool.QueryRow(ctx, `
+	input.Tag = strings.ToLower(strings.TrimSpace(input.Tag))
+	input.Protocol = strings.ToLower(strings.TrimSpace(input.Protocol))
+	input.ProxyTag = strings.ToLower(strings.TrimSpace(input.ProxyTag))
+	if input.Status != "" && strings.ToLower(strings.TrimSpace(input.Status)) != "active" {
+		return domain.Outbound{}, ErrConflict
+	}
+	if input.Tag == "" || input.Tag == "direct" || input.Tag == "block" {
+		return domain.Outbound{}, ErrConflict
+	}
+	if input.Protocol == "" {
+		return domain.Outbound{}, ErrConflict
+	}
+	if err := domain.ValidateOutbound(input.Tag, input.Protocol, input.Settings); err != nil {
+		return domain.Outbound{}, errors.Join(ErrConflict, err)
+	}
+	kernels, err := normalizeKernelSupport(input.KernelSupport)
+	if err != nil {
+		return domain.Outbound{}, err
+	}
+	input.KernelSupport = kernels
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return domain.Outbound{}, err
+	}
+	defer tx.Rollback(ctx)
+	if err := lockResourceConsistencyTx(ctx, tx); err != nil {
+		return domain.Outbound{}, err
+	}
+	outbounds, err := loadOutboundReferences(ctx, tx)
+	if err != nil {
+		return domain.Outbound{}, err
+	}
+	candidate := outboundReference{Tag: input.Tag, Protocol: input.Protocol, Status: "active", ProxyTag: input.ProxyTag, KernelSupport: input.KernelSupport}
+	outbounds[candidate.Tag] = candidate
+	if err := validateOutboundChain(candidate.Tag, outbounds, nil, map[string]bool{}); err != nil {
+		return domain.Outbound{}, err
+	}
+	err = tx.QueryRow(ctx, `
 		INSERT INTO outbounds(id,name,tag,protocol,settings,proxy_tag,kernel_support)
 		VALUES($1,$2,$3,$4,$5,$6,$7)
 		RETURNING status,created_at,updated_at`,
 		input.ID, strings.TrimSpace(input.Name), strings.TrimSpace(input.Tag), strings.ToLower(input.Protocol),
 		input.Settings, strings.TrimSpace(input.ProxyTag), input.KernelSupport,
 	).Scan(&input.Status, &input.CreatedAt, &input.UpdatedAt)
-	return input, mapError(err)
+	if err != nil {
+		return domain.Outbound{}, mapError(err)
+	}
+	return input, tx.Commit(ctx)
 }
 
 func (s *Store) UpdateOutbound(ctx context.Context, outboundID string, input domain.OutboundUpdate) (domain.Outbound, error) {
@@ -1304,12 +1465,89 @@ func (s *Store) UpdateOutbound(ctx context.Context, outboundID string, input dom
 		return domain.Outbound{}, err
 	}
 	defer tx.Rollback(ctx)
+	if err := lockResourceConsistencyTx(ctx, tx); err != nil {
+		return domain.Outbound{}, err
+	}
+	var current outboundReference
+	var currentID string
+	err = tx.QueryRow(ctx, `SELECT id,lower(tag),protocol,status,lower(NULLIF(proxy_tag,'')),kernel_support
+		FROM outbounds WHERE id=$1 AND status <> 'archived' FOR UPDATE`, outboundID).Scan(
+		&currentID, &current.Tag, &current.Protocol, &current.Status, &current.ProxyTag, &current.KernelSupport)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Outbound{}, ErrNotFound
+	}
+	if err != nil {
+		return domain.Outbound{}, err
+	}
+	resulting := current
+	if input.Tag != nil {
+		resulting.Tag = strings.ToLower(strings.TrimSpace(*input.Tag))
+	}
+	if input.Protocol != nil {
+		resulting.Protocol = strings.ToLower(strings.TrimSpace(*input.Protocol))
+	}
+	if input.ProxyTag != nil {
+		resulting.ProxyTag = strings.ToLower(strings.TrimSpace(*input.ProxyTag))
+	}
+	if input.KernelSupport != nil {
+		kernels, normalizeErr := normalizeKernelSupport(*input.KernelSupport)
+		if normalizeErr != nil {
+			return domain.Outbound{}, normalizeErr
+		}
+		resulting.KernelSupport = kernels
+	}
+	if input.Status != nil {
+		resulting.Status = strings.ToLower(strings.TrimSpace(*input.Status))
+	}
+	if resulting.Tag == "" || resulting.Tag == "direct" || resulting.Tag == "block" {
+		return domain.Outbound{}, ErrConflict
+	}
+	if resulting.Status != "active" && resulting.Status != "disabled" {
+		return domain.Outbound{}, ErrConflict
+	}
+	var resultingSettings json.RawMessage
+	if input.Settings != nil {
+		resultingSettings = *input.Settings
+	} else {
+		if err := tx.QueryRow(ctx, `SELECT settings FROM outbounds WHERE id=$1`, outboundID).Scan(&resultingSettings); err != nil {
+			return domain.Outbound{}, err
+		}
+	}
+	if err := domain.ValidateOutbound(resulting.Tag, resulting.Protocol, resultingSettings); err != nil {
+		return domain.Outbound{}, errors.Join(ErrConflict, err)
+	}
+	if input.Tag != nil {
+		input.Tag = &resulting.Tag
+	}
+	if input.Protocol != nil {
+		input.Protocol = &resulting.Protocol
+	}
+	if input.ProxyTag != nil {
+		input.ProxyTag = &resulting.ProxyTag
+	}
+	if input.KernelSupport != nil {
+		input.KernelSupport = &resulting.KernelSupport
+	}
+	if input.Status != nil {
+		input.Status = &resulting.Status
+	}
+	if resulting.Tag != current.Tag {
+		// A tag is an application-level reference, so hold the outbound row and
+		// validate all policy/chain references before changing it.
+		if err := s.validateOutboundMutationTx(ctx, tx, resulting, current.Tag); err != nil {
+			return domain.Outbound{}, err
+		}
+	} else if resulting.Status != current.Status || input.KernelSupport != nil || input.ProxyTag != nil {
+		if err := s.validateOutboundMutationTx(ctx, tx, resulting, current.Tag); err != nil {
+			return domain.Outbound{}, err
+		}
+	}
 	command, err := tx.Exec(ctx, `UPDATE outbounds SET
 		name=COALESCE(NULLIF(BTRIM($2),''),name),tag=COALESCE(NULLIF(BTRIM($3),''),tag),
 		protocol=COALESCE($4,protocol),settings=COALESCE($5,settings),proxy_tag=COALESCE($6,proxy_tag),
 		kernel_support=COALESCE($7,kernel_support),status=COALESCE($8,status),updated_at=now()
 		WHERE id=$1 AND status <> 'archived'`, outboundID, input.Name, input.Tag, input.Protocol,
-		input.Settings, input.ProxyTag, input.KernelSupport, input.Status)
+		input.Settings, resulting.ProxyTag, resulting.KernelSupport, input.Status)
 	if err != nil {
 		return domain.Outbound{}, mapError(err)
 	}

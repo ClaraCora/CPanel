@@ -321,6 +321,8 @@ a.resource-name:hover { color: var(--primary); text-decoration: underline; }
 .editor-actions { position: sticky; bottom: 0; z-index: 10; display: flex; min-height: 66px; align-items: center; justify-content: space-between; margin-top: 4px; padding: 12px 14px; background: rgba(245, 245, 247, .98); border: 1px solid var(--border); border-radius: 6px; }
 .editor-actions > div { display: flex; gap: 8px; }
 .form-alert { display: flex; align-items: center; min-height: 42px; margin-bottom: 14px; padding: 9px 12px; color: #8f2525; background: #fff0f1; border: 1px solid #efc2c2; border-radius: 6px; font-size: 12px; }
+.data-freshness { display: inline-flex; min-height: 28px; align-items: center; padding: 0 9px; color: var(--secondary); background: color-mix(in srgb, var(--panel) 82%, transparent); border: 1px solid var(--border); border-radius: 999px; font-size: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.data-freshness--stale { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 35%, var(--border)); }
 
 .drawer-layer { position: fixed; inset: 0; z-index: 1000; }
 .drawer-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; background: rgba(14, 18, 22, .48); border: 0; }

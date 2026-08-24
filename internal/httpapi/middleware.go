@@ -208,18 +208,18 @@ func clientIP(r *http.Request) string {
 	return r.RemoteAddr
 }
 
-func (s *Server) expireSessionCookie(w http.ResponseWriter) {
+func (s *Server) expireSessionCookie(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name: sessionCookieName, Value: "", Path: "/", HttpOnly: true,
-		Secure: s.cfg.CookieSecure, SameSite: http.SameSiteStrictMode, MaxAge: -1,
+		Secure: s.secureCookies(r.Context()), SameSite: http.SameSiteStrictMode, MaxAge: -1,
 		Expires: time.Unix(1, 0),
 	})
 }
 
-func (s *Server) expirePortalSessionCookie(w http.ResponseWriter) {
+func (s *Server) expirePortalSessionCookie(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name: portalSessionCookieName, Value: "", Path: "/", HttpOnly: true,
-		Secure: s.cfg.CookieSecure, SameSite: http.SameSiteStrictMode, MaxAge: -1,
+		Secure: s.secureCookies(r.Context()), SameSite: http.SameSiteStrictMode, MaxAge: -1,
 		Expires: time.Unix(1, 0),
 	})
 }

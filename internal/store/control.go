@@ -277,8 +277,8 @@ func selectRouteOutbounds(rules []domain.RoutePolicyRule, all []map[string]any, 
 		}
 	}
 	wanted := make(map[string]struct{})
-	var include func(string)
-	include = func(tag string) {
+	var include func(string, map[string]bool)
+	include = func(tag string, visiting map[string]bool) {
 		key := strings.ToLower(strings.TrimSpace(tag))
 		if key == "" {
 			return
@@ -286,21 +286,26 @@ func selectRouteOutbounds(rules []domain.RoutePolicyRule, all []map[string]any, 
 		if _, exists := wanted[key]; exists {
 			return
 		}
+		if visiting[key] {
+			return
+		}
 		outbound, exists := byTag[key]
 		if !exists {
 			return
 		}
+		visiting[key] = true
 		wanted[key] = struct{}{}
 		if proxyTag, _ := outbound["proxy_tag"].(string); proxyTag != "" {
-			include(proxyTag)
+			include(proxyTag, visiting)
 		}
+		delete(visiting, key)
 	}
 	for _, rule := range rules {
 		if !rule.Disabled && rule.Action.Type == "route" {
-			include(rule.Action.Target)
+			include(rule.Action.Target, map[string]bool{})
 		}
 	}
-	include(defaultOutboundTag)
+	include(defaultOutboundTag, map[string]bool{})
 	selected := make([]map[string]any, 0, len(wanted))
 	for _, outbound := range all {
 		tag, _ := outbound["tag"].(string)
@@ -334,18 +339,15 @@ func mergeRouteOutbounds(existing any, managed []map[string]any) []map[string]an
 }
 
 func (s *Store) AgentNodeUsers(ctx context.Context, machineID string, agentNodeID int64) ([]domain.AgentUser, error) {
-	rows, err := s.pool.Query(ctx, `
+	rows, err := s.pool.Query(ctx, runtimeEligibleUsersCTE+`
 		SELECT u.agent_id,u.uuid,
-		       COALESCE(u.speed_limit_override_mbps,p.speed_limit_mbps,0),
-		       COALESCE(u.device_limit_override,p.device_limit,0),
+		       u.speed_limit_mbps,
+		       u.device_limit,
 		       CASE WHEN u.role='admin' THEN 'admin' ELSE 'member' END
 		FROM nodes n
 		JOIN access_group_nodes gn ON gn.node_id=n.id
-		JOIN users u ON true
-		LEFT JOIN plans p ON p.id=u.plan_id
+		JOIN runtime_eligible_users u ON u.access_group_id=gn.access_group_id
 		WHERE n.machine_id=$1 AND n.agent_id=$2 AND n.status='published'
-		  AND gn.access_group_id=COALESCE(u.access_group_override_id,p.access_group_id)
-		  AND u.status='active' AND (u.expires_at IS NULL OR u.expires_at > now())
 		ORDER BY u.agent_id`, machineID, agentNodeID)
 	if err != nil {
 		return nil, err
@@ -400,15 +402,15 @@ func (s *Store) RecordMachineHeartbeat(ctx context.Context, machine domain.Agent
 	if len(metrics) == 0 {
 		metrics = json.RawMessage(`{}`)
 	}
-	_, err = tx.Exec(ctx, `UPDATE machines SET status='online',agent_version=$2,kernel_type=$3,
-		capabilities=$4,last_heartbeat_at=now(),updated_at=now(),
-		agent_upgrade_task_id=CASE WHEN agent_upgrade_dispatched_at IS NOT NULL THEN NULL ELSE agent_upgrade_task_id END,
-		agent_upgrade_requested_at=CASE WHEN agent_upgrade_dispatched_at IS NOT NULL THEN NULL ELSE agent_upgrade_requested_at END,
-		agent_upgrade_dispatched_at=CASE WHEN agent_upgrade_dispatched_at IS NOT NULL THEN NULL ELSE agent_upgrade_dispatched_at END
-		WHERE id=$1`,
+	command, err := tx.Exec(ctx, `UPDATE machines SET status='online',agent_version=$2,kernel_type=$3,
+		capabilities=$4,last_heartbeat_at=now(),updated_at=now()
+		WHERE id=$1 AND status NOT IN ('disabled','archived')`,
 		machine.ID, version, kernel, capabilities)
 	if err != nil {
 		return err
+	}
+	if command.RowsAffected() == 0 {
+		return ErrNotFound
 	}
 	_, err = tx.Exec(ctx, `INSERT INTO machine_metrics(machine_id,sampled_at,metrics) VALUES($1,$2,$3)
 		ON CONFLICT(machine_id) DO UPDATE SET sampled_at=EXCLUDED.sampled_at,metrics=EXCLUDED.metrics`,
@@ -421,9 +423,11 @@ func (s *Store) RecordMachineHeartbeat(ctx context.Context, machine domain.Agent
 
 func (s *Store) ClaimMachineAgentUpgrade(ctx context.Context, machineID string) (domain.AgentCommand, bool, error) {
 	var command domain.AgentCommand
-	err := s.pool.QueryRow(ctx, `UPDATE machines SET agent_upgrade_dispatched_at=now(),updated_at=now()
+	err := s.pool.QueryRow(ctx, `UPDATE machines SET agent_upgrade_dispatched_at=now(),
+		agent_upgrade_status='dispatched',updated_at=now()
 		WHERE id=$1 AND agent_upgrade_task_id IS NOT NULL AND agent_upgrade_dispatched_at IS NULL
-		RETURNING agent_upgrade_task_id`, machineID).Scan(&command.ID)
+			AND agent_upgrade_status IN ('queued','') AND status NOT IN ('disabled','archived')
+		RETURNING agent_upgrade_task_id,COALESCE(agent_upgrade_target_version,'')`, machineID).Scan(&command.ID, &command.TargetVersion)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.AgentCommand{}, false, nil
 	}
@@ -434,12 +438,125 @@ func (s *Store) ClaimMachineAgentUpgrade(ctx context.Context, machineID string) 
 	return command, true, nil
 }
 
+// ReportMachineAgentUpgrade records an explicit Agent acknowledgement/result.
+// A normal heartbeat never completes or clears an upgrade task by itself.
+func (s *Store) ReportMachineAgentUpgrade(ctx context.Context, machineID, taskID, status, version, message string) (domain.AgentUpgradeTask, error) {
+	status = strings.ToLower(strings.TrimSpace(status))
+	if status != "acknowledged" && status != "succeeded" && status != "failed" && status != "timed_out" {
+		return domain.AgentUpgradeTask{}, ErrConflict
+	}
+	version = strings.TrimSpace(version)
+	if len(message) > 2000 {
+		message = message[:2000]
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return domain.AgentUpgradeTask{}, err
+	}
+	defer tx.Rollback(ctx)
+	var targetVersion, currentStatus, currentVersion string
+	var task domain.AgentUpgradeTask
+	if err := tx.QueryRow(ctx, `SELECT COALESCE(agent_upgrade_target_version,''),COALESCE(agent_upgrade_status,''),agent_version,
+		id,agent_upgrade_task_id,COALESCE(agent_upgrade_requested_at,created_at),agent_upgrade_dispatched_at,
+		agent_upgrade_acknowledged_at,agent_upgrade_completed_at,agent_upgrade_failed_at,COALESCE(agent_upgrade_error,'')
+		FROM machines WHERE id=$1 AND agent_upgrade_task_id=$2 FOR UPDATE`, machineID, taskID).
+		Scan(&targetVersion, &currentStatus, &currentVersion, &task.MachineID, &task.ID, &task.RequestedAt,
+			&task.DispatchedAt, &task.AcknowledgedAt, &task.CompletedAt, &task.FailedAt, &task.Error); errors.Is(err, pgx.ErrNoRows) {
+		return domain.AgentUpgradeTask{}, ErrNotFound
+	} else if err != nil {
+		return domain.AgentUpgradeTask{}, err
+	}
+	task.TargetVersion = targetVersion
+	task.Status = currentStatus
+	if currentStatus == status {
+		// Retries are expected when an ACK/response was lost. Returning the stored
+		// state without writing keeps terminal timestamps and errors immutable.
+		return task, nil
+	}
+	if !validAgentUpgradeTransition(currentStatus, status) {
+		return domain.AgentUpgradeTask{}, ErrConflict
+	}
+	if status == "succeeded" {
+		if version == "" {
+			version = currentVersion
+		}
+		if !agentTargetVersionMatches(version, targetVersion) {
+			return domain.AgentUpgradeTask{}, ErrConflict
+		}
+	}
+	err = tx.QueryRow(ctx, `UPDATE machines SET
+		agent_upgrade_status=$3,
+		agent_upgrade_acknowledged_at=CASE WHEN $3='acknowledged' AND agent_upgrade_acknowledged_at IS NULL THEN now() ELSE agent_upgrade_acknowledged_at END,
+		agent_upgrade_completed_at=CASE WHEN $3='succeeded' THEN now() ELSE agent_upgrade_completed_at END,
+		agent_upgrade_failed_at=CASE WHEN $3 IN ('failed','timed_out') THEN now() ELSE agent_upgrade_failed_at END,
+		agent_upgrade_error=CASE WHEN $3 IN ('failed','timed_out') THEN $5 ELSE '' END,
+		agent_version=CASE WHEN $3='succeeded' AND NULLIF($4,'') IS NOT NULL THEN $4 ELSE agent_version END,
+		updated_at=now()
+		WHERE id=$1 AND agent_upgrade_task_id=$2
+		RETURNING id,agent_upgrade_task_id,COALESCE(agent_upgrade_target_version,''),COALESCE(agent_upgrade_status,''),
+			agent_upgrade_requested_at,agent_upgrade_dispatched_at,agent_upgrade_acknowledged_at,
+			agent_upgrade_completed_at,agent_upgrade_failed_at,COALESCE(agent_upgrade_error,'')`,
+		machineID, taskID, status, version, message).Scan(&task.MachineID, &task.ID, &task.TargetVersion, &task.Status,
+		&task.RequestedAt, &task.DispatchedAt, &task.AcknowledgedAt, &task.CompletedAt, &task.FailedAt, &task.Error)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.AgentUpgradeTask{}, ErrNotFound
+	}
+	if err != nil {
+		return domain.AgentUpgradeTask{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return domain.AgentUpgradeTask{}, err
+	}
+	return task, nil
+}
+
+func validAgentUpgradeTransition(current, next string) bool {
+	switch current {
+	case "dispatched":
+		// Scheduling may fail after dispatch but before the ACK response reaches
+		// the panel, so a direct failure remains valid. Success must first ACK.
+		return next == "acknowledged" || next == "failed"
+	case "acknowledged":
+		return next == "succeeded" || next == "failed" || next == "timed_out"
+	default:
+		return false
+	}
+}
+
+func agentTargetVersionMatches(current, target string) bool {
+	target = strings.ToLower(strings.TrimSpace(target))
+	if target == "latest" || target == "corade-latest" {
+		return strings.TrimSpace(current) != ""
+	}
+	return sameAgentVersion(current, target)
+}
+
+func sameAgentVersion(left, right string) bool {
+	left = normalizeAgentVersionForComparison(left)
+	right = normalizeAgentVersionForComparison(right)
+	return left != "" && left == right
+}
+
+func normalizeAgentVersionForComparison(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	value = strings.TrimPrefix(value, "corade-")
+	value = strings.TrimPrefix(value, "v")
+	// Release artifacts include the source hash as build metadata. The upgrade
+	// target is the immutable semantic base version, so compare that base while
+	// still rejecting unrelated versions.
+	if index := strings.IndexByte(value, '+'); index >= 0 {
+		value = value[:index]
+	}
+	return value
+}
+
 func (s *Store) RecordTelemetryBatch(ctx context.Context, machineID, idempotencyKey string, payload json.RawMessage) (bool, error) {
 	batch, err := decodeTelemetryBatch(payload)
 	if err != nil {
 		return false, err
 	}
 	trafficLocation := loadTrafficLocation(s.SettingString(ctx, "site", "timezone", "Asia/Shanghai"))
+	deviceOfflineThreshold := s.machineOfflineThreshold(ctx)
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return false, err
@@ -453,6 +570,13 @@ func (s *Store) RecordTelemetryBatch(ctx context.Context, machineID, idempotency
 	if tag.RowsAffected() == 0 {
 		return false, nil
 	}
+	// Device snapshots are point-in-time reports. Expire entries only after the
+	// idempotency insert succeeds so replaying an already accepted batch has no
+	// database side effects.
+	if _, err := tx.Exec(ctx, `UPDATE user_devices SET online=false
+		WHERE online AND last_seen_at < now() - ($1::bigint * interval '1 second')`, int64(deviceOfflineThreshold/time.Second)); err != nil {
+		return false, err
+	}
 	if err := lockTelemetryDeviceUsers(ctx, tx, batch); err != nil {
 		return false, err
 	}
@@ -463,7 +587,7 @@ func (s *Store) RecordTelemetryBatch(ctx context.Context, machineID, idempotency
 				return false, err
 			}
 		case "node.devices":
-			if err := recordNodeDevices(ctx, tx, machineID, event); err != nil {
+			if err := recordNodeDevices(ctx, tx, machineID, event, deviceOfflineThreshold); err != nil {
 				return false, err
 			}
 		}
@@ -554,11 +678,27 @@ func decodeTelemetryBatch(payload json.RawMessage) (telemetryBatch, error) {
 	return batch, nil
 }
 
+const (
+	telemetryMaximumFutureSkew = 5 * time.Minute
+	telemetryMaximumPastAge    = 24 * time.Hour
+)
+
 func telemetryTime(value string) time.Time {
+	return boundedTelemetryTime(value, time.Now().UTC())
+}
+
+// boundedTelemetryTime prevents an Agent with a broken clock (or a forged
+// event timestamp) from moving node presence into the future or attributing a
+// retry to an arbitrarily old traffic day. Invalid and out-of-window values
+// are treated as received now.
+func boundedTelemetryTime(value string, now time.Time) time.Time {
 	if parsed, err := time.Parse(time.RFC3339Nano, value); err == nil {
-		return parsed.UTC()
+		parsed = parsed.UTC()
+		if !parsed.After(now.Add(telemetryMaximumFutureSkew)) && !parsed.Before(now.Add(-telemetryMaximumPastAge)) {
+			return parsed
+		}
 	}
-	return time.Now().UTC()
+	return now.UTC()
 }
 
 func loadTrafficLocation(name string) *time.Location {
@@ -586,11 +726,11 @@ func recordNodeTelemetry(ctx context.Context, tx pgx.Tx, machineID string, event
 	if err := json.Unmarshal(event.Data, &data); err != nil {
 		return fmt.Errorf("decode node telemetry: %w", err)
 	}
-	sampledAt := telemetryTime(event.OccurredAt)
+	sampledAt := boundedTelemetryTime(event.OccurredAt, time.Now().UTC())
 	var nodeID string
 	err := tx.QueryRow(ctx, `
 		UPDATE nodes SET applied_revision=CASE WHEN $3 > 0 THEN LEAST(current_revision,GREATEST(applied_revision,$3)) ELSE applied_revision END,
-		       last_report_at=$4,updated_at=now()
+		       last_report_at=GREATEST(COALESCE(LEAST(last_report_at,now()),'epoch'::timestamptz),LEAST($4,now())),updated_at=now()
 		WHERE machine_id=$1 AND agent_id=$2 AND status='published'
 		RETURNING id`, machineID, event.NodeID, data.Revision, sampledAt).Scan(&nodeID)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -599,9 +739,9 @@ func recordNodeTelemetry(ctx context.Context, tx pgx.Tx, machineID string, event
 	if err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx, `INSERT INTO node_metrics(node_id,sampled_at,metrics) VALUES($1,$2,$3)
-		ON CONFLICT(node_id) DO UPDATE SET sampled_at=EXCLUDED.sampled_at,metrics=EXCLUDED.metrics
-		WHERE EXCLUDED.sampled_at >= node_metrics.sampled_at`, nodeID, sampledAt, event.Data); err != nil {
+	if _, err := tx.Exec(ctx, `INSERT INTO node_metrics(node_id,sampled_at,metrics) VALUES($1,LEAST($2,now()),$3)
+		ON CONFLICT(node_id) DO UPDATE SET sampled_at=LEAST(EXCLUDED.sampled_at,now()),metrics=EXCLUDED.metrics
+		WHERE LEAST(EXCLUDED.sampled_at,now()) >= LEAST(node_metrics.sampled_at,now())`, nodeID, sampledAt, event.Data); err != nil {
 		return err
 	}
 	for userAgentID, traffic := range data.Traffic {
@@ -609,15 +749,13 @@ func recordNodeTelemetry(ctx context.Context, tx pgx.Tx, machineID string, event
 		if err != nil || userID <= 0 || traffic[0] < 0 || traffic[1] < 0 || (traffic[0] == 0 && traffic[1] == 0) {
 			continue
 		}
-		_, err = tx.Exec(ctx, `
-			WITH entitled AS (
+		_, err = tx.Exec(ctx, runtimeEligibleUsersCTE+`, entitled AS (
 			  SELECT u.id AS user_id,n.id AS node_id
 			FROM nodes n
 			JOIN access_group_nodes gn ON gn.node_id=n.id
-			JOIN users u ON u.agent_id=$3
-			LEFT JOIN plans p ON p.id=u.plan_id
+			JOIN runtime_eligible_users u ON u.agent_id=$3
 			WHERE n.id=$1 AND n.machine_id=$2
-			  AND gn.access_group_id=COALESCE(u.access_group_override_id,p.access_group_id)
+			  AND gn.access_group_id=u.access_group_id
 			), recorded AS (
 			  INSERT INTO traffic_daily(day,user_id,node_id,upload_bytes,download_bytes)
 			  SELECT $4::date,user_id,node_id,$5,$6 FROM entitled
@@ -636,7 +774,7 @@ func recordNodeTelemetry(ctx context.Context, tx pgx.Tx, machineID string, event
 	return nil
 }
 
-func recordNodeDevices(ctx context.Context, tx pgx.Tx, machineID string, event telemetryEvent) error {
+func recordNodeDevices(ctx context.Context, tx pgx.Tx, machineID string, event telemetryEvent, offlineThreshold time.Duration) error {
 	if event.NodeID <= 0 {
 		return fmt.Errorf("node devices node_id is required")
 	}
@@ -644,17 +782,17 @@ func recordNodeDevices(ctx context.Context, tx pgx.Tx, machineID string, event t
 	if err := json.Unmarshal(event.Data, &data); err != nil {
 		return fmt.Errorf("decode node devices: %w", err)
 	}
-	sampledAt := telemetryTime(event.OccurredAt)
+	sampledAt := boundedTelemetryTime(event.OccurredAt, time.Now().UTC())
+	online := !sampledAt.Before(time.Now().UTC().Add(-offlineThreshold))
 	for _, report := range normalizeDeviceReports(data.Devices) {
 		var userID, nodeID, nodeName string
-		err := tx.QueryRow(ctx, `
+		err := tx.QueryRow(ctx, runtimeEligibleUsersCTE+`
 			SELECT u.id,n.id,n.name
 			FROM nodes n
 			JOIN access_group_nodes gn ON gn.node_id=n.id
-			JOIN users u ON u.agent_id=$3
-			LEFT JOIN plans p ON p.id=u.plan_id
-			WHERE n.machine_id=$1 AND n.agent_id=$2
-			  AND gn.access_group_id=COALESCE(u.access_group_override_id,p.access_group_id)`,
+			JOIN runtime_eligible_users u ON u.agent_id=$3
+			WHERE n.machine_id=$1 AND n.agent_id=$2 AND n.status='published'
+			  AND gn.access_group_id=u.access_group_id`,
 			machineID, event.NodeID, report.AgentID).Scan(&userID, &nodeID, &nodeName)
 		if errors.Is(err, pgx.ErrNoRows) {
 			continue
@@ -665,10 +803,12 @@ func recordNodeDevices(ctx context.Context, tx pgx.Tx, machineID string, event t
 		for _, address := range report.Addresses {
 			_, err = tx.Exec(ctx, `
 				INSERT INTO user_devices(id,user_id,node_id,ip_address,first_seen_at,last_seen_at,online)
-				VALUES($1,$2,$3,$4::inet,$5,$5,true)
+				VALUES($1,$2,$3,$4::inet,$5,$5,$6)
 				ON CONFLICT(user_id,node_id,ip_address) DO UPDATE SET
-					last_seen_at=GREATEST(user_devices.last_seen_at,EXCLUDED.last_seen_at),online=true`,
-				domain.MustID("dev"), userID, nodeID, address, sampledAt)
+					first_seen_at=LEAST(user_devices.first_seen_at,EXCLUDED.first_seen_at),
+					last_seen_at=GREATEST(user_devices.last_seen_at,EXCLUDED.last_seen_at),
+					online=CASE WHEN EXCLUDED.online THEN true ELSE user_devices.online END`,
+				domain.MustID("dev"), userID, nodeID, address, sampledAt, online)
 			if err != nil {
 				return err
 			}

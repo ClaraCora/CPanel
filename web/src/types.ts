@@ -35,6 +35,12 @@ export interface Machine {
   agent_upgrade_task_id?: string;
   agent_upgrade_requested_at?: string | null;
   agent_upgrade_dispatched_at?: string | null;
+  agent_upgrade_target_version?: string;
+  agent_upgrade_status?: "queued" | "dispatched" | "acknowledged" | "succeeded" | "failed" | "timed_out" | "";
+  agent_upgrade_acknowledged_at?: string | null;
+  agent_upgrade_completed_at?: string | null;
+  agent_upgrade_failed_at?: string | null;
+  agent_upgrade_error?: string;
   agent_protocol?: "legacy" | "v2";
   agent_v2_last_seen_at?: string | null;
   node_count: number;

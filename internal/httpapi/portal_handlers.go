@@ -37,6 +37,11 @@ func (s *Server) handlePortalLogin(w http.ResponseWriter, r *http.Request) {
 		writeLoginRateLimited(w, r)
 		return
 	}
+	if !validPortalLogin(login) || !validLoginPassword(input.Password) {
+		s.recordLoginFailure("portal", sourceIP, login, maximumFailures, now)
+		writeError(w, r, http.StatusUnauthorized, "PORTAL_LOGIN_FAILED", "账号或密码错误", nil)
+		return
+	}
 	user, err := s.store.FindPortalUserByLogin(r.Context(), login)
 	hash := s.dummyPasswordHash
 	if err == nil && user.PasswordHash != "" {
@@ -59,12 +64,12 @@ func (s *Server) handlePortalLogin(w http.ResponseWriter, r *http.Request) {
 		writeStoreError(w, r, err)
 		return
 	}
-	expiresAt := time.Now().Add(s.cfg.SessionTTL)
+	expiresAt := time.Now().Add(s.sessionTTL(r.Context()))
 	if _, err := s.store.CreatePortalSession(r.Context(), user.ID, tokenHash, csrf, "", sourceIP, r.UserAgent(), false, expiresAt); err != nil {
 		writeStoreError(w, r, err)
 		return
 	}
-	s.setPortalSessionCookie(w, plain, expiresAt)
+	s.setPortalSessionCookie(w, r, plain, expiresAt)
 	writeData(w, r, http.StatusOK, portalSessionPayload(domain.PortalSession{
 		User: user.User, CSRFToken: csrf, ExpiresAt: expiresAt,
 	}))
@@ -129,14 +134,14 @@ func (s *Server) handlePortalGrantRedemption(w http.ResponseWriter, r *http.Requ
 		writeStoreError(w, r, err)
 		return
 	}
-	expiresAt := time.Now().Add(s.cfg.SessionTTL)
+	expiresAt := time.Now().Add(s.sessionTTL(r.Context()))
 	if _, err := s.store.CreatePortalSession(r.Context(), userID, tokenHash, csrf, adminID, clientIP(r), r.UserAgent(), true, expiresAt); err != nil {
 		writeStoreError(w, r, err)
 		return
 	}
 	_ = s.store.WriteAudit(r.Context(), adminID, "user.portal.delegate.redeem", "user", userID,
 		map[string]any{}, clientIP(r), requestID(r))
-	s.setPortalSessionCookie(w, plain, expiresAt)
+	s.setPortalSessionCookie(w, r, plain, expiresAt)
 	writeData(w, r, http.StatusOK, portalSessionPayload(domain.PortalSession{
 		User: user.User, CSRFToken: csrf, ExpiresAt: expiresAt, ReadOnly: true, DelegatedByID: adminID,
 	}))
@@ -206,6 +211,9 @@ func (s *Server) handlePortalPassword(w http.ResponseWriter, r *http.Request) {
 	if utf8.RuneCountInString(input.NewPassword) < minimumLength {
 		fields["new_password"] = fmt.Sprintf("新密码至少需要 %d 个字符", minimumLength)
 	}
+	if !validLoginPassword(input.NewPassword) {
+		fields["new_password"] = "新密码长度无效"
+	}
 	if input.NewPassword != input.ConfirmPassword {
 		fields["confirm_password"] = "两次输入的新密码不一致"
 	}
@@ -261,7 +269,7 @@ func (s *Server) handlePortalLogout(w http.ResponseWriter, r *http.Request) {
 	if cookie, err := r.Cookie(portalSessionCookieName); err == nil && cookie.Value != "" {
 		_ = s.store.RevokePortalSession(r.Context(), auth.HashSecret(cookie.Value))
 	}
-	s.expirePortalSessionCookie(w)
+	s.expirePortalSessionCookie(w, r)
 	writeData(w, r, http.StatusOK, map[string]bool{"logged_out": true})
 }
 
@@ -273,10 +281,10 @@ func portalSessionPayload(session domain.PortalSession) map[string]any {
 	}
 }
 
-func (s *Server) setPortalSessionCookie(w http.ResponseWriter, value string, expiresAt time.Time) {
+func (s *Server) setPortalSessionCookie(w http.ResponseWriter, r *http.Request, value string, expiresAt time.Time) {
 	http.SetCookie(w, &http.Cookie{
 		Name: portalSessionCookieName, Value: value, Path: "/", HttpOnly: true,
-		Secure: s.cfg.CookieSecure, SameSite: http.SameSiteStrictMode,
+		Secure: s.secureCookies(r.Context()), SameSite: http.SameSiteStrictMode,
 		Expires: expiresAt, MaxAge: int(time.Until(expiresAt).Seconds()),
 	})
 }

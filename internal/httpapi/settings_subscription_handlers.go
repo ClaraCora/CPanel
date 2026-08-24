@@ -46,6 +46,27 @@ var settingSectionPaths = map[string]string{
 	"tg": "tgbot",
 }
 
+var sensitiveSettingKeys = map[string]map[string]bool{
+	"agent":       {"communication_key": true},
+	"certificate": {"dns_api_token": true},
+	"tgbot":       {"bot_token": true},
+}
+
+var allowedSettingKeys = map[string]map[string]bool{
+	"site":          {"platform_name": true, "site_url": true, "timezone": true, "default_language": true, "footer_text": true},
+	"agent":         {"external_url": true, "installer_url": true, "communication_key": true, "heartbeat_seconds": true, "offline_threshold_seconds": true, "fallback_pull_seconds": true, "max_message_bytes": true, "allow_legacy_protocol": true},
+	"security":      {"session_ttl_minutes": true, "password_min_length": true, "max_login_failures": true, "trusted_proxy_cidrs": true},
+	"node_defaults": {"default_kernel": true, "listen_ip": true, "telemetry_seconds": true, "certificate_mode": true},
+	"certificate":   {"acme_email": true, "dns_provider": true, "dns_api_token": true, "http01_port": true},
+	"subscription":  {"base_url": true, "cache_seconds": true, "format": true, "block_browser_access": true, "ua_whitelist": true},
+	"retention":     {"devices_days": true, "traffic_days": true, "audit_days": true, "subscription_access_days": true},
+	"tgbot":         {"enabled": true, "bot_token": true, "admin_telegram_id": true, "daily_report_enabled": true, "daily_report_time": true},
+}
+
+func isSensitiveSetting(section, key string) bool {
+	return sensitiveSettingKeys[section][key]
+}
+
 func settingSection(r *http.Request) string {
 	value := chi.URLParam(r, "section")
 	return settingSectionPaths[value]
@@ -72,8 +93,9 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input struct {
-		Values        map[string]json.RawMessage `json:"values"`
-		SensitiveKeys []string                   `json:"sensitive_keys"`
+		Values map[string]json.RawMessage `json:"values"`
+		// Kept for request compatibility only; the server schema is authoritative.
+		SensitiveKeys []string `json:"sensitive_keys"`
 	}
 	if !decodeJSON(w, r, &input) {
 		return
@@ -82,25 +104,31 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "没有需要保存的设置", nil)
 		return
 	}
-	sensitive := make(map[string]bool, len(input.SensitiveKeys))
-	for _, key := range input.SensitiveKeys {
-		sensitive[key] = true
-	}
+	sensitive := make(map[string]bool)
 	var sharedKey string
 	for key, value := range input.Values {
 		if strings.TrimSpace(key) == "" || !json.Valid(value) {
 			writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "设置键或值无效", map[string]string{key: "invalid"})
 			return
 		}
-		if section == "tgbot" && key == "bot_token" {
-			sensitive[key] = true
+		if !allowedSettingKeys[section][key] {
+			writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "设置项不受支持", map[string]string{key: "unknown_setting"})
+			return
 		}
+		sensitive[key] = isSensitiveSetting(section, key)
 		if sensitive[key] {
 			if section == "agent" && key == "communication_key" {
-				if err := json.Unmarshal(value, &sharedKey); err != nil || len(sharedKey) < 32 {
-					writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "Agent 通讯密钥至少需要 32 个字符", map[string]string{key: "too_short"})
+				if err := json.Unmarshal(value, &sharedKey); err != nil {
+					writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "Agent 通讯密钥格式无效", map[string]string{key: "invalid"})
 					return
 				}
+				sharedKey = strings.TrimSpace(sharedKey)
+				if len(sharedKey) < 32 || len(sharedKey) > 512 {
+					writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "Agent 通讯密钥需要 32 到 512 个字符", map[string]string{key: "invalid_length"})
+					return
+				}
+				input.Values[key], _ = json.Marshal(sharedKey)
+				value = input.Values[key]
 			}
 			if section == "tgbot" && key == "bot_token" {
 				var token string
@@ -108,6 +136,17 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 					writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "TG Bot 密钥格式无效", map[string]string{key: "请填写 BotFather 提供的完整密钥"})
 					return
 				}
+				input.Values[key], _ = json.Marshal(strings.TrimSpace(token))
+				value = input.Values[key]
+			}
+			if section == "certificate" && key == "dns_api_token" {
+				var token string
+				if err := json.Unmarshal(value, &token); err != nil || strings.TrimSpace(token) == "" || len(token) > 4096 {
+					writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "DNS API Token 格式无效", map[string]string{key: "请填写有效的 Token"})
+					return
+				}
+				input.Values[key], _ = json.Marshal(strings.TrimSpace(token))
+				value = input.Values[key]
 			}
 			sealed, err := s.secureBox.Seal(value)
 			if err != nil {
@@ -140,6 +179,13 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 			var minimum int
 			if err := json.Unmarshal(value, &minimum); err != nil || minimum < 8 || minimum > 128 {
 				writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "密码最小长度必须是 8 到 128", map[string]string{key: "请输入 8 到 128 之间的整数"})
+				return
+			}
+		}
+		if section == "security" && key == "session_ttl_minutes" {
+			var minutes int
+			if err := json.Unmarshal(value, &minutes); err != nil || minutes < minimumSessionTTLMinutes || minutes > maximumSessionTTLMinutes {
+				writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "会话有效期必须是 15 分钟到 30 天", map[string]string{key: "请输入 15 到 43200 之间的整数"})
 				return
 			}
 		}
@@ -203,15 +249,17 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	admin := currentAdmin(r)
-	if err := s.store.UpsertSettings(r.Context(), section, admin.ID, input.Values, sensitive); err != nil {
-		writeStoreError(w, r, err)
-		return
-	}
 	if sharedKey != "" {
-		if err := s.store.SetAgentSharedCredential(r.Context(), admin.ID, auth.HashSecret(sharedKey), auth.Prefix(sharedKey, 12)); err != nil {
+		if err := s.store.UpsertSettingsWithAgentCredential(
+			r.Context(), section, admin.ID, input.Values, sensitive,
+			auth.HashSecret(sharedKey), auth.Prefix(sharedKey, 12),
+		); err != nil {
 			writeStoreError(w, r, err)
 			return
 		}
+	} else if err := s.store.UpsertSettings(r.Context(), section, admin.ID, input.Values, sensitive); err != nil {
+		writeStoreError(w, r, err)
+		return
 	}
 	keys := make([]string, 0, len(input.Values))
 	for key := range input.Values {
@@ -224,6 +272,9 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 func validTelegramBotToken(value string) bool {
+	if len(value) > 256 {
+		return false
+	}
 	parts := strings.Split(strings.TrimSpace(value), ":")
 	if len(parts) != 2 || len(parts[1]) < 20 {
 		return false

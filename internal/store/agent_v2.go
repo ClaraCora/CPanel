@@ -133,6 +133,8 @@ func (s *Store) ResetAgentIdentity(ctx context.Context, machineID string) error 
 		agent_protocol='legacy',agent_v2_last_seen_at=NULL,last_heartbeat_at=NULL,
 		agent_version='',capabilities='{}'::jsonb,
 		agent_upgrade_task_id=NULL,agent_upgrade_requested_at=NULL,agent_upgrade_dispatched_at=NULL,
+		agent_upgrade_target_version='',agent_upgrade_status='',agent_upgrade_acknowledged_at=NULL,
+		agent_upgrade_completed_at=NULL,agent_upgrade_failed_at=NULL,agent_upgrade_error='',
 		updated_at=now()
 		WHERE id=$1 AND status <> 'archived'`, machineID); err != nil {
 		return err

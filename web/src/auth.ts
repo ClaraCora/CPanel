@@ -3,6 +3,10 @@ import type { ApiErrorBody, Envelope, Session } from "./types";
 const base = "/ca/ht";
 const requestTimeoutMs = 15_000;
 let csrfToken = "";
+let adminSessionExpiredNotified = false;
+
+export const adminSessionExpiredEvent = "cpanel:admin-session-expired";
+export const portalSessionExpiredEvent = "cpanel:portal-session-expired";
 
 export const demoMode = import.meta.env.DEV && new URLSearchParams(window.location.search).get("demo") === "1";
 
@@ -22,6 +26,17 @@ export class ApiError extends Error {
 
 export function getCsrfToken() {
   return csrfToken;
+}
+
+export function notifyAdminSessionExpired() {
+  csrfToken = "";
+  if (adminSessionExpiredNotified) return;
+  adminSessionExpiredNotified = true;
+  window.dispatchEvent(new Event(adminSessionExpiredEvent));
+}
+
+export function notifyPortalSessionExpired() {
+  window.dispatchEvent(new Event(portalSessionExpiredEvent));
 }
 
 function setCsrfToken(value: string) {
@@ -56,6 +71,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 async function storeSession(session: Session) {
+  adminSessionExpiredNotified = false;
   setCsrfToken(session.csrf_token);
   return session;
 }

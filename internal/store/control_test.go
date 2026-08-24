@@ -31,7 +31,8 @@ func TestDecodeTelemetryBatchRejectsMissingEvents(t *testing.T) {
 }
 
 func TestTelemetryTimeUsesUTCAndFallsBack(t *testing.T) {
-	got := telemetryTime("2026-07-29T20:00:00+08:00")
+	now := time.Date(2026, 7, 30, 12, 0, 0, 0, time.UTC)
+	got := boundedTelemetryTime("2026-07-29T20:00:00+08:00", now)
 	want := time.Date(2026, 7, 29, 12, 0, 0, 0, time.UTC)
 	if !got.Equal(want) {
 		t.Fatalf("telemetryTime = %s, want %s", got, want)
@@ -43,17 +44,87 @@ func TestTelemetryTimeUsesUTCAndFallsBack(t *testing.T) {
 	}
 }
 
+func TestBoundedTelemetryTimeRejectsClockSkew(t *testing.T) {
+	now := time.Date(2026, 8, 24, 12, 0, 0, 0, time.UTC)
+	if got := boundedTelemetryTime("2026-08-24T11:59:00Z", now); !got.Equal(now.Add(-time.Minute)) {
+		t.Fatalf("valid telemetry time = %s", got)
+	}
+	if got := boundedTelemetryTime("2026-08-25T12:00:00Z", now); !got.Equal(now) {
+		t.Fatalf("future telemetry time = %s, want receive time %s", got, now)
+	}
+	if got := boundedTelemetryTime("2025-01-01T00:00:00Z", now); !got.Equal(now) {
+		t.Fatalf("stale telemetry time = %s, want receive time %s", got, now)
+	}
+}
+
 func TestTelemetryDayUsesSiteTimezoneAcrossUTCMidnight(t *testing.T) {
-	sampledAt := telemetryTime("2026-07-30T16:22:18Z")
+	sampledAt := boundedTelemetryTime("2026-07-30T16:22:18Z", time.Date(2026, 7, 31, 12, 0, 0, 0, time.UTC))
 	if got, want := telemetryDay(sampledAt, loadTrafficLocation("Asia/Shanghai")), "2026-07-31"; got != want {
 		t.Fatalf("telemetryDay = %s, want %s", got, want)
 	}
 }
 
 func TestLoadTrafficLocationFallsBackToAsiaShanghai(t *testing.T) {
-	sampledAt := telemetryTime("2026-07-30T16:22:18Z")
+	sampledAt := boundedTelemetryTime("2026-07-30T16:22:18Z", time.Date(2026, 7, 31, 12, 0, 0, 0, time.UTC))
 	if got, want := telemetryDay(sampledAt, loadTrafficLocation("not/a-timezone")), "2026-07-31"; got != want {
 		t.Fatalf("fallback telemetryDay = %s, want %s", got, want)
+	}
+}
+
+func TestAgentUpgradeTransitions(t *testing.T) {
+	tests := []struct {
+		current string
+		next    string
+		want    bool
+	}{
+		{current: "dispatched", next: "acknowledged", want: true},
+		{current: "dispatched", next: "failed", want: true},
+		{current: "dispatched", next: "succeeded", want: false},
+		{current: "acknowledged", next: "succeeded", want: true},
+		{current: "acknowledged", next: "failed", want: true},
+		{current: "acknowledged", next: "timed_out", want: true},
+		{current: "queued", next: "acknowledged", want: false},
+		{current: "succeeded", next: "failed", want: false},
+	}
+	for _, test := range tests {
+		if got := validAgentUpgradeTransition(test.current, test.next); got != test.want {
+			t.Errorf("validAgentUpgradeTransition(%q, %q) = %t, want %t", test.current, test.next, got, test.want)
+		}
+	}
+}
+
+func TestAgentVersionComparison(t *testing.T) {
+	for _, test := range []struct {
+		current string
+		target  string
+		want    bool
+	}{
+		{current: "v2.0.3+abc123", target: "v2.0.3", want: true},
+		{current: "corade-v2.0.3", target: "v2.0.3", want: true},
+		{current: "v2.0.2", target: "v2.0.3", want: false},
+		{current: "v2.0.3+abc123", target: "latest", want: true},
+		{current: "", target: "latest", want: false},
+	} {
+		if got := agentTargetVersionMatches(test.current, test.target); got != test.want {
+			t.Errorf("agentTargetVersionMatches(%q, %q) = %t, want %t", test.current, test.target, got, test.want)
+		}
+	}
+}
+
+func TestBoundedTelemetryTimeRejectsExtremeClockSkew(t *testing.T) {
+	now := time.Date(2026, 7, 30, 12, 0, 0, 0, time.UTC)
+	for _, value := range []string{"2026-07-31T12:01:00Z", "2026-07-28T11:59:59Z", "not-a-time"} {
+		if got := boundedTelemetryTime(value, now); !got.Equal(now) {
+			t.Fatalf("boundedTelemetryTime(%q) = %s, want %s", value, got, now)
+		}
+	}
+}
+
+func TestBoundedTelemetryTimePreservesReasonableTimestamp(t *testing.T) {
+	now := time.Date(2026, 7, 30, 12, 0, 0, 0, time.UTC)
+	want := now.Add(-2 * time.Hour)
+	if got := boundedTelemetryTime(want.Format(time.RFC3339Nano), now); !got.Equal(want) {
+		t.Fatalf("boundedTelemetryTime() = %s, want %s", got, want)
 	}
 }
 

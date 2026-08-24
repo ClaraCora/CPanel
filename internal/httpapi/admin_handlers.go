@@ -42,6 +42,11 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		writeLoginRateLimited(w, r)
 		return
 	}
+	if !validAdminLogin(input.Email) || !validLoginPassword(input.Password) {
+		s.recordLoginFailure("admin", sourceIP, input.Email, maximumFailures, now)
+		writeError(w, r, http.StatusUnauthorized, "LOGIN_FAILED", "邮箱或密码错误", nil)
+		return
+	}
 	admin, err := s.store.FindAdminByEmail(r.Context(), input.Email)
 	hash := s.dummyPasswordHash
 	if err == nil {
@@ -64,7 +69,8 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		writeStoreError(w, r, err)
 		return
 	}
-	expiresAt := time.Now().Add(s.cfg.SessionTTL)
+	sessionTTL := s.sessionTTL(r.Context())
+	expiresAt := time.Now().Add(sessionTTL)
 	if _, err := s.store.CreateAdminSession(r.Context(), admin.ID, tokenHash, csrf, sourceIP, r.UserAgent(), expiresAt); err != nil {
 		writeStoreError(w, r, err)
 		return
@@ -73,8 +79,8 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	_ = s.store.WriteAudit(r.Context(), admin.ID, "admin.login", "admin", admin.ID, map[string]any{}, sourceIP, requestID(r))
 	http.SetCookie(w, &http.Cookie{
 		Name: sessionCookieName, Value: plain, Path: "/", HttpOnly: true,
-		Secure: s.cfg.CookieSecure, SameSite: http.SameSiteStrictMode,
-		Expires: expiresAt, MaxAge: int(s.cfg.SessionTTL.Seconds()),
+		Secure: s.secureCookies(r.Context()), SameSite: http.SameSiteStrictMode,
+		Expires: expiresAt, MaxAge: int(sessionTTL.Seconds()),
 	})
 	writeData(w, r, http.StatusOK, map[string]any{"admin": admin.Admin, "csrf_token": csrf})
 }
@@ -140,6 +146,9 @@ func (s *Server) handleUpdateAdminPassword(w http.ResponseWriter, r *http.Reques
 	if utf8.RuneCountInString(input.NewPassword) < minimumLength {
 		fields["new_password"] = fmt.Sprintf("新密码至少需要 %d 个字符", minimumLength)
 	}
+	if !validLoginPassword(input.NewPassword) {
+		fields["new_password"] = "新密码长度无效"
+	}
 	if input.NewPassword != input.ConfirmPassword {
 		fields["confirm_password"] = "两次输入的新密码不一致"
 	}
@@ -183,7 +192,7 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	}
 	admin := currentAdmin(r)
 	_ = s.store.WriteAudit(r.Context(), admin.ID, "admin.logout", "admin", admin.ID, map[string]any{}, clientIP(r), requestID(r))
-	s.expireSessionCookie(w)
+	s.expireSessionCookie(w, r)
 	writeData(w, r, http.StatusOK, map[string]bool{"logged_out": true})
 }
 

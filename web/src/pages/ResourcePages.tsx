@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Copy, Edit3, KeyRound, Link2, Plus, Power, RefreshCw, Search, SquareArrowOutUpRight, Terminal, Trash2, UserPlus, UsersRound } from "lucide-react";
 import { ApiError, api } from "../api";
-import { Button, ConfirmDialog, Drawer, EmptyState, Field, PageHeader, RowMenu, StatusBadge, TableSkeleton, formatBytes, formatDate, formatDateWithYear, formatPreciseDate, useToast } from "../components/ui";
+import { Button, ConfirmDialog, DataFreshness, Drawer, EmptyState, Field, PageHeader, RowMenu, StatusBadge, TableSkeleton, formatBytes, formatDate, formatDateWithYear, formatPreciseDate, useToast } from "../components/ui";
 import { NodeMultiSelect, type MultiSelectOption } from "../components/NodeMultiSelect";
 import { OutboundConfigForm, defaultOutboundSettings, parseOutboundSettings, validateOutboundSettingsValue } from "../components/OutboundConfigForm";
 import { RouteRulesEditor, validateRouteRulesValue } from "../components/RouteRulesEditor";
@@ -51,7 +51,7 @@ type ResourcePageProps<T extends Resource> = {
 function ResourcePage<T extends Resource>({ title, description, endpoint, createLabel, columns, fields, defaults, transform, toValues, enabledStatus = "active", disabledStatus = "disabled", installable = false, upgradeable = false, identityResettable = false, subscriptionActions = false, portalActions = false, quickAccountCreation = false, deletable = false, identifierAction, protectedItem, refreshIntervalMs = 0 }: ResourcePageProps<T>) {
 	deletable = deletable || ["/machines", "/access-groups", "/plans", "/route-policies", "/outbounds"].includes(endpoint);
 	if (endpoint === "/route-policies") enabledStatus = "published";
-  const { data, loading, error, reload } = useResource<T[]>(endpoint, [], refreshIntervalMs);
+  const { data, loading, refreshing, error, refreshError, lastSuccessAt, stale, reload } = useResource<T[]>(endpoint, [], refreshIntervalMs);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<T | null>(null);
@@ -268,7 +268,7 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
 
   return <div className="page">
     <PageHeader title={title} description={description} actions={<>{quickAccountCreation && <><Button type="button" loading={quickCreating === "user"} disabled={Boolean(quickCreating)} onClick={() => void quickCreateAccount("user")}><UserPlus size={16} />{quickCreating === "user" ? "添加中…" : "一键添加用户"}</Button><Button type="button" loading={quickCreating === "friend"} disabled={Boolean(quickCreating)} onClick={() => void quickCreateAccount("friend")}><UsersRound size={16} />{quickCreating === "friend" ? "添加中…" : "一键添加朋友"}</Button></>}<Button type="button" variant="primary" disabled={Boolean(quickCreating)} onClick={showCreate}><Plus size={16} />{createLabel}</Button></>} />
-    <div className="toolbar"><label className="search-box"><Search size={16} /><span className="sr-only">搜索{title}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`搜索${title}`} /></label><span className="toolbar__count">{filtered.length} 条记录</span></div>
+    <div className="toolbar"><label className="search-box"><Search size={16} /><span className="sr-only">搜索{title}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`搜索${title}`} /></label>{refreshIntervalMs > 0 && <DataFreshness lastSuccessAt={lastSuccessAt} stale={stale} refreshing={refreshing} error={refreshError} />}<span className="toolbar__count">{filtered.length} 条记录</span></div>
     <div className="table-surface">
       {loading ? <TableSkeleton columns={columns.length + 2} /> : error ? <EmptyState title={`${title}加载失败`} description={error} action={<Button onClick={() => void reload()}>重新加载</Button>} /> : filtered.length === 0 ? <EmptyState title={data.length ? "没有符合搜索条件的记录" : `还没有${title}`} description={data.length ? "更换搜索词后重试。" : `创建第一条${title}记录开始管理。`} action={!data.length && <Button variant="primary" onClick={showCreate}><Plus size={16} />{createLabel}</Button>} /> : (
         <div className="table-scroll"><table><thead><tr>{columns.map((column) => <th className={column.className} key={column.label}>{column.label}</th>)}<th>状态</th><th className="col-actions">操作</th></tr></thead><tbody>{filtered.map((item) => {
@@ -301,6 +301,16 @@ type AgentUpgradeState = "disconnected" | "pending" | "running" | "latest" | "av
 const latestAgentVersion = (item: Resource) => "latest_agent_version" in item && typeof item.latest_agent_version === "string" ? item.latest_agent_version : "";
 const agentUpgradeState = (item: Resource): AgentUpgradeState => {
   if (!("last_heartbeat_at" in item) || !item.last_heartbeat_at) return "disconnected";
+  if ("agent_upgrade_status" in item) {
+    const status = item.agent_upgrade_status;
+    if (status === "succeeded") return "latest";
+    if (status === "failed" || status === "timed_out") {
+      const latest = latestAgentVersion(item);
+      return latest && "agent_version" in item && typeof item.agent_version === "string" && item.agent_version.toLowerCase() !== latest.toLowerCase() ? "available" : "unknown";
+    }
+    if (status === "queued") return "pending";
+    if (status === "dispatched" || status === "acknowledged") return "running";
+  }
   if ("agent_upgrade_task_id" in item && item.agent_upgrade_task_id) return "agent_upgrade_dispatched_at" in item && item.agent_upgrade_dispatched_at ? "running" : "pending";
   const latest = latestAgentVersion(item);
   if (!latest || !("agent_version" in item) || typeof item.agent_version !== "string") return "unknown";
@@ -379,6 +389,9 @@ function TrafficUsage({ used, limit }: { used: number; limit: number }) {
 
 function agentUpgradeLabel(machine: Machine) {
   const state = agentUpgradeState(machine);
+  if (machine.agent_upgrade_status === "failed") return `上次升级失败${machine.agent_upgrade_error ? `：${machine.agent_upgrade_error}` : ""}`;
+  if (machine.agent_upgrade_status === "timed_out") return "上次升级超时，可重新下发";
+  if (machine.agent_upgrade_status === "succeeded") return `已升级至 ${machine.agent_version || machine.agent_upgrade_target_version || "最新版本"}`;
   if (state === "available") return `可更新至 ${machine.latest_agent_version}`;
   return ({ disconnected: "尚未连接", pending: "升级任务等待心跳", running: "升级执行中", latest: "已是最新版本", unknown: "版本检查暂不可用" } as const)[state];
 }

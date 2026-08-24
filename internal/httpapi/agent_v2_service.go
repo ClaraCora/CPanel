@@ -179,7 +179,7 @@ func (s *agentV2Service) enrollmentKey(ctx context.Context) ([]byte, error) {
 	return []byte(key), nil
 }
 
-func (s *agentV2Service) sessionForEnvelope(envelope []byte, now time.Time) (agentV2SessionRecord, error) {
+func (s *agentV2Service) sessionForEnvelope(ctx context.Context, envelope []byte, now time.Time) (agentV2SessionRecord, error) {
 	sessionID, err := agentv2.SessionIDFromEnvelope(envelope)
 	if err != nil {
 		return agentV2SessionRecord{}, err
@@ -193,10 +193,10 @@ func (s *agentV2Service) sessionForEnvelope(envelope []byte, now time.Time) (age
 		}
 		return agentV2SessionRecord{}, errors.New("encrypted Agent session is unavailable")
 	}
-	return record, nil
+	return s.validateSession(ctx, record, now)
 }
 
-func (s *agentV2Service) sessionByID(sessionID string, now time.Time) (agentV2SessionRecord, error) {
+func (s *agentV2Service) sessionByID(ctx context.Context, sessionID string, now time.Time) (agentV2SessionRecord, error) {
 	s.sessionsMu.RLock()
 	record, ok := s.sessions[sessionID]
 	s.sessionsMu.RUnlock()
@@ -206,6 +206,21 @@ func (s *agentV2Service) sessionByID(sessionID string, now time.Time) (agentV2Se
 		}
 		return agentV2SessionRecord{}, errors.New("encrypted Agent session is unavailable")
 	}
+	return s.validateSession(ctx, record, now)
+}
+
+// validateSession re-checks the machine in the database instead of trusting
+// the snapshot captured at handshake time. This makes disabling, archiving,
+// or resetting a machine take effect for already-established V2 sessions.
+func (s *agentV2Service) validateSession(ctx context.Context, record agentV2SessionRecord, now time.Time) (agentV2SessionRecord, error) {
+	machine, err := s.store.AgentMachineByID(ctx, record.machine.ID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			s.deleteMachineSessions(record.machine.ID)
+		}
+		return agentV2SessionRecord{}, err
+	}
+	record.machine = machine
 	return record, nil
 }
 

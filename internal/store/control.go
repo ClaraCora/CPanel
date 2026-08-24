@@ -412,6 +412,29 @@ func (s *Store) RecordMachineHeartbeat(ctx context.Context, machine domain.Agent
 	if command.RowsAffected() == 0 {
 		return ErrNotFound
 	}
+	// Older Agents can execute the detached installer but do not know how to
+	// send the upgrade lifecycle ACK/result messages. A heartbeat that reports
+	// the requested target version is authoritative evidence that such an
+	// upgrade completed. This also repairs a task that timed out locally while
+	// the Agent was restarting.
+	var upgradeTaskID, upgradeStatus, upgradeTargetVersion string
+	err = tx.QueryRow(ctx, `SELECT COALESCE(agent_upgrade_task_id,''),
+		COALESCE(agent_upgrade_status,''),COALESCE(agent_upgrade_target_version,'')
+		FROM machines WHERE id=$1`, machine.ID).Scan(&upgradeTaskID, &upgradeStatus, &upgradeTargetVersion)
+	if err != nil {
+		return err
+	}
+	if upgradeTaskID != "" && shouldCompleteAgentUpgradeFromHeartbeat(upgradeStatus, version, upgradeTargetVersion) {
+		if _, err := tx.Exec(ctx, `UPDATE machines SET
+			agent_upgrade_status='succeeded',
+			agent_upgrade_acknowledged_at=COALESCE(agent_upgrade_acknowledged_at,now()),
+			agent_upgrade_completed_at=COALESCE(agent_upgrade_completed_at,now()),
+			agent_upgrade_failed_at=NULL,agent_upgrade_error='',updated_at=now()
+			WHERE id=$1 AND agent_upgrade_task_id=$2
+			  AND agent_upgrade_status IN ('dispatched','acknowledged','timed_out')`, machine.ID, upgradeTaskID); err != nil {
+			return err
+		}
+	}
 	_, err = tx.Exec(ctx, `INSERT INTO machine_metrics(machine_id,sampled_at,metrics) VALUES($1,$2,$3)
 		ON CONFLICT(machine_id) DO UPDATE SET sampled_at=EXCLUDED.sampled_at,metrics=EXCLUDED.metrics`,
 		machine.ID, time.Now().UTC(), metrics)
@@ -513,11 +536,24 @@ func (s *Store) ReportMachineAgentUpgrade(ctx context.Context, machineID, taskID
 func validAgentUpgradeTransition(current, next string) bool {
 	switch current {
 	case "dispatched":
-		// Scheduling may fail after dispatch but before the ACK response reaches
-		// the panel, so a direct failure remains valid. Success must first ACK.
-		return next == "acknowledged" || next == "failed"
+		// ACK and result are independent requests. If the ACK is lost, a
+		// version-validated success result can still complete the task.
+		return next == "acknowledged" || next == "succeeded" || next == "failed"
 	case "acknowledged":
 		return next == "succeeded" || next == "failed" || next == "timed_out"
+	case "timed_out":
+		// A late, authenticated result is stronger evidence than the local
+		// timeout and may complete the task when the target matches.
+		return next == "succeeded"
+	default:
+		return false
+	}
+}
+
+func shouldCompleteAgentUpgradeFromHeartbeat(status, currentVersion, targetVersion string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "dispatched", "acknowledged", "timed_out":
+		return agentTargetVersionMatches(currentVersion, targetVersion)
 	default:
 		return false
 	}

@@ -69,3 +69,15 @@ func TestPortalWebAssetsRequirePortalSession(t *testing.T) {
 		t.Fatalf("portal asset status = %d, want 401", response.Code)
 	}
 }
+
+func TestSharedWebAssetsRequireEitherSession(t *testing.T) {
+	handler := (&Server{}).Handler()
+	request := httptest.NewRequest(http.MethodGet, "/assets/shared/common-example.js", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("shared asset status = %d, want 401", response.Code)
+	}
+}

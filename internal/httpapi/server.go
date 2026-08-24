@@ -154,6 +154,7 @@ func (s *Server) Handler() http.Handler {
 	webHandler := webui.Handler()
 	router.With(s.requireAdmin).Handle("/assets/secure/*", webHandler)
 	router.With(s.requirePortal).Handle("/assets/portal/*", webHandler)
+	router.With(s.requireWebSession).Handle("/assets/shared/*", webHandler)
 	router.NotFound(webHandler.ServeHTTP)
 
 	return router

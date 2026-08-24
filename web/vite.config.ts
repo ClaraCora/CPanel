@@ -18,13 +18,17 @@ export default defineConfig({
       output: {
         entryFileNames: "assets/[name]-[hash].js",
         chunkFileNames: (chunkInfo) => {
-          // Keep the two authenticated application trees separate. The
-          // portal chunk is requested only after login and is served through
-          // the portal session middleware; it must never be a public asset.
-          const portalChunks = new Set(["PortalDashboardPage", "user-round"]);
-          return portalChunks.has(chunkInfo.name)
-            ? "assets/portal/[name]-[hash].js"
-            : "assets/secure/[name]-[hash].js";
+          // Keep the two authenticated application trees separate. Modules
+          // shared by both trees get their own protected path so an admin
+          // chunk can never accidentally import an asset guarded only by the
+          // portal session middleware (and vice versa).
+          if (chunkInfo.name === "PortalDashboardPage") {
+            return "assets/portal/[name]-[hash].js";
+          }
+          if (chunkInfo.name === "AuthenticatedApp") {
+            return "assets/secure/[name]-[hash].js";
+          }
+          return "assets/shared/[name]-[hash].js";
         },
       },
     },

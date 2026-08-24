@@ -84,6 +84,37 @@ func TestProtectedAssetsUsePrivateCache(t *testing.T) {
 	}
 }
 
+func TestSharedAssetsUsePrivateCache(t *testing.T) {
+	entries, err := assets.ReadDir("dist/assets/shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var assetName string
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			assetName = entry.Name()
+			break
+		}
+	}
+	if assetName == "" {
+		t.Fatal("no shared asset found")
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/assets/shared/"+assetName, nil)
+	response := httptest.NewRecorder()
+	Handler().ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("shared asset status = %d, want 200", response.Code)
+	}
+	if !strings.HasPrefix(response.Header().Get("Cache-Control"), "private,") {
+		t.Fatalf("shared asset cache control = %q, want private", response.Header().Get("Cache-Control"))
+	}
+	if !strings.Contains(response.Header().Get("Vary"), "Cookie") {
+		t.Fatalf("shared asset vary = %q, want Cookie", response.Header().Get("Vary"))
+	}
+}
+
 func TestHandlerDoesNotMaskBackendOrMissingAssetRoutes(t *testing.T) {
 	for _, route := range []string{"/api/unknown", "/ca/unknown", "/health/unknown", "/assets/missing.js"} {
 		request := httptest.NewRequest(http.MethodGet, route, nil)

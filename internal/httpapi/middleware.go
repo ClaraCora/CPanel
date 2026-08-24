@@ -177,6 +177,32 @@ func (s *Server) requirePortal(next http.Handler) http.Handler {
 	})
 }
 
+// requireWebSession protects chunks shared by the administrator and portal
+// applications. Shared chunks contain only common UI/runtime code, but they
+// must still require one of the two authenticated sessions.
+func (s *Server) requireWebSession(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if cookie, err := r.Cookie(sessionCookieName); err == nil && cookie.Value != "" {
+			session, findErr := s.store.FindAdminSession(r.Context(), auth.HashSecret(cookie.Value))
+			if findErr == nil {
+				ctx := context.WithValue(r.Context(), adminKey, session.Admin)
+				ctx = context.WithValue(ctx, sessionKey, session)
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+		}
+		if cookie, err := r.Cookie(portalSessionCookieName); err == nil && cookie.Value != "" {
+			session, findErr := s.store.FindPortalSession(r.Context(), auth.HashSecret(cookie.Value))
+			if findErr == nil {
+				ctx := context.WithValue(r.Context(), portalKey, session)
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+		}
+		writeError(w, r, http.StatusUnauthorized, "WEB_AUTH_REQUIRED", "请先登录", nil)
+	})
+}
+
 func requestID(r *http.Request) string {
 	value, _ := r.Context().Value(requestIDKey).(string)
 	return value

@@ -24,3 +24,15 @@ func TestRuntimeEligibleUsersCTEDoesNotRevokeExistingDisabledPlanAssignments(t *
 		}
 	}
 }
+
+func TestSubscriptionEndpointAccessScopeFilter(t *testing.T) {
+	for _, fragment := range []string{
+		"e.access_scope",
+		"u.role='admin' OR e.access_scope='default'",
+		"NOT EXISTS (SELECT 1 FROM node_endpoints configured WHERE configured.node_id=n.id)",
+	} {
+		if !strings.Contains(subscriptionEndpointQuery, fragment) {
+			t.Fatalf("subscription endpoint query is missing %q", fragment)
+		}
+	}
+}

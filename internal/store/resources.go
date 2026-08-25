@@ -414,7 +414,7 @@ func (s *Store) GetNode(ctx context.Context, nodeID string) (domain.Node, error)
 }
 
 func (s *Store) nodeEndpoints(ctx context.Context, nodeID string) ([]domain.NodeEndpoint, error) {
-	rows, err := s.pool.Query(ctx, `SELECT id,node_id,name,host,port,status,sort_order,created_at,updated_at
+	rows, err := s.pool.Query(ctx, `SELECT id,node_id,name,host,port,status,COALESCE(access_scope,'default'),sort_order,created_at,updated_at
 		FROM node_endpoints WHERE node_id=$1 ORDER BY sort_order,name,id`, nodeID)
 	if err != nil {
 		return nil, err
@@ -424,7 +424,7 @@ func (s *Store) nodeEndpoints(ctx context.Context, nodeID string) ([]domain.Node
 	for rows.Next() {
 		var item domain.NodeEndpoint
 		if err := rows.Scan(&item.ID, &item.NodeID, &item.Name, &item.Host, &item.Port, &item.Status,
-			&item.SortOrder, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			&item.AccessScope, &item.SortOrder, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, item)
@@ -446,9 +446,12 @@ func replaceNodeEndpoints(ctx context.Context, tx pgx.Tx, nodeID string, endpoin
 		if endpoint.Status == "" {
 			endpoint.Status = "active"
 		}
-		err := tx.QueryRow(ctx, `INSERT INTO node_endpoints(id,node_id,name,host,port,status,sort_order)
-			VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING created_at,updated_at`, endpoint.ID, endpoint.NodeID,
-			endpoint.Name, endpoint.Host, endpoint.Port, endpoint.Status, endpoint.SortOrder).Scan(&endpoint.CreatedAt, &endpoint.UpdatedAt)
+		if endpoint.AccessScope == "" {
+			endpoint.AccessScope = "default"
+		}
+		err := tx.QueryRow(ctx, `INSERT INTO node_endpoints(id,node_id,name,host,port,status,access_scope,sort_order)
+			VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING created_at,updated_at`, endpoint.ID, endpoint.NodeID,
+			endpoint.Name, endpoint.Host, endpoint.Port, endpoint.Status, endpoint.AccessScope, endpoint.SortOrder).Scan(&endpoint.CreatedAt, &endpoint.UpdatedAt)
 		if err != nil {
 			return nil, mapError(err)
 		}

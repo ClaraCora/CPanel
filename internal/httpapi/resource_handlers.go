@@ -52,6 +52,9 @@ func validNodeEndpoints(items []domain.NodeEndpoint, fields map[string]string) {
 		if item.Status != "" && item.Status != "active" && item.Status != "disabled" {
 			fields[prefix+".status"] = "invalid"
 		}
+		if item.AccessScope != "" && item.AccessScope != "default" && item.AccessScope != "admin" {
+			fields[prefix+".access_scope"] = "invalid"
+		}
 	}
 }
 

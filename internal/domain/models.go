@@ -129,15 +129,16 @@ type Node struct {
 }
 
 type NodeEndpoint struct {
-	ID        string    `json:"id,omitempty"`
-	NodeID    string    `json:"node_id,omitempty"`
-	Name      string    `json:"name"`
-	Host      string    `json:"host"`
-	Port      int       `json:"port"`
-	Status    string    `json:"status"`
-	SortOrder int       `json:"sort_order"`
-	CreatedAt time.Time `json:"created_at,omitempty"`
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	ID          string    `json:"id,omitempty"`
+	NodeID      string    `json:"node_id,omitempty"`
+	Name        string    `json:"name"`
+	Host        string    `json:"host"`
+	Port        int       `json:"port"`
+	Status      string    `json:"status"`
+	AccessScope string    `json:"access_scope"`
+	SortOrder   int       `json:"sort_order"`
+	CreatedAt   time.Time `json:"created_at,omitempty"`
+	UpdatedAt   time.Time `json:"updated_at,omitempty"`
 }
 
 type NodeCreate struct {

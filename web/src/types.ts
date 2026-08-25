@@ -78,6 +78,7 @@ export interface NodeEndpoint {
   host: string;
   port: number;
   status: "active" | "disabled";
+  access_scope: "default" | "admin";
   sort_order: number;
 }
 

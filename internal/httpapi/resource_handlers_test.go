@@ -3,6 +3,8 @@ package httpapi
 import (
 	"strings"
 	"testing"
+
+	"cpanel/internal/domain"
 )
 
 func TestAgentInstallCommandUsesPOSIXShell(t *testing.T) {
@@ -31,5 +33,23 @@ func TestValidPlanResetStrategy(t *testing.T) {
 		if validPlanResetStrategy(value) {
 			t.Errorf("validPlanResetStrategy(%q) = true, want false", value)
 		}
+	}
+}
+
+func TestValidNodeEndpointsAccessScope(t *testing.T) {
+	fields := map[string]string{}
+	validNodeEndpoints([]domain.NodeEndpoint{
+		{Name: "默认入口", Host: "edge.example.com", Port: 443, AccessScope: "default"},
+		{Name: "管理入口", Host: "admin.example.com", Port: 8443, AccessScope: "admin"},
+		{Name: "旧入口", Host: "legacy.example.com", Port: 443},
+	}, fields)
+	if len(fields) != 0 {
+		t.Fatalf("valid endpoint access scopes rejected: %#v", fields)
+	}
+
+	fields = map[string]string{}
+	validNodeEndpoints([]domain.NodeEndpoint{{Name: "入口", Host: "edge.example.com", Port: 443, AccessScope: "private"}}, fields)
+	if got := fields["endpoints.0.access_scope"]; got != "invalid" {
+		t.Fatalf("invalid access scope error = %q, want invalid", got)
 	}
 }

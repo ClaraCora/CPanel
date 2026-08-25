@@ -8,6 +8,24 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+const subscriptionEndpointQuery = `
+		SELECT n.name,e.name,e.host,e.port,n.protocol,
+		       CASE WHEN m.status='online' AND n.last_report_at > now() - interval '3 minutes' THEN 'online' ELSE 'offline' END,
+		       u.uuid,n.config
+		FROM runtime_eligible_users u
+		JOIN access_group_nodes gn ON gn.access_group_id=u.access_group_id
+		JOIN nodes n ON n.id=gn.node_id AND n.status='published'
+		JOIN machines m ON m.id=n.machine_id AND m.status NOT IN ('disabled','archived')
+		JOIN LATERAL (
+			SELECT ep.name,ep.host,ep.port,ep.sort_order,ep.access_scope FROM node_endpoints ep
+			WHERE ep.node_id=n.id AND ep.status='active'
+			UNION ALL
+			SELECT n.name,m.host,n.server_port,0,'default'
+			WHERE NOT EXISTS (SELECT 1 FROM node_endpoints configured WHERE configured.node_id=n.id)
+		) e ON true
+		WHERE u.id=$1 AND (u.role='admin' OR e.access_scope='default')
+		ORDER BY n.name,e.sort_order,e.name`
+
 func (s *Store) SubscriptionByToken(ctx context.Context, tokenHash []byte) (domain.Subscription, error) {
 	var userID string
 	err := s.pool.QueryRow(ctx, runtimeEligibleUsersCTE+`
@@ -35,22 +53,7 @@ func (s *Store) SubscriptionByUserID(ctx context.Context, userID string) (domain
 	if err != nil {
 		return domain.Subscription{}, err
 	}
-	rows, err := s.pool.Query(ctx, runtimeEligibleUsersCTE+`
-		SELECT n.name,e.name,e.host,e.port,n.protocol,
-		       CASE WHEN m.status='online' AND n.last_report_at > now() - interval '3 minutes' THEN 'online' ELSE 'offline' END,
-		       u.uuid,n.config
-		FROM runtime_eligible_users u
-		JOIN access_group_nodes gn ON gn.access_group_id=u.access_group_id
-		JOIN nodes n ON n.id=gn.node_id AND n.status='published'
-		JOIN machines m ON m.id=n.machine_id AND m.status NOT IN ('disabled','archived')
-		JOIN LATERAL (
-		  SELECT ep.name,ep.host,ep.port,ep.sort_order FROM node_endpoints ep
-		  WHERE ep.node_id=n.id AND ep.status='active'
-		  UNION ALL
-		  SELECT n.name,m.host,n.server_port,0
-		  WHERE NOT EXISTS (SELECT 1 FROM node_endpoints configured WHERE configured.node_id=n.id)
-		) e ON true
-		WHERE u.id=$1 ORDER BY n.name,e.sort_order,e.name`, subscription.UserID)
+	rows, err := s.pool.Query(ctx, runtimeEligibleUsersCTE+subscriptionEndpointQuery, subscription.UserID)
 	if err != nil {
 		return domain.Subscription{}, err
 	}

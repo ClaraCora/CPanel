@@ -213,7 +213,7 @@ func routePolicyTargets(rules []domain.RoutePolicyRule, defaultOutboundTag strin
 }
 
 func loadOutboundReferences(ctx context.Context, q resourceQuerier) (map[string]outboundReference, error) {
-	rows, err := q.Query(ctx, `SELECT lower(tag),protocol,status,lower(NULLIF(proxy_tag,'')),kernel_support
+	rows, err := q.Query(ctx, `SELECT lower(tag),protocol,status,COALESCE(lower(NULLIF(proxy_tag,'')),''),kernel_support
 		FROM outbounds WHERE status <> 'archived' FOR SHARE`)
 	if err != nil {
 		return nil, err

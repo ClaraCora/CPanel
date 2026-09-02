@@ -1349,7 +1349,7 @@ func notifyRoutePolicyNodes(ctx context.Context, tx pgx.Tx, routeID string) erro
 }
 
 func (s *Store) ListOutbounds(ctx context.Context) ([]domain.Outbound, error) {
-	rows, err := s.pool.Query(ctx, `SELECT id,name,tag,protocol,settings,proxy_tag,kernel_support,status,created_at,updated_at
+	rows, err := s.pool.Query(ctx, `SELECT id,name,tag,protocol,settings,COALESCE(proxy_tag,''),kernel_support,status,created_at,updated_at
 		FROM outbounds WHERE status <> 'archived' ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
@@ -1378,7 +1378,7 @@ func (s *Store) ArchiveOutbound(ctx context.Context, outboundID string) error {
 	}
 
 	var current outboundReference
-	err = tx.QueryRow(ctx, `SELECT lower(tag),protocol,status,lower(NULLIF(proxy_tag,'')),kernel_support
+	err = tx.QueryRow(ctx, `SELECT lower(tag),protocol,status,COALESCE(lower(NULLIF(proxy_tag,'')),''),kernel_support
 		FROM outbounds WHERE id=$1 AND status <> 'archived' FOR UPDATE`, outboundID).Scan(
 		&current.Tag, &current.Protocol, &current.Status, &current.ProxyTag, &current.KernelSupport)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -1473,7 +1473,7 @@ func (s *Store) UpdateOutbound(ctx context.Context, outboundID string, input dom
 	}
 	var current outboundReference
 	var currentID string
-	err = tx.QueryRow(ctx, `SELECT id,lower(tag),protocol,status,lower(NULLIF(proxy_tag,'')),kernel_support
+	err = tx.QueryRow(ctx, `SELECT id,lower(tag),protocol,status,COALESCE(lower(NULLIF(proxy_tag,'')),''),kernel_support
 		FROM outbounds WHERE id=$1 AND status <> 'archived' FOR UPDATE`, outboundID).Scan(
 		&currentID, &current.Tag, &current.Protocol, &current.Status, &current.ProxyTag, &current.KernelSupport)
 	if errors.Is(err, pgx.ErrNoRows) {

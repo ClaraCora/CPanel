@@ -292,7 +292,6 @@ export function NodesPage() {
                           )}
                         </button>
                       )}
-                      <button type="button" className="icon-button icon-button--danger" aria-label={`删除 ${node.name}`} title="删除" onClick={() => setDeleteTarget(node)}><Trash2 size={16} /></button>
                       <RowMenu label={`${node.name} 更多操作`}>
                         <Link to={`/nodes/${node.id}/edit`}><Edit3 size={15} />编辑节点</Link>
                         <Link to={`/nodes/new?copy=${node.id}`}><Copy size={15} />复制节点</Link>

@@ -92,8 +92,16 @@ function SystemSettingForm({ section }: { section: SettingSection }) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const toast = useToast();
-  useEffect(() => { const stored = new Map(data.map((item) => [item.key, item.value])); setValues(Object.fromEntries(fields.map((field) => [field.key, field.sensitive && stored.has(field.key) ? "" : stored.has(field.key) ? String(stored.get(field.key) ?? "") : field.defaultValue ?? ""]))); }, [data, fields]);
+  useEffect(() => { const stored = new Map(data.map((item) => [item.key, item.value])); setValues(Object.fromEntries(fields.map((field) => [field.key, field.sensitive && stored.has(field.key) ? "" : stored.has(field.key) ? String(stored.get(field.key) ?? "") : field.defaultValue ?? ""]))); setDirty(false); }, [data, fields]);
+  function updateValue(key: string, value: string) { setValues((current) => ({ ...current, [key]: value })); setDirty(true); }
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
 
   function generateKey(field: SettingField) {
     const bytes = crypto.getRandomValues(new Uint8Array(32));
@@ -123,8 +131,8 @@ function SystemSettingForm({ section }: { section: SettingSection }) {
   if (loading) return <div className="settings-loading"><TableSkeleton columns={2} rows={5} /></div>;
   if (error) return <EmptyState title="设置加载失败" description={error} action={<Button onClick={() => void reload()}>重新加载</Button>} />;
   return <form onSubmit={save} className="settings-form">
-    {fields.map((field) => <Field key={field.key} label={field.label} helper={field.helper}>{field.type === "toggle" ? <label className="settings-toggle"><input type="checkbox" checked={(values[field.key] ?? "true") === "true"} onChange={(event) => setValues((current) => ({ ...current, [field.key]: String(event.target.checked) }))} /><span>{(values[field.key] ?? "true") === "true" ? "启用" : "关闭"}</span></label> : field.type === "textarea" ? <textarea rows={4} value={values[field.key] ?? ""} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))} /> : field.type === "select" ? <select value={values[field.key] ?? ""} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))}>{field.options?.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select> : field.generate ? <div className="input-with-action"><input type={field.type ?? "text"} min={field.min} max={field.max} value={values[field.key] ?? ""} autoComplete="new-password" placeholder="留空表示不修改" onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))} /><Button type="button" onClick={() => generateKey(field)}><RefreshCw size={15} />生成</Button></div> : <input type={field.type ?? "text"} min={field.min} max={field.max} value={values[field.key] ?? ""} autoComplete={field.sensitive ? "new-password" : undefined} placeholder={field.sensitive ? "留空表示不修改" : undefined} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))} />}</Field>)}
-    <footer><span><ShieldCheck size={15} />修改将写入管理员审计日志</span><div className="settings-form__actions">{section.id === "tgbot" && <Button type="button" loading={testing} disabled={saving} onClick={() => void sendTestMessage()}><Send size={16} />发送测试消息</Button>}<Button type="submit" variant="primary" loading={saving} disabled={testing}><Save size={16} />保存设置</Button></div></footer>
+    {fields.map((field) => <Field key={field.key} label={field.label} helper={field.helper}>{field.type === "toggle" ? <label className="settings-toggle"><input type="checkbox" checked={(values[field.key] ?? "true") === "true"} onChange={(event) => updateValue(field.key, String(event.target.checked))} /><span>{(values[field.key] ?? "true") === "true" ? "启用" : "关闭"}</span></label> : field.type === "textarea" ? <textarea rows={4} value={values[field.key] ?? ""} onChange={(event) => updateValue(field.key, event.target.value)} /> : field.type === "select" ? <select value={values[field.key] ?? ""} onChange={(event) => updateValue(field.key, event.target.value)}>{field.options?.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select> : field.generate ? <div className="input-with-action"><input type={field.type ?? "text"} min={field.min} max={field.max} value={values[field.key] ?? ""} autoComplete="new-password" placeholder="留空表示不修改" onChange={(event) => updateValue(field.key, event.target.value)} /><Button type="button" onClick={() => { generateKey(field); setDirty(true); }}><RefreshCw size={15} />生成</Button></div> : <input type={field.type ?? "text"} min={field.min} max={field.max} value={values[field.key] ?? ""} autoComplete={field.sensitive ? "new-password" : undefined} placeholder={field.sensitive ? "留空表示不修改" : undefined} onChange={(event) => updateValue(field.key, event.target.value)} />}</Field>)}
+    <footer><span><ShieldCheck size={15} />{dirty ? "有未保存修改" : "已保存 · 修改会写入管理员审计日志"}</span><div className="settings-form__actions">{section.id === "tgbot" && <Button type="button" loading={testing} disabled={saving} onClick={() => void sendTestMessage()}><Send size={16} />发送测试消息</Button>}<Button type="submit" variant="primary" loading={saving} disabled={testing || !dirty}><Save size={16} />保存设置</Button></div></footer>
   </form>;
 }
 

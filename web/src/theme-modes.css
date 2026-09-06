@@ -282,6 +282,16 @@ html[data-theme="light"] .table-skeleton {
   -webkit-backdrop-filter: none;
 }
 
+html[data-theme="light"] .editor-section-nav {
+  background: #fff;
+  box-shadow: var(--shadow-panel);
+}
+
+html[data-theme="light"] .route-rule__summary {
+  color: #5f6368;
+  background: #f7f9fb;
+}
+
 html[data-theme="light"] .toolbar,
 html[data-theme="light"] .history-toolbar {
   background: #fff;

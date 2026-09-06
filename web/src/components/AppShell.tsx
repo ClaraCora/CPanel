@@ -119,6 +119,7 @@ export function AppShell({
                   className={(isActive) =>
                     `nav-link ${isActive ? "nav-link--active" : ""}`
                   }
+                  title={item.label}
                 >
                   <item.icon size={17} aria-hidden="true" />
                   <span>{item.label}</span>

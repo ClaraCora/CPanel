@@ -17,6 +17,7 @@ import {
   PageHeader,
   TableSkeleton,
   formatBytes,
+  DataFreshness,
 } from "../components/ui";
 
 const emptyOverview: Overview = {
@@ -46,9 +47,10 @@ type RankingPeriod = (typeof rankingPeriods)[number]["value"];
 
 export function OverviewPage() {
   const [period, setPeriod] = useState<RankingPeriod>("today");
-  const { data, loading, error, reload } = useResource<Overview>(
+  const { data, loading, error, reload, lastSuccessAt, refreshing, stale, refreshError } = useResource<Overview>(
     `/overview?period=${period}`,
     emptyOverview,
+    60_000,
   );
   const hasLoaded = data !== emptyOverview;
   const periodLabel =
@@ -120,6 +122,8 @@ export function OverviewPage() {
                 <h2 id="traffic-ranking-title">{periodLabel}流量排行</h2>
                 <p>按上传与下载合计排序，最多显示 10 条。</p>
               </div>
+              <div className="overview-heading-actions">
+              <DataFreshness lastSuccessAt={lastSuccessAt} stale={stale} refreshing={refreshing} error={refreshError} />
               <div
                 className="ranking-period"
                 role="group"
@@ -143,7 +147,7 @@ export function OverviewPage() {
                     aria-label="正在更新排行"
                   />
                 )}
-              </div>
+              </div></div>
             </div>
             {error && (
               <div className="ranking-error" role="alert">

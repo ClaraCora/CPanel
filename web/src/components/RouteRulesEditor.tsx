@@ -41,7 +41,7 @@ export function RouteRulesEditor({ value, outbounds, onChange }: { value: string
 
   return <div className="route-builder">
     <header className="route-builder__header">
-      <div><strong>匹配规则</strong><span>{rules.length} 条 · 按顺序执行</span></div>
+      <div><strong>匹配规则</strong><span>{rules.length} 条 · 从上到下依次匹配，第一条命中后停止</span></div>
       <button type="button" className="button button--secondary" onClick={() => commit([...rules, emptyRule()])}><Plus size={15} />添加规则</button>
     </header>
     {rules.length === 0 ? <div className="route-builder__empty"><span>暂无匹配规则</span><button type="button" onClick={() => commit([emptyRule()])}>添加第一条规则</button></div> : <div className="route-builder__rules">
@@ -56,6 +56,7 @@ export function RouteRulesEditor({ value, outbounds, onChange }: { value: string
             <button type="button" className="icon-button icon-button--danger" aria-label="删除规则" title="删除规则" onClick={() => commit(rules.filter((_, position) => position !== index))}><Trash2 size={15} /></button>
           </div>
         </header>
+        <div className="route-rule__summary" aria-live="polite">{ruleSummary(rule, availableOutbounds)}</div>
         <div className="route-rule__body">
           <section className="route-rule__matches">
             <h4>匹配条件</h4>
@@ -137,4 +138,18 @@ function normalizeGeoIPCategory(value: string): string {
 function toggleGeoIPCategory(values: string[], category: string): string[] {
   const normalized = values.map(normalizeGeoIPCategory).filter(Boolean);
   return normalized.includes(category) ? normalized.filter((value) => value !== category) : [...normalized, category];
+}
+
+function ruleSummary(rule: RoutePolicyRule, outbounds: Outbound[]) {
+  const parts: string[] = [];
+  const match = rule.match;
+  if (match.domains?.length) parts.push(`域名 ${match.domains.slice(0, 2).join("、")}${match.domains.length > 2 ? " 等" : ""}`);
+  if (match.domain_suffixes?.length) parts.push(`后缀 ${match.domain_suffixes.slice(0, 2).join("、")}${match.domain_suffixes.length > 2 ? " 等" : ""}`);
+  if (match.domain_regexes?.length) parts.push(`正则 ${match.domain_regexes.length} 条`);
+  if (match.geo_ips?.length) parts.push(`GeoIP ${match.geo_ips.join("、")}`);
+  if (match.ip_cidrs?.length) parts.push(`IP ${match.ip_cidrs.join("、")}`);
+  if (match.ports?.length) parts.push(`端口 ${match.ports.join("、")}`);
+  if (match.networks?.length) parts.push(match.networks.map((item) => item.toUpperCase()).join("/"));
+  const target = rule.action.type === "direct" ? "直连" : rule.action.type === "block" ? "阻断" : `走 ${outbounds.find((item) => item.tag === rule.action.target)?.name ?? rule.action.target ?? "指定出站"}`;
+  return `${parts.length ? parts.join(" + ") : "尚未添加匹配条件"} → ${target}`;
 }

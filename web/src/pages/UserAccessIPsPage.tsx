@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { Copy, Eye, Filter, LoaderCircle, MapPin, RefreshCw, Search } from "lucide-react";
 import { api } from "../api";
-import { Button, DataFreshness, Drawer, EmptyState, PageHeader, StatusBadge, TableSkeleton, formatPreciseDate, useToast } from "../components/ui";
-import { useResource } from "../hooks";
+import { Button, DataFreshness, Drawer, EmptyState, PageHeader, Pagination, StatusBadge, TableSkeleton, formatPreciseDate, useToast } from "../components/ui";
+import { usePagedResource } from "../hooks";
 import type { UserAccessIPAddress, UserAccessIPLocation, UserAccessIPLocationResult, UserAccessIPAccount } from "../types";
 
 const roleLabels = { admin: "管理员", user: "用户", friend: "朋友" } as const;
@@ -14,8 +14,7 @@ type LocationRequestState = {
 };
 
 export function UserAccessIPsPage() {
-  const { data, loading, refreshing, error, refreshError, lastSuccessAt, stale, reload } = useResource<UserAccessIPAccount[]>("/user-access-ips", [], 30_000);
-  const [query, setQuery] = useState("");
+  const { data, loading, error, reload, page, pageSize, total, hasMore, setPage, query, setQuery } = usePagedResource<UserAccessIPAccount>("/user-access-ips");
   const [role, setRole] = useState("all");
   const [selected, setSelected] = useState<UserAccessIPAccount | null>(null);
   const [locationRequests, setLocationRequests] = useState<Record<string, LocationRequestState>>({});
@@ -70,13 +69,12 @@ export function UserAccessIPsPage() {
     <div className="toolbar">
       <label className="search-box"><Search size={16} /><span className="sr-only">搜索用户访问 IP</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索账号、用户 ID、IP、地区或节点" /></label>
       <div className="toolbar__filters"><Filter size={15} /><label className="sr-only" htmlFor="access-ip-role">筛选账号分类</label><select id="access-ip-role" value={role} onChange={(event) => setRole(event.target.value)}><option value="all">全部分类</option><option value="admin">管理员</option><option value="user">用户</option><option value="friend">朋友</option></select></div>
-      <DataFreshness lastSuccessAt={lastSuccessAt} stale={stale} refreshing={refreshing} error={refreshError} />
-      <span className="toolbar__count">{filtered.length} 个账号</span>
+      <span className="toolbar__count">共 {total} 个账号</span>
     </div>
-    <div className="table-surface access-ip-table">{loading ? <TableSkeleton columns={8} rows={7} /> : error ? <EmptyState title="访问 IP 加载失败" description={error} action={<Button onClick={() => void reload()}>重新加载</Button>} /> : filtered.length === 0 ? <EmptyState title={data.length === 0 ? "暂无用户访问 IP" : "没有匹配的访问 IP"} description={data.length === 0 ? "尚未收到节点上报的账号源 IP。" : "请调整搜索内容或账号分类。"} /> : <div className="table-scroll"><table><thead><tr><th>账号</th><th>分类</th><th>状态</th><th>最近 IP</th><th>记录数</th><th>最后节点</th><th>最后访问</th><th className="col-access-ip-action"><span className="sr-only">操作</span></th></tr></thead><tbody>{filtered.map((item) => {
+    <div className="table-surface access-ip-table">{loading ? <TableSkeleton columns={8} rows={7} /> : error ? <EmptyState title="访问 IP 加载失败" description={error} action={<Button onClick={() => void reload()}>重新加载</Button>} /> : filtered.length === 0 ? <EmptyState title={data.length === 0 ? "暂无用户访问 IP" : "没有匹配的访问 IP"} description={data.length === 0 ? "尚未收到节点上报的账号源 IP。" : "请调整搜索内容或账号分类。"} /> : <><div className="table-scroll"><table><thead><tr><th>账号</th><th>分类</th><th>状态</th><th>最近 IP</th><th>记录数</th><th>最后节点</th><th>最后访问</th><th className="col-access-ip-action"><span className="sr-only">操作</span></th></tr></thead><tbody>{filtered.map((item) => {
       const latest = item.addresses[0];
       return <tr key={item.user_id}><td><strong className="cell-primary">{item.user_name}</strong><span className="resource-id">{item.user_id}</span></td><td>{roleLabels[item.role]}</td><td><StatusBadge status={item.status} /></td><td><IPAddressLocation address={latest} request={locationRequests[latest.ip_address]} onLookup={lookupLocation} /></td><td><span className="access-ip-count"><strong>{item.addresses.length}</strong><small>/ 10</small></span></td><td><strong className="cell-primary">{latest.last_node_name || "节点已删除"}</strong>{latest.last_node_id && <span className="resource-id">{latest.last_node_id}</span>}</td><td className="mono">{formatPreciseDate(item.last_seen_at)}</td><td className="col-access-ip-action"><button type="button" className="icon-button" aria-label={`查看 ${item.user_name} 的访问 IP`} title="查看最近 IP" onClick={() => setSelected(item)}><Eye size={16} /></button></td></tr>;
-    })}</tbody></table></div>}</div>
+    })}</tbody></table></div><Pagination page={page} pageSize={pageSize} total={total} hasMore={hasMore} onPageChange={setPage} /></>}</div>
     <Drawer wide open={Boolean(selected)} title={selected ? `${selected.user_name} 的访问 IP` : "访问 IP"} description={selected ? `${roleLabels[selected.role]} · ${selected.user_id}` : undefined} onClose={() => setSelected(null)}>{selected && <div className="access-ip-drawer"><div className="access-ip-drawer__summary"><span>最近访问</span><strong className="mono">{formatPreciseDate(selected.last_seen_at)}</strong><span>已记录</span><strong className="mono">{selected.addresses.length} / 10</strong></div><div className="table-scroll"><table><thead><tr><th>IP 地址</th><th>首次出现</th><th>最后出现</th><th>最后节点</th><th><span className="sr-only">复制</span></th></tr></thead><tbody>{selected.addresses.map((address) => <tr key={address.ip_address}><td><IPAddressLocation address={address} request={locationRequests[address.ip_address]} onLookup={lookupLocation} /></td><td className="mono">{formatPreciseDate(address.first_seen_at)}</td><td className="mono">{formatPreciseDate(address.last_seen_at)}</td><td><strong className="cell-primary">{address.last_node_name || "节点已删除"}</strong>{address.last_node_id && <span className="resource-id">{address.last_node_id}</span>}</td><td><button type="button" className="icon-button" aria-label={`复制 IP ${address.ip_address}`} title="复制 IP" onClick={() => void copyIP(address.ip_address)}><Copy size={16} /></button></td></tr>)}</tbody></table></div></div>}</Drawer>
   </div>;
 }

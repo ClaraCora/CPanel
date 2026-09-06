@@ -37,6 +37,12 @@ export function TableSkeleton({ columns = 6, rows = 6 }: { columns?: number; row
   return <div className="table-skeleton" aria-label="正在加载"><div className="skeleton-row" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>{Array.from({ length: columns }).map((_, i) => <i key={i} />)}</div>{Array.from({ length: rows }).map((_, row) => <div className="skeleton-row" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }} key={row}>{Array.from({ length: columns }).map((_, col) => <i key={col} />)}</div>)}</div>;
 }
 
+export function Pagination({ page, pageSize, total, hasMore, onPageChange }: { page: number; pageSize: number; total: number; hasMore: boolean; onPageChange: (page: number) => void }) {
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  if (total <= pageSize && !hasMore) return null;
+  return <nav className="pagination" aria-label="分页"><span>第 {page} 页 · 共 {total.toLocaleString("zh-CN")} 条</span><div><button type="button" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>上一页</button><span className="pagination__current" aria-current="page">{page}</span><button type="button" disabled={!hasMore && page >= pages} onClick={() => onPageChange(page + 1)}>下一页</button></div></nav>;
+}
+
 export function DataFreshness({ lastSuccessAt, stale = false, refreshing = false, error = "" }: { lastSuccessAt: number | null; stale?: boolean; refreshing?: boolean; error?: string }) {
   if (!lastSuccessAt) return refreshing ? <span className="data-freshness" role="status">正在更新…</span> : null;
   const time = new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).format(lastSuccessAt);

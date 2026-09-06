@@ -94,42 +94,43 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 async function demoRequest<T>(path: string, init: RequestInit): Promise<T> {
   await new Promise((resolve) => window.setTimeout(resolve, 120));
   const method = init.method ?? "GET";
-  if (path === "/sessions" && method === "POST") return demoSession as T;
-  if (path === "/sessions/current" && method === "DELETE") return { logged_out: true } as T;
-  if (path === "/account/profile" && method === "PATCH") {
+  const cleanPath = path.split("?", 1)[0];
+  if (cleanPath === "/sessions" && method === "POST") return demoSession as T;
+  if (cleanPath === "/sessions/current" && method === "DELETE") return { logged_out: true } as T;
+  if (cleanPath === "/account/profile" && method === "PATCH") {
     const input = JSON.parse(String(init.body));
     demoSession.admin = { ...demoSession.admin, ...input };
     return demoSession.admin as T;
   }
-  if (path === "/account/password" && method === "PATCH") return { password_updated: true, other_sessions_revoked: 0 } as T;
-  if (path === "/settings/tgbot/test" && method === "POST") return { sent: true } as T;
-	if (path === "/user-access-ips/location" && method === "POST") {
+	if (cleanPath === "/account/password" && method === "PATCH") return { password_updated: true, other_sessions_revoked: 0 } as T;
+	if (cleanPath === "/settings/tgbot/test" && method === "POST") return { sent: true } as T;
+	if (cleanPath === "/user-access-ips/location" && method === "POST") {
 		const input = JSON.parse(String(init.body));
 		return { ip_address: input.ip_address, cached: false, location: { scope: "public", country_code: "CN", country: "中国", province: "广东省", city: "深圳", isp: "中国电信", resolved_at: new Date().toISOString() } } as T;
 	}
-	if (path.startsWith("/users/") && path.endsWith("/portal") && method === "POST") return { grant: "demo-portal-grant", expires_at: new Date(Date.now() + 90_000).toISOString() } as T;
-  if (method === "GET") return demoResource(path) as T;
-  if (path === "/nodes" && method === "POST") {
+	if (cleanPath.startsWith("/users/") && cleanPath.endsWith("/portal") && method === "POST") return { grant: "demo-portal-grant", expires_at: new Date(Date.now() + 90_000).toISOString() } as T;
+	if (method === "GET") return demoResource(cleanPath) as T;
+  if (cleanPath === "/nodes" && method === "POST") {
     const input = JSON.parse(String(init.body));
     const item = { ...demoNodes[0], ...input, id: `nod_demo_${Date.now()}`, agent_id: Date.now() % 100000, machine_name: "演示服务器", status: "draft", current_revision: 0, applied_revision: 0 };
     demoNodes.unshift(item);
     return item as T;
   }
-  if (path.startsWith("/nodes/") && method === "PATCH") {
-    const id = path.split("/")[2];
+  if (cleanPath.startsWith("/nodes/") && method === "PATCH") {
+    const id = cleanPath.split("/")[2];
     const index = demoNodes.findIndex((item) => item.id === id);
     const input = JSON.parse(String(init.body));
     demoNodes[index] = { ...demoNodes[index], ...input, status: "draft", updated_at: new Date().toISOString() };
     return demoNodes[index] as T;
   }
-  if (path.endsWith("/publish") && method === "POST") {
-    const id = path.split("/")[2];
+  if (cleanPath.endsWith("/publish") && method === "POST") {
+    const id = cleanPath.split("/")[2];
     const item = demoNodes.find((node) => node.id === id)!;
     item.status = "published";
     item.current_revision += 1;
     return item as T;
   }
-  const resource = path.split("/")[1];
+  const resource = cleanPath.split("/")[1];
   const input = init.body ? JSON.parse(String(init.body)) : {};
   return { ...input, id: `${resource}_${Date.now()}`, status: "active", created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as T;
 }

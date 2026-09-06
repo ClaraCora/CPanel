@@ -344,3 +344,11 @@ export interface Envelope<T> {
   meta: { request_id: string };
   error: ApiErrorBody | null;
 }
+
+export interface PageResult<T> {
+  items: T[];
+  page: number;
+  page_size: number;
+  total: number;
+  has_more: boolean;
+}

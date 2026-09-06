@@ -156,7 +156,7 @@ a.resource-name:hover { color: var(--primary); text-decoration: underline; }
 .status--neutral { color: #6e6e73; background: #f1f3f5; }
 .pagination { display: flex; min-height: 50px; align-items: center; justify-content: space-between; padding: 8px 10px; color: var(--secondary); font-size: 12px; }
 .pagination > div { display: flex; gap: 4px; }
-.pagination button { min-width: 34px; height: 32px; padding: 0 9px; color: #4f5964; background: white; border: 1px solid var(--border); border-radius: 6px; }
+.pagination button { min-width: 44px; min-height: 44px; padding: 0 10px; color: #4f5964; background: white; border: 1px solid var(--border); border-radius: 6px; }
 .pagination__current { color: white !important; background: var(--primary) !important; border-color: var(--primary) !important; }
 
 .metric-band { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin-bottom: 24px; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; }

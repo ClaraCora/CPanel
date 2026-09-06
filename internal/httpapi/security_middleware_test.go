@@ -41,6 +41,30 @@ func TestSensitiveResponsesDisableCaching(t *testing.T) {
 	}
 }
 
+func TestCommonMiddlewareSetsBrowserSecurityHeaders(t *testing.T) {
+	server := &Server{}
+	handler := server.commonMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }))
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	for _, header := range []string{"Content-Security-Policy", "Cross-Origin-Opener-Policy", "Cross-Origin-Resource-Policy"} {
+		if response.Header().Get(header) == "" {
+			t.Fatalf("%s header is missing", header)
+		}
+	}
+	if got := response.Header().Get("Strict-Transport-Security"); got != "" {
+		t.Fatalf("HSTS on HTTP request = %q, want empty", got)
+	}
+
+	secureRequest := httptest.NewRequest(http.MethodGet, "/", nil)
+	secureRequest.Header.Set("X-Forwarded-Proto", "https")
+	secureResponse := httptest.NewRecorder()
+	handler.ServeHTTP(secureResponse, secureRequest)
+	if got := secureResponse.Header().Get("Strict-Transport-Security"); got == "" {
+		t.Fatal("HSTS missing for HTTPS proxy request")
+	}
+}
+
 func TestClientIPUsesTrustedResolutionFromContext(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/ca/ht/zl", nil)
 	request.RemoteAddr = "127.0.0.1:8256"

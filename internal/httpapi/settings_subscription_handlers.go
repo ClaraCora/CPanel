@@ -18,6 +18,27 @@ import (
 )
 
 func (s *Server) handleHistoricalData(w http.ResponseWriter, r *http.Request) {
+	view := r.URL.Query().Get("view")
+	query := parseListQuery(r, "created_at", map[string]bool{"created_at": true})
+	if view != "" && (query.Paginated || view == "traffic" || view == "machines" || view == "nodes" || view == "devices") {
+		var items any
+		var total int
+		var err error
+		switch view {
+		case "traffic":
+			items, total, err = s.store.ListTrafficPage(r.Context(), s.store.SettingInt(r.Context(), "retention", "traffic_days", 90, 1), query.Page, query.PageSize)
+		case "machines", "nodes":
+			items, total, err = s.store.ListMetricSamplesPage(r.Context(), view, query.Page, query.PageSize)
+		case "devices":
+			items, total, err = s.store.ListDeviceHistoryPage(r.Context(), s.store.SettingInt(r.Context(), "retention", "devices_days", 30, 1), query.Page, query.PageSize)
+		}
+		if err != nil {
+			writeStoreError(w, r, err)
+			return
+		}
+		writeData(w, r, http.StatusOK, map[string]any{"view": view, "items": items, "page": query.Page, "page_size": query.PageSize, "total": total, "has_more": query.Page*query.PageSize < total})
+		return
+	}
 	data, err := s.store.HistoricalData(r.Context())
 	if err != nil {
 		writeStoreError(w, r, err)

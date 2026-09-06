@@ -108,7 +108,12 @@ export function usePagedResource<T>(path: string, initial: T[] = []) {
   const [error, setError] = useState("");
   const request = useRef<AbortController | null>(null);
 
-  useEffect(() => { setPageState(1); }, [path]);
+  const lastPathRef = useRef(path);
+  useEffect(() => {
+    if (lastPathRef.current === path) return;
+    lastPathRef.current = path;
+    setPageState(1);
+  }, [path]);
 
   const setPage = useCallback((value: number) => setPageState(Math.max(1, value)), []);
   const setQuery = useCallback((value: string) => { setQueryState(value); setPageState(1); }, []);

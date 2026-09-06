@@ -14,6 +14,8 @@ const statusMap: Record<string, { label: string; tone: StatusTone }> = {
   pending: { label: "待接入", tone: "warning" }, draft: { label: "待发布", tone: "warning" }, disabled: { label: "已停用", tone: "neutral" },
   paused: { label: "已暂停", tone: "warning" }, expired: { label: "已到期", tone: "danger" },
   offline: { label: "离线", tone: "danger" }, error: { label: "异常", tone: "danger" }, archived: { label: "已归档", tone: "neutral" },
+  queued: { label: "等待执行", tone: "warning" }, running: { label: "执行中", tone: "info" }, acknowledged: { label: "已确认", tone: "info" },
+  succeeded: { label: "已完成", tone: "success" }, failed: { label: "失败", tone: "danger" }, timed_out: { label: "已超时", tone: "danger" },
 };
 
 export function StatusBadge({ status }: { status: string }) {

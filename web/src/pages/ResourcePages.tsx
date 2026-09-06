@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
-import { Copy, Edit3, KeyRound, Link2, Plus, Power, RefreshCw, Search, SquareArrowOutUpRight, Terminal, Trash2, UserPlus, UsersRound } from "lucide-react";
+import { Copy, Edit3, Filter, KeyRound, Link2, Plus, Power, RefreshCw, Search, SquareArrowOutUpRight, Terminal, Trash2, UserPlus, UsersRound } from "lucide-react";
 import { ApiError, api } from "../api";
 import { Button, ConfirmDialog, DataFreshness, Drawer, EmptyState, Field, PageHeader, RowMenu, StatusBadge, TableSkeleton, formatBytes, formatDate, formatDateWithYear, formatPreciseDate, useToast } from "../components/ui";
 import { NodeMultiSelect, type MultiSelectOption } from "../components/NodeMultiSelect";
@@ -53,6 +53,7 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
 	if (endpoint === "/route-policies") enabledStatus = "published";
   const { data, loading, refreshing, error, refreshError, lastSuccessAt, stale, reload } = useResource<T[]>(endpoint, [], refreshIntervalMs);
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<T | null>(null);
   const [values, setValues] = useState(defaults);
@@ -72,7 +73,12 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
   const [formError, setFormError] = useState("");
   const [quickCreating, setQuickCreating] = useState<"user" | "friend" | "">("");
   const toast = useToast();
-  const filtered = useMemo(() => data.filter((item) => !query.trim() || JSON.stringify(item).toLowerCase().includes(query.trim().toLowerCase())), [data, query]);
+  const statusOptions = useMemo(() => Array.from(new Set(data.map((item) => item.status).filter(Boolean))), [data]);
+  const filtered = useMemo(() => data.filter((item) => {
+    const matchesQuery = !query.trim() || JSON.stringify(item).toLowerCase().includes(query.trim().toLowerCase());
+    const matchesStatus = statusFilter === "all" || item.status === statusFilter;
+    return matchesQuery && matchesStatus;
+  }), [data, query, statusFilter]);
 
   function showCreate() {
     setEditing(null);
@@ -127,8 +133,9 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
         setFormError(reason.message);
         toast(reason.message, "error");
       } else {
-        setFormError(reason instanceof Error ? reason.message : "保存失败，请重试");
-        toast("保存失败，请重试", "error");
+        const message = requestErrorMessage(reason, "保存失败，请重试");
+        setFormError(message);
+        toast(message, "error");
       }
     } finally {
       setSaving(false);
@@ -148,7 +155,7 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
       toast(nextStatus === disabledStatus ? `${title}已${disabledStatus === "paused" ? "暂停" : "停用"}` : `${title}已恢复`);
       await reload();
     } catch (reason) {
-      toast(reason instanceof ApiError ? reason.message : "状态修改失败", "error");
+      toast(requestErrorMessage(reason, "状态修改失败"), "error");
     } finally {
       setChangingStatus("");
     }
@@ -161,7 +168,7 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
       await writeClipboard(result.url);
       toast("订阅链接已复制");
     } catch (reason) {
-      toast(reason instanceof ApiError ? reason.message : "订阅链接复制失败，请重试", "error");
+      toast(requestErrorMessage(reason, "订阅链接复制失败，请重试"), "error");
     } finally {
       setCopying("");
     }
@@ -173,7 +180,7 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
 			const result = await api.post<{ grant: string }>(`${endpoint}/${item.id}/portal`);
 			window.open(`/edu?grant=${encodeURIComponent(result.grant)}`, "_blank", "noopener,noreferrer");
 		} catch (reason) {
-			toast(reason instanceof ApiError ? reason.message : "订阅页面打开失败，请重试", "error");
+			toast(requestErrorMessage(reason, "订阅页面打开失败，请重试"), "error");
 		} finally {
 			setOpeningPortal("");
 		}
@@ -201,7 +208,7 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
       setDeleteTarget(null);
       await reload();
     } catch (reason) {
-      toast(reason instanceof ApiError ? reason.message : `${title}删除失败，请重试`, "error");
+      toast(requestErrorMessage(reason, `${title}删除失败，请重试`), "error");
     } finally {
       setDeleting(false);
     }
@@ -212,7 +219,7 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
       const result = await api.get<{ command: string }>(`${endpoint}/${item.id}/installation`);
       setInstall({ name: "name" in item ? String(item.name) : item.id, command: result.command });
     } catch (reason) {
-      toast(reason instanceof ApiError ? reason.message : "安装命令生成失败", "error");
+      toast(requestErrorMessage(reason, "安装命令生成失败"), "error");
     }
   }
 
@@ -241,7 +248,7 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
       setIdentityResetTarget(null);
       await reload();
     } catch (reason) {
-      toast(reason instanceof ApiError ? reason.message : "Agent 身份重置失败，请重试", "error");
+      toast(requestErrorMessage(reason, "Agent 身份重置失败，请重试"), "error");
     } finally {
       setResettingIdentity(false);
     }
@@ -255,7 +262,7 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
       toast(`${role === "friend" ? "朋友" : "用户"}已添加，可在列表中编辑资料`);
       await reload();
     } catch (reason) {
-      toast(reason instanceof ApiError ? reason.message : "一键添加失败，请重试", "error");
+      toast(requestErrorMessage(reason, "一键添加失败，请重试"), "error");
     } finally {
       setQuickCreating("");
     }
@@ -268,10 +275,10 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
 
   return <div className="page">
     <PageHeader title={title} description={description} actions={<>{quickAccountCreation && <><Button type="button" loading={quickCreating === "user"} disabled={Boolean(quickCreating)} onClick={() => void quickCreateAccount("user")}><UserPlus size={16} />{quickCreating === "user" ? "添加中…" : "一键添加用户"}</Button><Button type="button" loading={quickCreating === "friend"} disabled={Boolean(quickCreating)} onClick={() => void quickCreateAccount("friend")}><UsersRound size={16} />{quickCreating === "friend" ? "添加中…" : "一键添加朋友"}</Button></>}<Button type="button" variant="primary" disabled={Boolean(quickCreating)} onClick={showCreate}><Plus size={16} />{createLabel}</Button></>} />
-    <div className="toolbar"><label className="search-box"><Search size={16} /><span className="sr-only">搜索{title}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`搜索${title}`} /></label>{refreshIntervalMs > 0 && <DataFreshness lastSuccessAt={lastSuccessAt} stale={stale} refreshing={refreshing} error={refreshError} />}<span className="toolbar__count">{filtered.length} 条记录</span></div>
+    <div className="toolbar"><label className="search-box"><Search size={16} /><span className="sr-only">搜索{title}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`搜索${title}`} /></label>{statusOptions.length > 1 && <div className="toolbar__filters"><Filter size={15} aria-hidden="true" /><label className="sr-only" htmlFor={`${endpoint.slice(1)}-status-filter`}>按状态筛选{title}</label><select id={`${endpoint.slice(1)}-status-filter`} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">全部状态</option>{statusOptions.map((status) => <option value={status} key={status}>{statusLabel(status)}</option>)}</select></div>}{refreshIntervalMs > 0 && <DataFreshness lastSuccessAt={lastSuccessAt} stale={stale} refreshing={refreshing} error={refreshError} />}<span className="toolbar__count">{filtered.length}{filtered.length !== data.length ? ` / ${data.length}` : ""} 条记录</span></div>
     <div className="table-surface">
       {loading ? <TableSkeleton columns={columns.length + 2} /> : error ? <EmptyState title={`${title}加载失败`} description={error} action={<Button onClick={() => void reload()}>重新加载</Button>} /> : filtered.length === 0 ? <EmptyState title={data.length ? "没有符合搜索条件的记录" : `还没有${title}`} description={data.length ? "更换搜索词后重试。" : `创建第一条${title}记录开始管理。`} action={!data.length && <Button variant="primary" onClick={showCreate}><Plus size={16} />{createLabel}</Button>} /> : (
-        <div className="table-scroll"><table><thead><tr>{columns.map((column) => <th className={column.className} key={column.label}>{column.label}</th>)}<th>状态</th><th className="col-actions">操作</th></tr></thead><tbody>{filtered.map((item) => {
+        <div className="table-scroll"><table aria-label={`${title}列表`}><thead><tr>{columns.map((column) => <th className={column.className} key={column.label}>{column.label}</th>)}<th>状态</th><th className="col-actions">操作</th></tr></thead><tbody>{filtered.map((item) => {
           const canCopy = !subscriptionActions || subscriptionAvailable(item);
           const protectedRow = protectedItem?.(item) ?? false;
           return <tr key={item.id}>{columns.map((column) => <td className={column.className} key={column.label}>{column.render(item)}</td>)}<td><StatusBadge status={item.status} /></td><td className="row-actions">
@@ -280,7 +287,6 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
 			{portalActions && <button type="button" className="icon-button" aria-label={`进入 ${item.id} 的订阅页面`} title="进入订阅页面" disabled={openingPortal === item.id} onClick={() => void openPortal(item)}><SquareArrowOutUpRight size={16} /></button>}
             {upgradeable && <button type="button" className={`icon-button ${agentUpgradeState(item) === "available" ? "icon-button--update" : ""}`} aria-label={`升级 ${resourceName(item)} 的 Agent`} title={upgradeStateLabel(item)} disabled={!canRequestUpgrade(item) || upgrading} onClick={() => setUpgradeTarget(item)}><RefreshCw size={16} /></button>}
             <button type="button" className="icon-button" aria-label={`编辑 ${item.id}`} title="编辑" onClick={() => showEdit(item)}><Edit3 size={16} /></button>
-            {deletable && !protectedRow && <button type="button" className="icon-button icon-button--danger" aria-label={`删除 ${resourceName(item)}`} title="删除" onClick={() => setDeleteTarget(item)}><Trash2 size={16} /></button>}
             <RowMenu label={`${item.id} 更多操作`}><button type="button" onClick={() => showEdit(item)}><Edit3 size={15} />编辑</button>{identifierAction && <button type="button" disabled={copyingIdentifier === item.id} onClick={() => void copyIdentifier(item)}><Copy size={15} />复制 {identifierAction.label}</button>}{subscriptionActions && <button type="button" disabled={!canCopy || copying === item.id} onClick={() => void copySubscription(item)}><Link2 size={15} />{canCopy ? "复制订阅链接" : "完整令牌未保存"}</button>}{portalActions && <button type="button" disabled={openingPortal === item.id} onClick={() => void openPortal(item)}><SquareArrowOutUpRight size={15} />进入订阅页面</button>}{installable && <button type="button" onClick={() => void loadInstallation(item)}><Terminal size={15} />一键安装 Agent</button>}{identityResettable && <button type="button" onClick={() => setIdentityResetTarget(item)}><KeyRound size={15} />重置 Agent 身份</button>}{!protectedRow && <button type="button" disabled={changingStatus === item.id} onClick={() => void toggleStatus(item)}><Power size={15} />{item.status === disabledStatus ? "恢复启用" : disabledStatus === "paused" ? "暂停" : "停用"}</button>}{deletable && !protectedRow && <button type="button" className="menu-action--danger" onClick={() => setDeleteTarget(item)}><Trash2 size={15} />删除</button>}</RowMenu>
           </td></tr>;
         })}</tbody></table></div>
@@ -297,6 +303,16 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
 const primary = (name: string, id: string, detail?: string) => <><strong className="cell-primary">{name}</strong><span className="resource-id">{detail || id}</span></>;
 const subscriptionAvailable = (item: Resource) => "subscription_available" in item && item.subscription_available === true;
 const resourceName = (item: Resource) => "name" in item && typeof item.name === "string" ? item.name : item.id;
+const statusLabel = (status: string) => ({ active: "启用", online: "在线", published: "已发布", pending: "待接入", draft: "待发布", disabled: "已停用", paused: "已暂停", expired: "已到期", offline: "离线", error: "异常", archived: "已归档" } as Record<string, string>)[status] ?? status;
+function requestErrorMessage(reason: unknown, fallback: string) {
+  if (!(reason instanceof ApiError)) return reason instanceof Error ? reason.message : fallback;
+  if (reason.status === 401 || reason.code === "UNAUTHORIZED") return "登录状态已失效，请重新登录";
+  if (reason.status === 403 || reason.code === "FORBIDDEN") return "当前账号没有执行此操作的权限";
+  if (reason.status === 409 || reason.code === "RESOURCE_CONFLICT") return reason.message || "资源仍被其他配置引用，请先解除关联";
+  if (reason.status === 422 || reason.code === "VALIDATION_ERROR") return reason.message || "请检查表单中的字段";
+  if (reason.status === 408 || reason.code === "REQUEST_TIMEOUT") return "请求超时，请检查网络后重试";
+  return reason.message || fallback;
+}
 type AgentUpgradeState = "disconnected" | "pending" | "running" | "latest" | "available" | "unknown";
 const latestAgentVersion = (item: Resource) => "latest_agent_version" in item && typeof item.latest_agent_version === "string" ? item.latest_agent_version : "";
 const agentUpgradeState = (item: Resource): AgentUpgradeState => {

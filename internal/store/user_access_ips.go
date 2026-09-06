@@ -55,7 +55,7 @@ func (s *Store) ListUserAccessIPs(ctx context.Context) ([]domain.UserAccessIPAcc
 	return items, rows.Err()
 }
 
-func (s *Store) ListUserAccessIPsPage(ctx context.Context, page, pageSize int, query, sortField, order string) ([]domain.UserAccessIPAccount, int, error) {
+func (s *Store) ListUserAccessIPsPage(ctx context.Context, page, pageSize int, query, sortField, order, role string) ([]domain.UserAccessIPAccount, int, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -67,16 +67,16 @@ func (s *Store) ListUserAccessIPsPage(ctx context.Context, page, pageSize int, q
 	}
 	pattern := "%" + strings.TrimSpace(query) + "%"
 	var total int
-	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM users u WHERE u.status <> 'archived' AND ($1='' OR u.id ILIKE $2 OR u.name ILIKE $2 OR u.role ILIKE $2 OR u.status ILIKE $2 OR EXISTS (SELECT 1 FROM user_access_ips x WHERE x.user_id=u.id AND host(x.ip_address) ILIKE $2))`, query, pattern).Scan(&total); err != nil {
+	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM users u WHERE u.status <> 'archived' AND ($3='' OR u.role=$3) AND ($1='' OR u.id ILIKE $2 OR u.name ILIKE $2 OR u.role ILIKE $2 OR u.status ILIKE $2 OR EXISTS (SELECT 1 FROM user_access_ips x WHERE x.user_id=u.id AND host(x.ip_address) ILIKE $2))`, query, pattern, role).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 	rows, err := s.pool.Query(ctx, `WITH selected_users AS (
 		SELECT u.id,u.name,u.role,u.status FROM users u
-		WHERE u.status <> 'archived' AND ($1='' OR u.id ILIKE $2 OR u.name ILIKE $2 OR u.role ILIKE $2 OR u.status ILIKE $2 OR EXISTS (SELECT 1 FROM user_access_ips x WHERE x.user_id=u.id AND host(x.ip_address) ILIKE $2))
-		ORDER BY lower(u.name),u.id LIMIT $3 OFFSET $4)
+		WHERE u.status <> 'archived' AND ($3='' OR u.role=$3) AND ($1='' OR u.id ILIKE $2 OR u.name ILIKE $2 OR u.role ILIKE $2 OR u.status ILIKE $2 OR EXISTS (SELECT 1 FROM user_access_ips x WHERE x.user_id=u.id AND host(x.ip_address) ILIKE $2))
+		ORDER BY lower(u.name),u.id LIMIT $4 OFFSET $5)
 		SELECT u.id,u.name,u.role,u.status,host(a.ip_address),a.first_seen_at,a.last_seen_at,a.last_node_id,a.last_node_name,
 			a.location_scope,a.location_country_code,a.location_country,a.location_province,a.location_city,a.location_isp,a.location_updated_at
-		FROM selected_users u JOIN user_access_ips a ON a.user_id=u.id ORDER BY lower(u.name),u.id,a.last_seen_at DESC,host(a.ip_address) DESC`, query, pattern, pageSize, (page-1)*pageSize)
+		FROM selected_users u JOIN user_access_ips a ON a.user_id=u.id ORDER BY lower(u.name),u.id,a.last_seen_at DESC,host(a.ip_address) DESC`, query, pattern, role, pageSize, (page-1)*pageSize)
 	if err != nil {
 		return nil, 0, err
 	}

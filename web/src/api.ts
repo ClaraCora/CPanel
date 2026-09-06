@@ -109,7 +109,16 @@ async function demoRequest<T>(path: string, init: RequestInit): Promise<T> {
 		return { ip_address: input.ip_address, cached: false, location: { scope: "public", country_code: "CN", country: "中国", province: "广东省", city: "深圳", isp: "中国电信", resolved_at: new Date().toISOString() } } as T;
 	}
 	if (cleanPath.startsWith("/users/") && cleanPath.endsWith("/portal") && method === "POST") return { grant: "demo-portal-grant", expires_at: new Date(Date.now() + 90_000).toISOString() } as T;
-	if (method === "GET") return demoResource(cleanPath) as T;
+	if (method === "GET") {
+		const viewMatch = path.match(/^\/history\?view=(traffic|machines|nodes|devices)/);
+		if (viewMatch) {
+			const history = demoResource("/history") as { traffic?: unknown[]; machine_metrics?: unknown[]; node_metrics?: unknown[]; devices?: unknown[] };
+			const source = viewMatch[1] === "traffic" ? history.traffic : viewMatch[1] === "machines" ? history.machine_metrics : viewMatch[1] === "nodes" ? history.node_metrics : history.devices;
+			const items = Array.isArray(source) ? source : [];
+			return { view: viewMatch[1], items, page: 1, page_size: items.length || 50, total: items.length, has_more: false } as T;
+		}
+		return demoResource(cleanPath) as T;
+	}
   if (cleanPath === "/nodes" && method === "POST") {
     const input = JSON.parse(String(init.body));
     const item = { ...demoNodes[0], ...input, id: `nod_demo_${Date.now()}`, agent_id: Date.now() % 100000, machine_name: "演示服务器", status: "draft", current_revision: 0, applied_revision: 0 };

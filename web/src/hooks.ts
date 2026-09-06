@@ -108,6 +108,8 @@ export function usePagedResource<T>(path: string, initial: T[] = []) {
   const [error, setError] = useState("");
   const request = useRef<AbortController | null>(null);
 
+  useEffect(() => { setPageState(1); }, [path]);
+
   const setPage = useCallback((value: number) => setPageState(Math.max(1, value)), []);
   const setQuery = useCallback((value: string) => { setQueryState(value); setPageState(1); }, []);
   const reload = useCallback(async () => {
@@ -117,7 +119,7 @@ export function usePagedResource<T>(path: string, initial: T[] = []) {
     const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
     if (query.trim()) params.set("q", query.trim());
     try {
-      const result = await api.get<PageResult<T> | T[]>(`${path}?${params.toString()}`, controller.signal);
+      const result = await api.get<PageResult<T> | T[]>(`${path}${path.includes("?") ? "&" : "?"}${params.toString()}`, controller.signal);
       if (Array.isArray(result)) { setData(result); setTotal(result.length); setHasMore(false); }
       else { setData(result.items ?? []); setTotal(result.total ?? 0); setHasMore(Boolean(result.has_more)); }
     } catch (reason) {
@@ -131,7 +133,8 @@ export function usePagedResource<T>(path: string, initial: T[] = []) {
     const params = new URLSearchParams(window.location.search);
     params.set("page", String(page)); params.set("page_size", String(pageSize));
     if (query.trim()) params.set("q", query.trim()); else params.delete("q");
-    window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
+    const serialized = params.toString();
+    window.history.replaceState({}, "", `${window.location.pathname}${serialized ? `?${serialized}` : ""}`);
   }, [page, pageSize, query]);
   return { data, page, pageSize, query, total, hasMore, loading, error, setPage, setQuery, reload };
 }

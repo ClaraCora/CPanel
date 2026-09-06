@@ -36,8 +36,14 @@ type userAccessIPLocationResult struct {
 
 func (s *Server) handleListUserAccessIPs(w http.ResponseWriter, r *http.Request) {
 	query := parseListQuery(r, "name", map[string]bool{"name": true, "last_seen_at": true})
+	role := strings.TrimSpace(r.URL.Query().Get("role"))
+	if role != "" && role != "admin" && role != "user" && role != "friend" {
+		writeError(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "账号分类无效", map[string]string{"role": "请选择有效的账号分类"})
+		return
+	}
+	query.Paginated = query.Paginated || role != ""
 	if query.Paginated {
-		items, total, err := s.store.ListUserAccessIPsPage(r.Context(), query.Page, query.PageSize, query.Query, query.Sort, query.Order)
+		items, total, err := s.store.ListUserAccessIPsPage(r.Context(), query.Page, query.PageSize, query.Query, query.Sort, query.Order, role)
 		if err != nil {
 			writeStoreError(w, r, err)
 			return

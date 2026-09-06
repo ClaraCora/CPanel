@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useEffect } from "react";
 import { Copy, Eye, Filter, LoaderCircle, MapPin, RefreshCw, Search } from "lucide-react";
 import { api } from "../api";
 import { Button, DataFreshness, Drawer, EmptyState, PageHeader, Pagination, StatusBadge, TableSkeleton, formatPreciseDate, useToast } from "../components/ui";
@@ -14,11 +15,18 @@ type LocationRequestState = {
 };
 
 export function UserAccessIPsPage() {
-  const { data, loading, error, reload, page, pageSize, total, hasMore, setPage, query, setQuery } = usePagedResource<UserAccessIPAccount>("/user-access-ips");
-  const [role, setRole] = useState("all");
+  const [role, setRole] = useState(() => new URLSearchParams(window.location.search).get("role") || "all");
+  const pagedPath = role === "all" ? "/user-access-ips" : `/user-access-ips?role=${encodeURIComponent(role)}`;
+  const { data, loading, error, reload, page, pageSize, total, hasMore, setPage, query, setQuery } = usePagedResource<UserAccessIPAccount>(pagedPath);
   const [selected, setSelected] = useState<UserAccessIPAccount | null>(null);
   const [locationRequests, setLocationRequests] = useState<Record<string, LocationRequestState>>({});
   const toast = useToast();
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (role === "all") params.delete("role"); else params.set("role", role);
+    const serialized = params.toString();
+    window.history.replaceState({}, "", `${window.location.pathname}${serialized ? `?${serialized}` : ""}`);
+  }, [role]);
   const filtered = useMemo(() => {
     const keyword = query.trim().toLowerCase();
     return data.filter((item) => {

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AlertCircle, CheckCircle2, Info, LoaderCircle, X } from "lucide-react";
 import type { StatusTone } from "../types";
@@ -99,6 +99,11 @@ export function RowMenu({ label, children }: { label: string; children: ReactNod
   useLayoutEffect(() => { if (open) place(); }, [open, place]);
   useEffect(() => {
     if (!open) return;
+    const frame = window.requestAnimationFrame(() => panelRef.current?.querySelector<HTMLElement>("button, a")?.focus());
+    return () => window.cancelAnimationFrame(frame);
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
     const onPointer = (event: PointerEvent) => {
       const target = event.target as Node;
       if (!anchorRef.current?.contains(target) && !panelRef.current?.contains(target)) close();
@@ -116,11 +121,23 @@ export function RowMenu({ label, children }: { label: string; children: ReactNod
     };
   }, [close, open]);
 
+  function navigateMenu(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (!panelRef.current) return;
+    const items = Array.from(panelRef.current.querySelectorAll<HTMLElement>("button:not(:disabled), a[href]"));
+    if (!items.length) return;
+    const current = items.indexOf(document.activeElement as HTMLElement);
+    if (event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Home" || event.key === "End") {
+      event.preventDefault();
+      const next = event.key === "Home" ? 0 : event.key === "End" ? items.length - 1 : (current + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+      items[next].focus();
+    }
+  }
+
   return <>
     <button ref={anchorRef} type="button" className="icon-button" aria-label={label} title="更多操作" aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuID : undefined} onClick={() => { setPosition(null); setOpen((value) => !value); }}>
       <MoreHorizontalIcon />
     </button>
-    {open && createPortal(<div ref={panelRef} id={menuID} role="menu" className="row-menu__panel row-menu__panel--portal" style={{ left: position?.left ?? 0, top: position?.top ?? 0, visibility: position ? "visible" : "hidden" }} onClick={(event) => { if ((event.target as Element).closest("button, a")) close(); }}>{children}</div>, document.body)}
+    {open && createPortal(<div ref={panelRef} id={menuID} role="menu" aria-label={label} className="row-menu__panel row-menu__panel--portal" style={{ left: position?.left ?? 0, top: position?.top ?? 0, visibility: position ? "visible" : "hidden" }} onKeyDown={navigateMenu} onClick={(event) => { if ((event.target as Element).closest("button, a")) close(); }}>{children}</div>, document.body)}
   </>;
 }
 

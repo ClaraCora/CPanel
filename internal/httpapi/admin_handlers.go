@@ -223,6 +223,16 @@ func validOverviewPeriod(period string) bool {
 }
 
 func (s *Server) handleListAuditEvents(w http.ResponseWriter, r *http.Request) {
+	query := parseListQuery(r, "created_at", map[string]bool{"created_at": true, "action": true, "resource_type": true})
+	if query.Paginated {
+		items, total, err := s.store.ListAuditEventsPage(r.Context(), query.Page, query.PageSize, query.Query, query.Sort, query.Order)
+		if err != nil {
+			writeStoreError(w, r, err)
+			return
+		}
+		writeData(w, r, http.StatusOK, listPage[domain.AuditEvent]{Items: items, Page: query.Page, PageSize: query.PageSize, Total: total, HasMore: query.Page*query.PageSize < total})
+		return
+	}
 	items, err := s.store.ListAuditEvents(r.Context(), 200)
 	if err != nil {
 		writeStoreError(w, r, err)

@@ -323,6 +323,53 @@ func (s *Store) ListAuditEvents(ctx context.Context, limit int) ([]domain.AuditE
 	return items, rows.Err()
 }
 
+func (s *Store) ListAuditEventsPage(ctx context.Context, page, pageSize int, query, sortField, order string) ([]domain.AuditEvent, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 50
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+	orderSQL := "DESC"
+	if strings.EqualFold(order, "asc") {
+		orderSQL = "ASC"
+	}
+	sortSQL := "e.created_at"
+	switch sortField {
+	case "action":
+		sortSQL = "e.action"
+	case "resource_type":
+		sortSQL = "e.resource_type"
+	}
+	pattern := "%" + strings.TrimSpace(query) + "%"
+	var total int
+	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM audit_events e LEFT JOIN admins a ON a.id=e.admin_id
+		WHERE ($1='' OR e.action ILIKE $2 OR e.resource_type ILIKE $2 OR e.resource_id ILIKE $2 OR COALESCE(a.name,'') ILIKE $2 OR e.request_id ILIKE $2)`, query, pattern).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	// sortSQL/orderSQL are selected exclusively from constants above.
+	rows, err := s.pool.Query(ctx, `SELECT e.id,e.admin_id,a.name,e.action,e.resource_type,e.resource_id,e.changes,
+		host(e.ip_address),e.request_id,e.created_at FROM audit_events e LEFT JOIN admins a ON a.id=e.admin_id
+		WHERE ($1='' OR e.action ILIKE $2 OR e.resource_type ILIKE $2 OR e.resource_id ILIKE $2 OR COALESCE(a.name,'') ILIKE $2 OR e.request_id ILIKE $2)
+		ORDER BY `+sortSQL+` `+orderSQL+`, e.id DESC LIMIT $3 OFFSET $4`, query, pattern, pageSize, (page-1)*pageSize)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	items := make([]domain.AuditEvent, 0)
+	for rows.Next() {
+		var item domain.AuditEvent
+		if err := rows.Scan(&item.ID, &item.AdminID, &item.AdminName, &item.Action, &item.ResourceType, &item.ResourceID, &item.Changes, &item.IPAddress, &item.RequestID, &item.CreatedAt); err != nil {
+			return nil, 0, err
+		}
+		items = append(items, item)
+	}
+	return items, total, rows.Err()
+}
+
 func nullableText(value string) any {
 	if strings.TrimSpace(value) == "" {
 		return nil

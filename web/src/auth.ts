@@ -48,9 +48,16 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (init.body) headers.set("Content-Type", "application/json");
   if (init.method && !["GET", "HEAD"].includes(init.method) && csrfToken) headers.set("X-CSRF-Token", csrfToken);
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), requestTimeoutMs);
+  let timedOut = false;
+  const abortFromCaller = () => controller.abort(init.signal?.reason);
+  if (init.signal?.aborted) abortFromCaller();
+  else init.signal?.addEventListener("abort", abortFromCaller, { once: true });
+  const timeout = window.setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, requestTimeoutMs);
   try {
-    const response = await fetch(`${base}${path}`, { ...init, headers, credentials: "same-origin", signal: init.signal ?? controller.signal });
+    const response = await fetch(`${base}${path}`, { ...init, headers, credentials: "same-origin", signal: controller.signal });
     const contentType = response.headers.get("content-type") ?? "";
     if (!contentType.includes("application/json")) {
       throw new ApiError(response.status, { code: "INVALID_RESPONSE", message: response.ok ? "服务返回了无法识别的响应" : `服务请求失败（${response.status}）` });
@@ -61,12 +68,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     }
     return payload.data;
   } catch (reason) {
-    if (reason instanceof DOMException && reason.name === "AbortError") {
+    if (reason instanceof DOMException && reason.name === "AbortError" && timedOut) {
       throw new ApiError(408, { code: "REQUEST_TIMEOUT", message: "请求超时，请检查网络后重试" });
     }
     throw reason;
   } finally {
     window.clearTimeout(timeout);
+    init.signal?.removeEventListener("abort", abortFromCaller);
   }
 }
 

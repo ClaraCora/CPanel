@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Copy, Edit3, Filter, KeyRound, Link2, Plus, Power, RefreshCw, Search, SquareArrowOutUpRight, Terminal, Trash2, UserPlus, UsersRound } from "lucide-react";
 import { ApiError, api } from "../api";
 import { Button, ConfirmDialog, DataFreshness, Drawer, EmptyState, Field, PageHeader, RowMenu, StatusBadge, TableSkeleton, formatBytes, formatDate, formatDateWithYear, formatPreciseDate, useToast } from "../components/ui";
@@ -57,6 +57,7 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<T | null>(null);
   const [values, setValues] = useState(defaults);
+  const [initialValues, setInitialValues] = useState(defaults);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [changingStatus, setChangingStatus] = useState("");
@@ -71,6 +72,7 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
   const [identityResetTarget, setIdentityResetTarget] = useState<T | null>(null);
   const [resettingIdentity, setResettingIdentity] = useState(false);
   const [formError, setFormError] = useState("");
+  const [discardEditor, setDiscardEditor] = useState(false);
   const [quickCreating, setQuickCreating] = useState<"user" | "friend" | "">("");
   const toast = useToast();
   const statusOptions = useMemo(() => Array.from(new Set(data.map((item) => item.status).filter(Boolean))), [data]);
@@ -79,13 +81,32 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
     const matchesStatus = statusFilter === "all" || item.status === statusFilter;
     return matchesQuery && matchesStatus;
   }), [data, query, statusFilter]);
+  const formDirty = open && !sameFormValues(values, initialValues);
+
+  useEffect(() => {
+    if (!formDirty) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [formDirty]);
+
+  function requestCloseEditor() {
+    if (saving) return;
+    if (formDirty) {
+      setDiscardEditor(true);
+      return;
+    }
+    setOpen(false);
+  }
 
   function showCreate() {
     setEditing(null);
-    setValues({
+    const nextValues = {
       ...defaults,
       ...(endpoint === "/plans" ? { speed_limit_mbps: "0" } : {}),
-    });
+    };
+    setValues(nextValues);
+    setInitialValues(nextValues);
     setErrors({});
     setFormError("");
     setOpen(true);
@@ -93,7 +114,9 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
 
   function showEdit(item: T) {
     setEditing(item);
-    setValues(toValues(item));
+    const nextValues = toValues(item);
+    setValues(nextValues);
+    setInitialValues(nextValues);
     setErrors({});
     setFormError("");
     setOpen(true);
@@ -278,10 +301,10 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
     <div className="toolbar"><label className="search-box"><Search size={16} /><span className="sr-only">搜索{title}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`搜索${title}`} /></label>{statusOptions.length > 1 && <div className="toolbar__filters"><Filter size={15} aria-hidden="true" /><label className="sr-only" htmlFor={`${endpoint.slice(1)}-status-filter`}>按状态筛选{title}</label><select id={`${endpoint.slice(1)}-status-filter`} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">全部状态</option>{statusOptions.map((status) => <option value={status} key={status}>{statusLabel(status)}</option>)}</select></div>}{refreshIntervalMs > 0 && <DataFreshness lastSuccessAt={lastSuccessAt} stale={stale} refreshing={refreshing} error={refreshError} />}<span className="toolbar__count">{filtered.length}{filtered.length !== data.length ? ` / ${data.length}` : ""} 条记录</span></div>
     <div className="table-surface">
       {loading ? <TableSkeleton columns={columns.length + 2} /> : error ? <EmptyState title={`${title}加载失败`} description={error} action={<Button onClick={() => void reload()}>重新加载</Button>} /> : filtered.length === 0 ? <EmptyState title={data.length ? "没有符合搜索条件的记录" : `还没有${title}`} description={data.length ? "更换搜索词后重试。" : `创建第一条${title}记录开始管理。`} action={!data.length && <Button variant="primary" onClick={showCreate}><Plus size={16} />{createLabel}</Button>} /> : (
-        <div className="table-scroll"><table aria-label={`${title}列表`}><thead><tr>{columns.map((column) => <th className={column.className} key={column.label}>{column.label}</th>)}<th>状态</th><th className="col-actions">操作</th></tr></thead><tbody>{filtered.map((item) => {
+        <div className="table-scroll resource-table-scroll"><table aria-label={`${title}列表`}><thead><tr>{columns.map((column) => <th className={column.className} key={column.label}>{column.label}</th>)}<th>状态</th><th className="col-actions">操作</th></tr></thead><tbody>{filtered.map((item) => {
           const canCopy = !subscriptionActions || subscriptionAvailable(item);
           const protectedRow = protectedItem?.(item) ?? false;
-          return <tr key={item.id}>{columns.map((column) => <td className={column.className} key={column.label}>{column.render(item)}</td>)}<td><StatusBadge status={item.status} /></td><td className="row-actions">
+          return <tr key={item.id}>{columns.map((column) => <td className={column.className} data-label={column.label} key={column.label}>{column.render(item)}</td>)}<td data-label="状态"><StatusBadge status={item.status} /></td><td className="row-actions" data-label="操作">
             {identifierAction && <button type="button" className="icon-button" aria-label={`复制 ${item.id} 的 ${identifierAction.label}`} title={`复制 ${identifierAction.label}`} disabled={copyingIdentifier === item.id} onClick={() => void copyIdentifier(item)}><Copy size={16} /></button>}
             {subscriptionActions && <button type="button" className="icon-button" aria-label={`复制 ${item.id} 的订阅链接`} title={canCopy ? "复制订阅链接" : "完整令牌尚未保存"} disabled={!canCopy || copying === item.id} onClick={() => void copySubscription(item)}><Link2 size={16} /></button>}
 			{portalActions && <button type="button" className="icon-button" aria-label={`进入 ${item.id} 的订阅页面`} title="进入订阅页面" disabled={openingPortal === item.id} onClick={() => void openPortal(item)}><SquareArrowOutUpRight size={16} /></button>}
@@ -292,7 +315,8 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
         })}</tbody></table></div>
       )}
     </div>
-    <Drawer wide={fields.some((field) => field.type === "route-rules" || field.type === "outbound-config")} open={open} title={editing ? `编辑${title}` : createLabel} description={editing ? `修改 ${editing.id} 的配置` : `创建新的${title}记录`} onClose={() => { if (!saving) setOpen(false); }}><form className="drawer-form" onSubmit={submit} aria-busy={saving} noValidate>{formError && <div className="form-error" role="alert">{formError}</div>}{fields.filter((field) => !field.editOnly || editing).map((field) => <Field group={field.type === "node-picker" || field.type === "route-rules" || field.type === "outbound-config"} key={field.key} label={field.label} required={field.required} helper={field.helper} error={errors[field.key]}>{field.type === "textarea" || field.type === "json" ? <textarea disabled={field.disabled?.(editing) ?? false} className={field.type === "json" ? "code-editor code-editor--small" : ""} rows={field.type === "json" ? 9 : 4} value={values[field.key] ?? ""} placeholder={field.placeholder} onChange={(event) => updateValue(field.key, event.target.value)} /> : field.type === "select" ? <select disabled={Boolean((editing && field.lockedValue && values[field.key] === field.lockedValue) || field.disabled?.(editing))} value={values[field.key] ?? ""} onChange={(event) => updateValue(field.key, event.target.value)}>{field.options?.filter((option) => !option.exclusive || values[field.key] === option.value).map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select> : field.type === "node-picker" ? <NodeMultiSelect value={values[field.key] ?? ""} options={field.options ?? []} onChange={(value) => updateValue(field.key, value)} /> : field.type === "route-rules" ? <RouteRulesEditor value={values[field.key] ?? "[]"} outbounds={field.routeOutbounds ?? []} onChange={(value) => updateValue(field.key, value)} /> : field.type === "outbound-config" ? <OutboundConfigForm protocol={values.protocol ?? "socks"} settings={parseOutboundSettings(values.settings ?? "{}")} proxyTag={values.proxy_tag ?? ""} outbounds={field.routeOutbounds ?? []} currentID={editing?.id} onProtocolChange={(protocol, settings) => { setValues((current) => ({ ...current, protocol, settings: JSON.stringify(settings) })); setErrors((current) => ({ ...current, [field.key]: "" })); }} onSettingsChange={(settings) => updateValue("settings", JSON.stringify(settings))} onProxyTagChange={(value) => updateValue("proxy_tag", value)} /> : <input disabled={field.disabled?.(editing) ?? false} type={field.type ?? "text"} value={values[field.key] ?? ""} placeholder={field.placeholder} onChange={(event) => updateValue(field.key, event.target.value)} />}</Field>)}<footer className="drawer__actions"><Button type="button" variant="ghost" disabled={saving} onClick={() => setOpen(false)}>取消</Button><Button type="button" variant="primary" loading={saving} onClick={() => void save()}>{saving ? editing ? "保存中…" : "创建中…" : editing ? "保存修改" : "创建"}</Button></footer></form></Drawer>
+      <Drawer wide={fields.some((field) => field.type === "route-rules" || field.type === "outbound-config")} open={open} title={editing ? `编辑${title}` : createLabel} description={editing ? `修改 ${editing.id} 的配置` : `创建新的${title}记录`} onClose={requestCloseEditor}><form className="drawer-form" onSubmit={submit} aria-busy={saving} noValidate>{formError && <div className="form-error" role="alert">{formError}</div>}{fields.filter((field) => !field.editOnly || editing).map((field) => <Field group={field.type === "node-picker" || field.type === "route-rules" || field.type === "outbound-config"} key={field.key} label={field.label} required={field.required} helper={field.helper} error={errors[field.key]}>{field.type === "textarea" || field.type === "json" ? <textarea disabled={field.disabled?.(editing) ?? false} className={field.type === "json" ? "code-editor code-editor--small" : ""} rows={field.type === "json" ? 9 : 4} value={values[field.key] ?? ""} placeholder={field.placeholder} onChange={(event) => updateValue(field.key, event.target.value)} /> : field.type === "select" ? <select disabled={Boolean((editing && field.lockedValue && values[field.key] === field.lockedValue) || field.disabled?.(editing))} value={values[field.key] ?? ""} onChange={(event) => updateValue(field.key, event.target.value)}>{field.options?.filter((option) => !option.exclusive || values[field.key] === option.value).map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select> : field.type === "node-picker" ? <NodeMultiSelect value={values[field.key] ?? ""} options={field.options ?? []} onChange={(value) => updateValue(field.key, value)} /> : field.type === "route-rules" ? <RouteRulesEditor value={values[field.key] ?? "[]"} outbounds={field.routeOutbounds ?? []} onChange={(value) => updateValue(field.key, value)} /> : field.type === "outbound-config" ? <OutboundConfigForm protocol={values.protocol ?? "socks"} settings={parseOutboundSettings(values.settings ?? "{}")} proxyTag={values.proxy_tag ?? ""} outbounds={field.routeOutbounds ?? []} currentID={editing?.id} onProtocolChange={(protocol, settings) => { setValues((current) => ({ ...current, protocol, settings: JSON.stringify(settings) })); setErrors((current) => ({ ...current, [field.key]: "" })); }} onSettingsChange={(settings) => updateValue("settings", JSON.stringify(settings))} onProxyTagChange={(value) => updateValue("proxy_tag", value)} /> : <input disabled={field.disabled?.(editing) ?? false} type={field.type ?? "text"} value={values[field.key] ?? ""} placeholder={field.placeholder} onChange={(event) => updateValue(field.key, event.target.value)} />}</Field>)}<footer className="drawer__actions"><Button type="button" variant="ghost" disabled={saving} onClick={requestCloseEditor}>取消</Button><Button type="button" variant="primary" loading={saving} onClick={() => void save()}>{saving ? editing ? "保存中…" : "创建中…" : editing ? "保存修改" : "创建"}</Button></footer></form></Drawer>
+    <ConfirmDialog open={discardEditor} title="放弃未保存修改？" description="当前表单中的修改尚未保存，关闭后将丢失这些内容。" confirmLabel="放弃修改" loading={saving} onClose={() => setDiscardEditor(false)} onConfirm={() => { setDiscardEditor(false); setOpen(false); }} />
     <Drawer open={Boolean(install)} title="一键安装 Corade Agent" description={install ? `目标服务器：${install.name}` : undefined} onClose={() => setInstall(null)}>{install && <div className="install-command"><p>在目标服务器的 root shell 中执行以下命令。</p><textarea className="code-editor" readOnly rows={7} value={install.command} /><footer><Button variant="primary" onClick={() => void writeClipboard(install.command).then(() => toast("安装命令已复制")).catch(() => toast("复制失败，请手动选择命令", "error"))}><Copy size={16} />复制命令</Button></footer></div>}</Drawer>
     <ConfirmDialog open={Boolean(deleteTarget)} title={`删除${subscriptionActions ? "这个账号" : `这条${title}记录`}？`} description={deleteTarget ? subscriptionActions ? `“${resourceName(deleteTarget)}”将从订阅账号列表中移除，现有订阅链接会立即失效。流量与审计历史仍会保留。` : `“${resourceName(deleteTarget)}”将从${title}列表中移除。存在关联资源时系统会阻止删除，审计历史仍会保留。` : ""} confirmLabel="确认删除" loading={deleting} onClose={() => setDeleteTarget(null)} onConfirm={() => void deleteResource()} />
     <ConfirmDialog open={Boolean(upgradeTarget)} title="升级 Agent" description={upgradeTarget ? `将在 ${resourceName(upgradeTarget)} 的下一次心跳中领取升级任务，并从 GitHub 更新至 ${latestAgentVersion(upgradeTarget)}。当前 Agent 会在独立任务中重启。` : ""} confirmLabel="下发升级任务" confirmVariant="primary" loading={upgrading} onClose={() => { if (!upgrading) setUpgradeTarget(null); }} onConfirm={() => void requestUpgrade()} />
@@ -301,6 +325,10 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
 }
 
 const primary = (name: string, id: string, detail?: string) => <><strong className="cell-primary">{name}</strong><span className="resource-id">{detail || id}</span></>;
+function sameFormValues(left: Record<string, string>, right: Record<string, string>) {
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  return [...keys].every((key) => (left[key] ?? "") === (right[key] ?? ""));
+}
 const subscriptionAvailable = (item: Resource) => "subscription_available" in item && item.subscription_available === true;
 const resourceName = (item: Resource) => "name" in item && typeof item.name === "string" ? item.name : item.id;
 const statusLabel = (status: string) => ({ active: "启用", online: "在线", published: "已发布", pending: "待接入", draft: "待发布", disabled: "已停用", paused: "已暂停", expired: "已到期", offline: "离线", error: "异常", archived: "已归档" } as Record<string, string>)[status] ?? status;

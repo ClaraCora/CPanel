@@ -64,7 +64,7 @@ export default function PortalDashboardPage({ session, onLogout }: { session: Po
           <section className="edu-panel">
             <header><span className="edu-panel__icon"><Link2 size={19} /></span><div><h2>订阅管理</h2><p>复制订阅地址或导入 Clash / Mihomo 客户端。</p></div></header>
             <div className="edu-subscription">
-              <label>订阅地址<div className="edu-link-input"><input value={dashboard.subscription_url} readOnly aria-label="订阅地址" /><button className="edu-button edu-button--dark" onClick={() => void copyValue(dashboard.subscription_url).then(() => setNotice("订阅地址已复制")).catch(() => setNotice("复制失败，请手动选择订阅地址"))}><Copy size={16} />复制</button></div></label>
+              <label>订阅地址<div className="edu-link-input"><textarea value={dashboard.subscription_url} readOnly aria-label="订阅地址" rows={2} /><button className="edu-button edu-button--dark" onClick={() => void copyValue(dashboard.subscription_url).then(() => setNotice("订阅地址已复制")).catch(() => setNotice("复制失败，请手动选择订阅地址"))}><Copy size={16} />复制</button></div></label>
               <div className="edu-subscription__actions">{!session.read_only && <button className="edu-button edu-button--secondary" onClick={() => { window.location.href = `clash://install-config?url=${encodeURIComponent(dashboard.subscription_url)}`; }}><Download size={16} />Clash / Mihomo</button>}{!session.read_only && <button className="edu-text-button edu-text-button--danger" onClick={() => setShowReset(true)}><RefreshCw size={15} />重置订阅地址</button>}</div>
             </div>
           </section>

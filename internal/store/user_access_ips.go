@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"cpanel/internal/domain"
@@ -52,6 +53,57 @@ func (s *Store) ListUserAccessIPs(ctx context.Context) ([]domain.UserAccessIPAcc
 		items[position].Addresses = append(items[position].Addresses, address)
 	}
 	return items, rows.Err()
+}
+
+func (s *Store) ListUserAccessIPsPage(ctx context.Context, page, pageSize int, query, sortField, order string) ([]domain.UserAccessIPAccount, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 50
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+	pattern := "%" + strings.TrimSpace(query) + "%"
+	var total int
+	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM users u WHERE u.status <> 'archived' AND ($1='' OR u.id ILIKE $2 OR u.name ILIKE $2 OR u.role ILIKE $2 OR u.status ILIKE $2 OR EXISTS (SELECT 1 FROM user_access_ips x WHERE x.user_id=u.id AND host(x.ip_address) ILIKE $2))`, query, pattern).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	rows, err := s.pool.Query(ctx, `WITH selected_users AS (
+		SELECT u.id,u.name,u.role,u.status FROM users u
+		WHERE u.status <> 'archived' AND ($1='' OR u.id ILIKE $2 OR u.name ILIKE $2 OR u.role ILIKE $2 OR u.status ILIKE $2 OR EXISTS (SELECT 1 FROM user_access_ips x WHERE x.user_id=u.id AND host(x.ip_address) ILIKE $2))
+		ORDER BY lower(u.name),u.id LIMIT $3 OFFSET $4)
+		SELECT u.id,u.name,u.role,u.status,host(a.ip_address),a.first_seen_at,a.last_seen_at,a.last_node_id,a.last_node_name,
+			a.location_scope,a.location_country_code,a.location_country,a.location_province,a.location_city,a.location_isp,a.location_updated_at
+		FROM selected_users u JOIN user_access_ips a ON a.user_id=u.id ORDER BY lower(u.name),u.id,a.last_seen_at DESC,host(a.ip_address) DESC`, query, pattern, pageSize, (page-1)*pageSize)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	items := make([]domain.UserAccessIPAccount, 0)
+	positions := make(map[string]int)
+	for rows.Next() {
+		var userID, userName, role, status string
+		var address domain.UserAccessIPAddress
+		var location domain.UserAccessIPLocation
+		var updated *time.Time
+		if err := rows.Scan(&userID, &userName, &role, &status, &address.IPAddress, &address.FirstSeenAt, &address.LastSeenAt, &address.LastNodeID, &address.LastNodeName, &location.Scope, &location.CountryCode, &location.Country, &location.Province, &location.City, &location.ISP, &updated); err != nil {
+			return nil, 0, err
+		}
+		if updated != nil {
+			location.ResolvedAt = *updated
+			address.Location = &location
+		}
+		position, ok := positions[userID]
+		if !ok {
+			position = len(items)
+			positions[userID] = position
+			items = append(items, domain.UserAccessIPAccount{UserID: userID, UserName: userName, Role: role, Status: status, LastSeenAt: address.LastSeenAt, Addresses: make([]domain.UserAccessIPAddress, 0, 10)})
+		}
+		items[position].Addresses = append(items[position].Addresses, address)
+	}
+	return items, total, rows.Err()
 }
 
 func (s *Store) GetUserAccessIPLocation(ctx context.Context, ipAddress string) (domain.UserAccessIPLocation, bool, error) {

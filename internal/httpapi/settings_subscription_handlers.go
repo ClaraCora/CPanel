@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"cpanel/internal/auth"
+	"cpanel/internal/domain"
 	"cpanel/internal/store"
 	"cpanel/internal/subscription"
 	"github.com/go-chi/chi/v5"
@@ -26,6 +27,16 @@ func (s *Server) handleHistoricalData(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleListSubscriptionAccess(w http.ResponseWriter, r *http.Request) {
+	query := parseListQuery(r, "created_at", map[string]bool{"created_at": true, "status_code": true})
+	if query.Paginated {
+		items, total, err := s.store.ListSubscriptionAccessPage(r.Context(), query.Page, query.PageSize, query.Query, query.Sort, query.Order)
+		if err != nil {
+			writeStoreError(w, r, err)
+			return
+		}
+		writeData(w, r, http.StatusOK, listPage[domain.SubscriptionAccessEvent]{Items: items, Page: query.Page, PageSize: query.PageSize, Total: total, HasMore: query.Page*query.PageSize < total})
+		return
+	}
 	items, err := s.store.ListSubscriptionAccess(r.Context(), 200)
 	if err != nil {
 		writeStoreError(w, r, err)

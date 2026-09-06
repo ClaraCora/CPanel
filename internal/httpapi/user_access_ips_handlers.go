@@ -35,6 +35,16 @@ type userAccessIPLocationResult struct {
 }
 
 func (s *Server) handleListUserAccessIPs(w http.ResponseWriter, r *http.Request) {
+	query := parseListQuery(r, "name", map[string]bool{"name": true, "last_seen_at": true})
+	if query.Paginated {
+		items, total, err := s.store.ListUserAccessIPsPage(r.Context(), query.Page, query.PageSize, query.Query, query.Sort, query.Order)
+		if err != nil {
+			writeStoreError(w, r, err)
+			return
+		}
+		writeData(w, r, http.StatusOK, listPage[domain.UserAccessIPAccount]{Items: items, Page: query.Page, PageSize: query.PageSize, Total: total, HasMore: query.Page*query.PageSize < total})
+		return
+	}
 	items, err := s.store.ListUserAccessIPs(r.Context())
 	if err != nil {
 		writeStoreError(w, r, err)

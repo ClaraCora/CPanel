@@ -110,6 +110,8 @@
 .edu-dialog input,
 .edu-password-form input { width: 100%; min-width: 0; height: 34px; padding: 0 10px; color: #27272a; background: #fff; border: 1px solid #dedee3; border-radius: 6px; font-size: 11px; outline: 0; }
 .edu-link-input input { overflow: hidden; text-overflow: ellipsis; }
+.edu-link-input textarea { flex: 1 1 auto; width: auto; min-width: 0; min-height: 58px; padding: 8px 10px; color: #27272a; background: #fff; border: 1px solid #dedee3; border-radius: 6px; font: inherit; font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; resize: vertical; }
+.edu-link-input textarea:focus { border-color: #777780; box-shadow: 0 0 0 3px rgba(24, 24, 27, .08); outline: 0; }
 .edu-link-input input { flex: 1 1 auto; width: auto; }
 .edu-link-input .edu-button { flex: 0 0 auto; white-space: nowrap; }
 .edu-link-input input:focus,
@@ -238,6 +240,9 @@
   .edu-node-list { grid-template-columns: 1fr; padding: 10px; }
   .edu-side-column { grid-template-columns: 1fr; }
   .edu-link-input { align-items: stretch; flex-direction: column; }
+  .edu-link-input textarea { width: 100%; min-height: 66px; }
+  .edu-button { min-height: 44px; }
+  .edu-icon-button { width: 44px; height: 44px; }
   .edu-link-input .edu-button { width: 100%; }
   .edu-subscription__actions { align-items: flex-start; flex-direction: column; }
   .edu-notice { right: 14px; bottom: 14px; left: 14px; justify-content: center; }

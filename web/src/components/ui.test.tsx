@@ -14,7 +14,7 @@ describe("modal focus behavior", () => {
     const opener = screen.getByRole("button", { name: "打开" });
     opener.focus();
     fireEvent.click(opener);
-    const close = screen.getByRole("button", { name: "关闭" });
+    const close = screen.getByRole("button", { name: "关闭对话框" });
     const save = screen.getByRole("button", { name: "保存" });
     expect(document.activeElement).toBe(close);
     save.focus();

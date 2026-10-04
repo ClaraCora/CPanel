@@ -104,10 +104,11 @@ detect_external_url() {
 component_release_tag() {
   local component="$1"
   local requested="$2"
+  local release_version="${requested%%+*}"
   case "$requested" in
     latest) printf '%s-latest' "$component" ;;
-    "${component}-"*) printf '%s' "$requested" ;;
-    *) printf '%s-%s' "$component" "$requested" ;;
+    "${component}-"*) printf '%s' "$release_version" ;;
+    *) printf '%s-%s' "$component" "$release_version" ;;
   esac
 }
 

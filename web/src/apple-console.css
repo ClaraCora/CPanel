@@ -1,0 +1,785 @@
+/*
+ * Apple-inspired operations layer for the authenticated console.
+ * The portal uses edu-* selectors and is intentionally left untouched.
+ */
+
+:root {
+  --apple-radius-xs: 6px;
+  --apple-radius-sm: 10px;
+  --apple-radius-md: 14px;
+  --apple-radius-lg: 18px;
+  --apple-control-height: 42px;
+  --apple-blue: #0071e3;
+  --apple-blue-soft: rgba(0, 113, 227, 0.14);
+  --apple-surface: rgba(255, 255, 255, 0.72);
+  --apple-surface-raised: rgba(255, 255, 255, 0.88);
+}
+
+/* The main shell gets a calmer, more spacious control-surface rhythm. */
+.app-shell {
+  --primary: var(--apple-blue);
+  --primary-hover: #0077ed;
+}
+
+.app-shell .page {
+  padding: 30px 34px 48px;
+}
+
+.app-shell .page-header {
+  min-height: 72px;
+  align-items: center;
+  margin-bottom: 22px;
+}
+
+.app-shell .page-header h1 {
+  letter-spacing: -0.01em;
+  font-weight: 700;
+}
+
+.app-shell .page-header p {
+  max-width: 78ch;
+  margin-top: 8px;
+}
+
+.app-shell .page-header__actions {
+  gap: 10px;
+}
+
+.app-shell .button {
+  min-height: 42px;
+  border-radius: var(--apple-radius-sm);
+  padding-inline: 16px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.app-shell .button--primary {
+  background: linear-gradient(180deg, #0a84ff, #0071e3);
+  border-color: #0071e3;
+  box-shadow: 0 6px 16px rgba(10, 132, 255, 0.2);
+}
+
+.app-shell .button--secondary,
+.app-shell .button--ghost {
+  border-radius: var(--apple-radius-sm);
+}
+
+.app-shell .toolbar {
+  min-height: 60px;
+  gap: 12px;
+  padding: 9px 12px;
+  border-radius: var(--apple-radius-md) var(--apple-radius-md) 0 0;
+}
+
+.app-shell .table-surface {
+  border-radius: 0 0 var(--apple-radius-md) var(--apple-radius-md);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.06);
+}
+
+.app-shell .search-box,
+.app-shell .toolbar__filters {
+  border-radius: var(--apple-radius-sm);
+}
+
+.app-shell .search-box input,
+.app-shell .toolbar__filters select {
+  min-height: var(--apple-control-height);
+  border-radius: var(--apple-radius-sm);
+}
+
+.app-shell .table-scroll {
+  scrollbar-gutter: stable;
+}
+
+.app-shell th:first-child {
+  border-top-left-radius: 0;
+}
+
+.app-shell td,
+.app-shell th {
+  padding-inline: 15px;
+}
+
+.app-shell .icon-button {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+}
+
+.app-shell .status {
+  min-height: 28px;
+  padding-inline: 10px;
+  border-radius: 999px;
+}
+
+/* Rounded, tactile controls replace the old square input treatment. */
+.app-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.app-shell select,
+.app-shell textarea {
+  min-height: var(--apple-control-height);
+  border-radius: var(--apple-radius-sm);
+  padding-inline: 13px;
+}
+
+.app-shell input[type="checkbox"],
+.app-shell input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+  accent-color: var(--apple-blue);
+}
+
+.app-shell input[type="range"] {
+  min-height: 24px;
+  accent-color: var(--apple-blue);
+}
+
+.app-shell textarea {
+  min-height: 108px;
+  padding-block: 11px;
+}
+
+.app-shell input:hover,
+.app-shell select:hover,
+.app-shell textarea:hover {
+  border-color: color-mix(in srgb, var(--primary) 38%, var(--border-strong));
+}
+
+.app-shell input:focus,
+.app-shell select:focus,
+.app-shell textarea:focus {
+  border-color: var(--apple-blue);
+  box-shadow: 0 0 0 4px var(--apple-blue-soft), 0 5px 16px rgba(0, 0, 0, 0.08);
+}
+
+.app-shell .field {
+  gap: 8px;
+}
+
+.app-shell .field__label {
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+/* Replace the side sheet with a centered, bounded editing surface. */
+.drawer-layer {
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  isolation: isolate;
+}
+
+.drawer-backdrop {
+  background: rgba(12, 16, 24, 0.58);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  animation: apple-backdrop-in 180ms ease-out both;
+}
+
+.drawer {
+  position: relative;
+  inset: auto;
+  z-index: 1;
+  display: flex;
+  width: min(820px, calc(100vw - 44px));
+  max-height: min(88vh, 920px);
+  border: 1px solid color-mix(in srgb, var(--border-strong) 78%, transparent);
+  border-radius: var(--apple-radius-lg);
+  background: color-mix(in srgb, var(--panel-strong) 91%, transparent);
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.36), 0 8px 28px rgba(0, 0, 0, 0.16);
+  overflow: hidden;
+  animation: apple-modal-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.drawer--wide {
+  width: min(1120px, calc(100vw - 44px));
+}
+
+.drawer__header {
+  min-height: 84px;
+  padding: 18px 24px;
+  background: color-mix(in srgb, var(--panel-strong) 86%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--border) 78%, transparent);
+}
+
+.drawer__header h2 {
+  font-size: 20px;
+  letter-spacing: -0.015em;
+}
+
+.drawer__header p {
+  margin-top: 7px;
+  font-size: 12px;
+}
+
+.drawer__header .icon-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.drawer__body {
+  min-height: 0;
+  overflow: auto;
+}
+
+.drawer-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 20px;
+  min-height: 100%;
+  padding: 24px;
+}
+
+.drawer-form > .field {
+  min-width: 0;
+}
+
+.drawer-form > .field:has(.node-picker),
+.drawer-form > .field:has(.route-builder),
+.drawer-form > .field:has(.outbound-builder),
+.drawer-form > .field:has(.code-editor),
+.drawer-form > .form-error,
+.drawer-form > .drawer__actions {
+  grid-column: 1 / -1;
+}
+
+.drawer__actions {
+  position: sticky;
+  bottom: -24px;
+  z-index: 2;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 4px -24px -24px;
+  padding: 16px 24px calc(16px + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--panel-strong) 94%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.drawer .node-picker,
+.drawer .route-builder,
+.drawer .outbound-builder {
+  border-radius: var(--apple-radius-md);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.07);
+}
+
+.drawer .node-picker__toolbar,
+.drawer .route-builder__header,
+.drawer .outbound-protocol-selector {
+  padding: 12px 14px;
+}
+
+.drawer .form-error {
+  border-radius: var(--apple-radius-sm);
+}
+
+.drawer .code-editor {
+  border-radius: var(--apple-radius-sm);
+}
+
+/* Dialogs are rendered through a portal, outside .app-shell. */
+.drawer input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.drawer select,
+.drawer textarea {
+  min-width: 0;
+  min-height: var(--apple-control-height);
+  padding-inline: 13px;
+  border-radius: var(--apple-radius-sm);
+}
+
+.drawer input[type="checkbox"],
+.drawer input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+  flex: 0 0 18px;
+  accent-color: var(--apple-blue);
+}
+
+.drawer input[type="range"] {
+  min-height: 24px;
+  accent-color: var(--apple-blue);
+}
+
+.drawer textarea {
+  min-height: 108px;
+  padding-block: 11px;
+}
+
+.drawer input:hover,
+.drawer select:hover,
+.drawer textarea:hover {
+  border-color: color-mix(in srgb, var(--primary) 38%, var(--border-strong));
+}
+
+.drawer input:focus-visible,
+.drawer select:focus-visible,
+.drawer textarea:focus-visible {
+  border-color: var(--apple-blue);
+  box-shadow: 0 0 0 4px var(--apple-blue-soft), 0 5px 16px rgba(0, 0, 0, 0.08);
+}
+
+.drawer .button,
+.confirm-dialog .button {
+  min-height: 42px;
+  border-radius: var(--apple-radius-sm);
+  padding-inline: 16px;
+}
+
+.drawer .button--primary,
+.confirm-dialog .button--primary {
+  background: linear-gradient(180deg, #0a84ff, #0071e3);
+  border-color: #0071e3;
+  box-shadow: 0 6px 16px rgba(10, 132, 255, 0.2);
+}
+
+.confirm-dialog {
+  border-radius: var(--apple-radius-lg);
+  padding: 24px;
+}
+
+.confirm-dialog footer .button {
+  min-height: 42px;
+  border-radius: var(--apple-radius-sm);
+}
+
+.app-shell .node-picker,
+.app-shell .route-builder,
+.app-shell .outbound-builder,
+.app-shell .settings-layout,
+.app-shell .login-panel {
+  border-radius: var(--apple-radius-md);
+}
+
+.app-shell .protocol-selector,
+.app-shell .segmented-control,
+.app-shell .option-toggles label,
+.app-shell .editor-actions,
+.app-shell .form-error,
+.app-shell .form-alert {
+  border-radius: var(--apple-radius-sm);
+}
+
+.app-shell .node-picker__list > label:hover,
+.app-shell .node-picker__list > label.is-selected {
+  transition: background-color 160ms ease;
+}
+
+.install-command {
+  padding: 24px;
+}
+
+.install-command textarea {
+  margin-top: 14px;
+  border-radius: var(--apple-radius-sm);
+}
+
+.install-command footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+@keyframes apple-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes apple-modal-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+html[data-theme="light"] .drawer-backdrop {
+  background: rgba(24, 28, 36, 0.34);
+}
+
+html[data-theme="light"] .drawer {
+  --panel-strong: rgba(255, 255, 255, 0.96);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 30px 90px rgba(24, 24, 27, 0.22), 0 8px 24px rgba(24, 24, 27, 0.08);
+}
+
+html[data-theme="light"] .drawer__header,
+html[data-theme="light"] .drawer__actions {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+html[data-theme="light"] .drawer input,
+html[data-theme="light"] .drawer select,
+html[data-theme="light"] .drawer textarea {
+  background: #fff;
+  border-color: #d8dce1;
+}
+
+html[data-theme="light"] .app-shell .option-toggles label {
+  background: #fff;
+}
+
+/* Keep the administration surface quiet and task-first in both theme modes. */
+html[data-theme="dark"] .app-shell {
+  --nav: #161617;
+  --nav-active: rgba(10, 132, 255, 0.16);
+  --primary: #0a84ff;
+  --primary-hover: #409cff;
+  --surface: #101114;
+  --panel: #1c1c1e;
+  --panel-strong: #242426;
+  --foreground: #f5f5f7;
+  --secondary: #a1a1a6;
+  --text: #f5f5f7;
+  --muted: #2c2c2e;
+  --border: #38383a;
+  --border-strong: #48484a;
+  --success: #30d158;
+  --warning: #ff9f0a;
+  --danger: #ff453a;
+  --info: #64d2ff;
+  --focus: #0a84ff;
+  --shadow-panel: 0 10px 28px rgba(0, 0, 0, 0.2);
+  --shadow-overlay: 0 24px 64px rgba(0, 0, 0, 0.42);
+  color: var(--foreground);
+  background: var(--surface);
+}
+
+html[data-theme="light"] .app-shell {
+  --nav: rgba(255, 255, 255, 0.96);
+  --nav-active: #eaf3ff;
+  --primary: #0071e3;
+  --primary-hover: #0077ed;
+  --surface: #f5f5f7;
+  --panel: #fff;
+  --panel-strong: #fff;
+  --foreground: #1d1d1f;
+  --secondary: #6e6e73;
+  --text: #1d1d1f;
+  --muted: #f2f2f7;
+  --border: #e1e4e8;
+  --border-strong: #c9cdd3;
+  --success: #248a3d;
+  --warning: #a75a00;
+  --danger: #d70015;
+  --info: #0071e3;
+  --focus: #0071e3;
+  --shadow-panel: 0 8px 24px rgba(24, 24, 27, 0.05);
+  --shadow-overlay: 0 24px 64px rgba(24, 24, 27, 0.2);
+  color: var(--foreground);
+  background: var(--surface);
+}
+
+.app-shell .sidebar {
+  color: var(--secondary);
+  background: color-mix(in srgb, var(--nav) 96%, transparent);
+  border-right-color: var(--border);
+  box-shadow: none;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.app-shell .sidebar::before,
+.app-shell .sidebar::after,
+.app-shell .nav-link::after {
+  display: none;
+}
+
+.app-shell .nav-link {
+  min-height: 42px;
+  border-radius: var(--apple-radius-sm);
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.app-shell .nav-link:hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.app-shell .nav-link--active {
+  color: var(--primary);
+  background: var(--nav-active);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.app-shell .nav-link--active::before {
+  display: none;
+}
+
+.app-shell .button {
+  min-height: 40px;
+  border-radius: var(--apple-radius-sm);
+  box-shadow: none;
+  transform: none;
+}
+
+.app-shell .button:hover:not(:disabled) {
+  transform: none;
+}
+
+.app-shell .button--primary,
+.app-shell .button--primary:hover:not(:disabled) {
+  color: #fff;
+  background: var(--primary);
+  border-color: var(--primary);
+  box-shadow: 0 3px 9px color-mix(in srgb, var(--primary) 24%, transparent);
+  filter: none;
+}
+
+.app-shell .button--primary::before {
+  display: none;
+}
+
+.app-shell .button--secondary,
+.app-shell .icon-button {
+  color: var(--foreground);
+  background: var(--panel);
+  border-color: var(--border);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.app-shell .button--secondary:hover:not(:disabled),
+.app-shell .icon-button:hover:not(:disabled) {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 7%, var(--panel));
+  border-color: var(--border-strong);
+  box-shadow: none;
+  transform: none;
+}
+
+.app-shell .button--ghost {
+  color: var(--secondary);
+  background: transparent;
+}
+
+.app-shell .button--ghost:hover:not(:disabled) {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+}
+
+.app-shell .button--danger {
+  color: #fff;
+  background: var(--danger);
+  border-color: var(--danger);
+  box-shadow: none;
+}
+
+.app-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.app-shell select,
+.app-shell textarea,
+.drawer input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.drawer select,
+.drawer textarea,
+.login-page input {
+  border-radius: 11px;
+  box-shadow: none;
+}
+
+.app-shell input:focus,
+.app-shell select:focus,
+.app-shell textarea:focus,
+.drawer input:focus,
+.drawer select:focus,
+.drawer textarea:focus,
+.login-page input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--apple-blue-soft);
+}
+
+.app-shell .toolbar {
+  background: var(--panel);
+  border-color: var(--border);
+  border-radius: var(--apple-radius-md) var(--apple-radius-md) 0 0;
+}
+
+.app-shell .table-surface {
+  background: var(--panel);
+  border-color: var(--border);
+  border-radius: 0 0 var(--apple-radius-md) var(--apple-radius-md);
+  box-shadow: var(--shadow-panel);
+}
+
+.app-shell th {
+  color: var(--secondary);
+  background: color-mix(in srgb, var(--panel) 88%, var(--surface));
+  border-bottom-color: var(--border);
+}
+
+.app-shell td {
+  color: color-mix(in srgb, var(--foreground) 86%, var(--secondary));
+  border-bottom-color: color-mix(in srgb, var(--border) 72%, transparent);
+}
+
+.app-shell tbody tr:hover {
+  background: color-mix(in srgb, var(--primary) 5%, var(--panel));
+}
+
+.app-shell .metric-band,
+.app-shell .ranking-section,
+.app-shell .settings-layout,
+.app-shell .node-picker,
+.app-shell .route-builder,
+.app-shell .outbound-builder,
+.app-shell .form-section,
+.app-shell .subscription-access {
+  border-color: var(--border);
+  background: var(--panel);
+  box-shadow: var(--shadow-panel);
+}
+
+.app-shell .drawer-layer {
+  padding: 24px;
+}
+
+.app-shell .drawer,
+.drawer {
+  border-color: var(--border-strong);
+  border-radius: var(--apple-radius-lg);
+  background: var(--panel-strong);
+  box-shadow: var(--shadow-overlay);
+}
+
+.app-shell .drawer__header,
+.drawer__header,
+.drawer__actions {
+  background: color-mix(in srgb, var(--panel-strong) 96%, transparent);
+  border-color: var(--border);
+}
+
+.drawer-backdrop {
+  background: rgba(0, 0, 0, 0.46);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.app-shell .status {
+  border-radius: 999px;
+}
+
+.app-shell .page-header h1,
+.app-shell .section-heading,
+.app-shell .form-section__heading {
+  letter-spacing: 0;
+}
+
+.app-shell :focus-visible,
+.drawer :focus-visible,
+.login-page :focus-visible {
+  outline-color: var(--primary);
+  outline-offset: 3px;
+}
+
+html[data-theme="light"] .app-shell .sidebar {
+  box-shadow: 8px 0 24px rgba(24, 24, 27, 0.035);
+}
+
+html[data-theme="light"] .app-shell .button--secondary,
+html[data-theme="light"] .app-shell .icon-button {
+  color: #42464d;
+  background: #fff;
+  border-color: #dfe2e6;
+}
+
+html[data-theme="light"] .app-shell .button--secondary:hover:not(:disabled),
+html[data-theme="light"] .app-shell .icon-button:hover:not(:disabled) {
+  color: #1d1d1f;
+  background: #f2f4f7;
+  border-color: #c9cdd3;
+}
+
+html[data-theme="light"] .app-shell .button--ghost {
+  color: #5f6368;
+  background: transparent;
+  border-color: transparent;
+}
+
+html[data-theme="light"] .app-shell .button--ghost:hover:not(:disabled) {
+  color: #1d1d1f;
+  background: #eef0f3;
+}
+
+html[data-theme="light"] .drawer {
+  --panel-strong: #fff;
+  background: #fff;
+}
+
+@media (max-width: 767px) {
+  .app-shell .page {
+    padding: 22px 16px calc(36px + env(safe-area-inset-bottom));
+  }
+
+  .app-shell .drawer-layer {
+    padding: 10px;
+  }
+
+  .app-shell .drawer,
+  .app-shell .drawer--wide {
+    width: min(100%, 620px);
+    max-height: calc(100dvh - 20px);
+    border-radius: var(--apple-radius-md);
+  }
+
+  .app-shell .drawer-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell *,
+  .drawer,
+  .drawer-backdrop {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .app-shell .page { padding-inline: 24px; }
+  .drawer-layer { padding: 16px; }
+  .drawer,
+  .drawer--wide { width: min(920px, calc(100vw - 32px)); }
+}
+
+@media (max-width: 767px) {
+  .app-shell .page { padding: 22px 16px 36px; }
+  .app-shell .page-header { align-items: flex-start; }
+  .app-shell .page-header__actions { width: 100%; flex-wrap: wrap; }
+  .app-shell .page-header__actions .button { flex: 1 1 auto; }
+  .app-shell .toolbar { border-radius: var(--apple-radius-md); }
+  .app-shell .table-surface { border-radius: var(--apple-radius-md); }
+  .drawer-layer { padding: 10px; }
+  .drawer,
+  .drawer--wide {
+    width: min(100%, 620px);
+    max-height: calc(100dvh - 20px);
+    border-radius: var(--apple-radius-md);
+  }
+  .drawer__header { min-height: 72px; padding: 14px 18px; }
+  .drawer-form { grid-template-columns: 1fr; gap: 16px; padding: 18px; }
+  .drawer-form > .field:has(.node-picker),
+  .drawer-form > .field:has(.route-builder),
+  .drawer-form > .field:has(.outbound-builder),
+  .drawer-form > .field:has(.code-editor),
+  .drawer-form > .form-error,
+  .drawer-form > .drawer__actions { grid-column: auto; }
+  .drawer__actions {
+    bottom: -18px;
+    margin: 2px -18px -18px;
+    padding: 13px 18px calc(13px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer,
+  .drawer-backdrop { animation: none; }
+}

@@ -81,7 +81,7 @@ export function Drawer({ open, wide = false, title, description, children, onClo
     };
   }, [open]);
   if (!open) return null;
-  return createPortal(<div className="drawer-layer"><button type="button" className="drawer-backdrop" aria-label="关闭抽屉" onClick={() => onCloseRef.current()} /><aside ref={dialogRef} data-modal-root className={`drawer ${wide ? "drawer--wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby={titleID} aria-describedby={description ? descriptionID : undefined} tabIndex={-1}><header className="drawer__header"><div><h2 id={titleID}>{title}</h2>{description && <p id={descriptionID}>{description}</p>}</div><button ref={closeRef} type="button" className="icon-button" aria-label="关闭" title="关闭" onClick={() => onCloseRef.current()}><X size={19} /></button></header><div className="drawer__body">{children}</div></aside></div>, document.body);
+  return createPortal(<div className="drawer-layer"><button type="button" className="drawer-backdrop" aria-label="关闭对话框背景" onClick={() => onCloseRef.current()} /><section ref={dialogRef} data-modal-root className={`drawer ${wide ? "drawer--wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby={titleID} aria-describedby={description ? descriptionID : undefined} tabIndex={-1}><header className="drawer__header"><div><h2 id={titleID}>{title}</h2>{description && <p id={descriptionID}>{description}</p>}</div><button ref={closeRef} type="button" className="icon-button" aria-label="关闭对话框" title="关闭" onClick={() => onCloseRef.current()}><X size={19} /></button></header><div className="drawer__body">{children}</div></section></div>, document.body);
 }
 
 export function RowMenu({ label, children }: { label: string; children: ReactNode }) {

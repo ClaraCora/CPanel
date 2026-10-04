@@ -5,6 +5,7 @@ import PortalApp from "./PortalApp";
 import "./styles.css";
 import "./theme-glass.css";
 import "./theme-modes.css";
+import "./apple-console.css";
 import { initializeTheme } from "./theme";
 
 initializeTheme();

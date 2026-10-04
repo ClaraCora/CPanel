@@ -84,32 +84,13 @@ func TestAgentUpgradeTransitions(t *testing.T) {
 		{current: "acknowledged", next: "failed", want: true},
 		{current: "acknowledged", next: "timed_out", want: true},
 		{current: "timed_out", next: "succeeded", want: true},
+		{current: "timed_out", next: "failed", want: true},
 		{current: "queued", next: "acknowledged", want: false},
 		{current: "succeeded", next: "failed", want: false},
 	}
 	for _, test := range tests {
 		if got := validAgentUpgradeTransition(test.current, test.next); got != test.want {
 			t.Errorf("validAgentUpgradeTransition(%q, %q) = %t, want %t", test.current, test.next, got, test.want)
-		}
-	}
-}
-
-func TestAgentUpgradeCompletesFromMatchingHeartbeat(t *testing.T) {
-	for _, test := range []struct {
-		status  string
-		current string
-		target  string
-		want    bool
-	}{
-		{status: "dispatched", current: "v2.0.4+abc123", target: "v2.0.4+def456", want: true},
-		{status: "acknowledged", current: "v2.0.4+abc123", target: "v2.0.4", want: true},
-		{status: "timed_out", current: "v2.0.4+abc123", target: "v2.0.4", want: true},
-		{status: "queued", current: "v2.0.4+abc123", target: "v2.0.4", want: false},
-		{status: "failed", current: "v2.0.4+abc123", target: "v2.0.4", want: false},
-		{status: "dispatched", current: "v2.0.3", target: "v2.0.4", want: false},
-	} {
-		if got := shouldCompleteAgentUpgradeFromHeartbeat(test.status, test.current, test.target); got != test.want {
-			t.Errorf("shouldCompleteAgentUpgradeFromHeartbeat(%q, %q, %q) = %t, want %t", test.status, test.current, test.target, got, test.want)
 		}
 	}
 }

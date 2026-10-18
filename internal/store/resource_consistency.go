@@ -306,11 +306,13 @@ func (s *Store) validateRoutePolicyMutationTx(ctx context.Context, tx pgx.Tx, po
 	if err != nil {
 		return err
 	}
+	// Lock only the base node rows. An unqualified FOR SHARE also propagates
+	// into refs, where PostgreSQL cannot lock the UNION ALL result.
 	rows, err := tx.Query(ctx, `SELECT refs.slot FROM (
 		SELECT n.id,'default' AS slot FROM nodes n WHERE n.status <> 'archived' AND n.route_policy_id=$1
 		UNION ALL SELECT n.id,'admin' FROM nodes n WHERE n.status <> 'archived' AND n.admin_route_policy_id=$1
 		UNION ALL SELECT n.id,'member' FROM nodes n WHERE n.status <> 'archived' AND n.member_route_policy_id=$1
-	) refs JOIN nodes locked ON locked.id=refs.id FOR SHARE`, policyID)
+	) refs JOIN nodes locked ON locked.id=refs.id FOR SHARE OF locked`, policyID)
 	if err != nil {
 		return err
 	}

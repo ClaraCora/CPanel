@@ -34,13 +34,6 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
-    strategy:
-      matrix:
-        include:
-          - arch: amd64
-            goarch: amd64
-          - arch: arm64
-            goarch: arm64
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -59,37 +52,29 @@ jobs:
         run: |
           npm ci
           npm run typecheck
+          npm test -- --run
           npm run build
       - name: Test
-        if: matrix.arch == 'amd64'
         env:
           CPANEL_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/cpanel_test?sslmode=disable
         run: go test ./...
-      - name: Build Linux binary
+      # Build and publish together; Releases do not use Actions artifact storage.
+      - name: Build Linux binaries for all architectures
         env:
           CGO_ENABLED: "0"
           GOOS: linux
-          GOARCH: ${{ matrix.goarch }}
         run: |
           mkdir -p dist
-          go build -trimpath -ldflags "-s -w" -o "dist/cpanel-linux-${{ matrix.arch }}" ./cmd/cpanel
+          for arch in amd64 arm64; do
+            GOARCH="$arch" go build -trimpath -ldflags "-s -w" -o "dist/cpanel-linux-$arch" ./cmd/cpanel
+          done
           cd dist
-          sha256sum "cpanel-linux-${{ matrix.arch }}" > "cpanel-linux-${{ matrix.arch }}.sha256"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: cpanel-linux-${{ matrix.arch }}
-          path: dist/*
-          if-no-files-found: error
-
-  publish:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: cpanel-linux-*
-          path: dist
-          merge-multiple: true
+          for arch in amd64 arm64; do
+            artifact="cpanel-linux-$arch"
+            test -s "$artifact"
+            sha256sum "$artifact" > "$artifact.sha256"
+          done
+          sha256sum -c ./*.sha256
       - name: Publish to CPP
         env:
           GH_TOKEN: ${{ secrets.CPP_RELEASE_TOKEN }}

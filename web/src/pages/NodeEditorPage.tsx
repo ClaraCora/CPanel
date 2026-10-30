@@ -27,6 +27,7 @@ import {
 } from "../components/NodeConfigForm";
 import { useResource } from "../hooks";
 import type { Machine, Node, NodeEndpoint, RoutePolicy, Setting } from "../types";
+import { prepareHysteriaTLS } from "../nodeTLS";
 
 type NodeForm = {
   name: string;
@@ -89,11 +90,11 @@ export function NodeEditorPage() {
           route_policy_id: node.route_policy_id ?? "",
           admin_route_policy_id: node.admin_route_policy_id ?? "",
           member_route_policy_id: node.member_route_policy_id ?? "",
-          protocol: node.protocol,
+          protocol: node.protocol === "hysteria2" ? "hysteria" : node.protocol,
           listen_ip: node.listen_ip,
           server_port: String(node.server_port),
           kernel_type: node.kernel_type,
-          config: node.config ?? {},
+          config: prepareHysteriaTLS(node.protocol, node.protocol === "hysteria2" ? { ...node.config, version: 2 } : node.config ?? {}),
           endpoints: (node.endpoints ?? []).map((endpoint) => ({ ...endpoint, access_scope: endpoint.access_scope || "default" })),
         }),
       )
@@ -166,7 +167,7 @@ export function NodeEditorPage() {
       listen_ip: form.listen_ip.trim() || "0.0.0.0",
       server_port: Number(form.server_port),
       kernel_type: form.kernel_type,
-      config: form.config,
+      config: prepareHysteriaTLS(form.protocol, form.config),
       endpoints: form.endpoints.map((endpoint, index) => ({ ...endpoint, name: endpoint.name.trim(), host: endpoint.host.trim(), port: Number(endpoint.port), sort_order: index })),
     };
     try {

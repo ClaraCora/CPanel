@@ -14,6 +14,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { api } from "../api";
+import { isHysteria2, isSelfSignedHysteria2, prepareHysteriaTLS, randomTLSServerName, skipCertificateVerification } from "../nodeTLS";
 import { Button, Field } from "./ui";
 
 export type NodeSettings = Record<string, unknown>;
@@ -181,7 +182,7 @@ function withProtocolDefaults(settings: NodeSettings, protocol: string) {
     next.tls = { ...objectValue(next.tls), enabled: true };
     if (!Object.keys(objectValue(next.cert_config)).length) next.cert_config = { cert_mode: "self" };
   }
-  return next;
+  return prepareHysteriaTLS(protocol, next);
 }
 
 export function validateNodeSettings(protocol: string, kernel: string, settings: NodeSettings) {
@@ -203,6 +204,9 @@ export function validateNodeSettings(protocol: string, kernel: string, settings:
     if (!realityFingerprintValues.has(stringValue(tls.fingerprint))) return "请选择有效的客户端伪装指纹";
   }
   const cert = objectValue(settings.cert_config);
+  if (isSelfSignedHysteria2(protocol, settings) && !stringValue(objectValue(settings.tls).server_name).trim()) {
+    return "请填写或随机生成自签证书的服务器名称";
+  }
   if (tlsMode(settings, protocol) === "tls" && stringValue(cert.cert_mode) === "file" && (!stringValue(cert.cert_file) || !stringValue(cert.key_file))) {
     return "文件证书模式需要填写证书文件和私钥文件路径";
   }
@@ -233,7 +237,8 @@ export function NodeConfigForm({
   const currentTLSMode = tlsMode(settings, protocol);
   const tls = objectValue(settings.tls);
   const cert = objectValue(settings.cert_config);
-  const certMode = stringValue(cert.cert_mode, "none");
+  const certMode = stringValue(cert.cert_mode, isHysteria2(protocol, settings) ? "self" : "none");
+  const selfSignedHysteria2 = isSelfSignedHysteria2(protocol, settings);
   const multiplex = objectValue(settings.multiplex);
   const currentProtocol = protocolOptions.find((option) => option.id === protocol) ?? protocolOptions[0];
   const CurrentProtocolIcon = currentProtocol.icon;
@@ -258,11 +263,18 @@ export function NodeConfigForm({
   }
 
   function updateTLS(key: string, value: unknown) {
-    update(setObjectValue(settings, "tls", key, value));
+    let next = setObjectValue(settings, "tls", key, value);
+    if (key === "server_name" && selfSignedHysteria2) next = setObjectValue(next, "cert_config", "domain", value);
+    update(next);
   }
 
   function updateCert(key: string, value: unknown) {
-    update(setObjectValue(settings, "cert_config", key, value));
+    let next = setObjectValue(settings, "cert_config", key, value);
+    if (key === "cert_mode" && isHysteria2(protocol, settings)) {
+      next = setObjectValue(next, "tls", "insecure", value === "self");
+      next = prepareHysteriaTLS(protocol, next);
+    }
+    update(next);
   }
 
   function updateCipher(value: string) {
@@ -373,7 +385,7 @@ export function NodeConfigForm({
         <div className="config-group">
           <div className="config-group__heading"><h3>Hysteria 参数</h3><p>Xray 仅支持 Hysteria 2，sing-box 可运行两个版本。</p></div>
           <div className="form-grid form-grid--three config-fields">
-            <Field label="协议版本"><select value={String(numberValue(settings.version, 2))} onChange={(event) => update(setValue(settings, "version", Number(event.target.value)))}><option value="2">Hysteria 2</option>{kernel === "singbox" && <option value="1">Hysteria 1</option>}</select></Field>
+            <Field label="协议版本"><select value={String(numberValue(settings.version, 2))} onChange={(event) => update(prepareHysteriaTLS(protocol, setValue(settings, "version", Number(event.target.value))))}><option value="2">Hysteria 2</option>{kernel === "singbox" && <option value="1">Hysteria 1</option>}</select></Field>
             {numberValue(settings.version, 2) === 1 && <><Field label="上行带宽 Mbps"><input type="number" min="0" value={numberValue(settings.up_mbps)} onChange={(event) => update(setValue(settings, "up_mbps", Number(event.target.value)))} /></Field><Field label="下行带宽 Mbps"><input type="number" min="0" value={numberValue(settings.down_mbps)} onChange={(event) => update(setValue(settings, "down_mbps", Number(event.target.value)))} /></Field></>}
             <Field label="混淆方式"><select value={stringValue(settings.obfs)} onChange={(event) => update(setValue(settings, "obfs", event.target.value))}><option value="">不启用</option><option value="salamander">Salamander</option></select></Field>
             {stringValue(settings.obfs) && <Field label="混淆密码"><input type="password" autoComplete="new-password" value={stringValue(settings.obfs_password, stringValue(settings["obfs-password"]))} onChange={(event) => update(setValue(settings, "obfs_password", event.target.value))} /></Field>}
@@ -407,7 +419,7 @@ export function NodeConfigForm({
           )}
           {currentTLSMode === "tls" && (
             <div className="form-grid config-fields">
-              <Field label="服务器名称"><input value={stringValue(tls.server_name)} onChange={(event) => updateTLS("server_name", event.target.value)} placeholder="example.com" /></Field>
+              <Field label="服务器名称" required={selfSignedHysteria2} helper={selfSignedHysteria2 ? "自签证书使用此名称，无需购买域名或配置 DNS。保存并发布后由 Agent 自动生成、持久化证书。" : undefined}><div className="input-with-action"><input value={stringValue(tls.server_name)} onChange={(event) => updateTLS("server_name", event.target.value)} placeholder="example.com" />{selfSignedHysteria2 && <Button type="button" onClick={() => update(prepareHysteriaTLS(protocol, setObjectValue(settings, "tls", "server_name", randomTLSServerName())))}><RefreshCw size={15} aria-hidden="true" />随机生成名称</Button>}</div></Field>
               <Field label="证书方式"><select value={certMode} onChange={(event) => updateCert("cert_mode", event.target.value)}><option value="none">使用 Corade 本机或上游 TLS</option><option value="self">自动生成自签证书</option><option value="file">读取服务器证书文件</option><option value="http">ACME HTTP-01</option><option value="dns">ACME DNS-01</option><option value="content">粘贴证书内容</option></select></Field>
               {["http", "dns"].includes(certMode) && <><Field label="证书域名" required><input value={stringValue(cert.domain)} onChange={(event) => updateCert("domain", event.target.value)} placeholder="node.example.com" /></Field><Field label="ACME 邮箱"><input type="email" value={stringValue(cert.email)} onChange={(event) => updateCert("email", event.target.value)} /></Field></>}
               {certMode === "http" && <Field label="HTTP-01 端口"><input type="number" min="1" max="65535" value={numberValue(cert.http_port, 80)} onChange={(event) => updateCert("http_port", Number(event.target.value))} /></Field>}
@@ -416,6 +428,7 @@ export function NodeConfigForm({
               {certMode === "content" && <><Field label="证书内容" required><textarea rows={6} className="mono" value={stringValue(cert.cert_content)} onChange={(event) => updateCert("cert_content", event.target.value)} /></Field><Field label="私钥内容" required><textarea rows={6} className="mono" value={stringValue(cert.key_content)} onChange={(event) => updateCert("key_content", event.target.value)} /></Field></>}
             </div>
           )}
+          {currentTLSMode === "tls" && isHysteria2(protocol, settings) && <div className="option-toggles"><label><input type="checkbox" checked={skipCertificateVerification(protocol, settings)} onChange={(event) => updateTLS("insecure", event.target.checked)} /><span><strong>跳过证书验证（客户端）</strong><small>自签证书默认开启，Clash 订阅与单节点链接同步生效。连接仍加密，但客户端不再验证服务器证书身份；使用可信证书时建议关闭。</small></span></label></div>}
         </div>
       )}
 

@@ -117,6 +117,9 @@ func proxyForNode(node domain.SubscriptionNode) (map[string]any, error) {
 			}
 		}
 	}
+	if protocol == "hysteria" || protocol == "hysteria2" {
+		proxy["skip-cert-verify"] = skipHysteriaTLSVerification(config)
+	}
 	return proxy, nil
 }
 

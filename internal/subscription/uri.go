@@ -121,6 +121,9 @@ func buildShadowsocksURI(node domain.SubscriptionNode, config map[string]any) (s
 func buildHysteriaURI(node domain.SubscriptionNode, config map[string]any) (string, error) {
 	query := url.Values{}
 	addTLSQuery(query, config)
+	if skipHysteriaTLSVerification(config) {
+		query.Set("insecure", "1")
+	}
 	if value := stringConfig(config, "obfs", ""); value != "" {
 		query.Set("obfs", value)
 		if password := stringConfig(config, "obfs_password", stringConfig(config, "obfs-password", "")); password != "" {
@@ -264,6 +267,17 @@ func addTLSQuery(query url.Values, config map[string]any) {
 func objectConfig(config map[string]any, key string) map[string]any {
 	value, _ := config[key].(map[string]any)
 	return value
+}
+
+// Explicit false always wins. Legacy self-signed Hysteria2 nodes without the
+// new setting use the same default as the editor, without affecting CA nodes.
+func skipHysteriaTLSVerification(config map[string]any) bool {
+	tls := objectConfig(config, "tls")
+	if value, exists := tls["insecure"]; exists {
+		return tlsEnabled(value)
+	}
+	cert := objectConfig(config, "cert_config")
+	return numberConfig(config, "version", 2) == 2 && stringConfig(cert, "cert_mode", "") == "self"
 }
 
 func stringConfig(config map[string]any, key, fallback string) string {

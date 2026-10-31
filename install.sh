@@ -12,6 +12,7 @@ SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}"
 ACTION="install"
 VERSION="latest"
 AGENT_VERSION="latest"
+RELEASE_PUBLIC_KEY_FILE=""
 EXTERNAL_URL=""
 LISTEN_ADDRESS="${CPANEL_ADDR:-127.0.0.1:8256}"
 ADMIN_EMAIL="${CPANEL_ADMIN_EMAIL:-admin@cpanel.local}"
@@ -112,39 +113,97 @@ component_release_tag() {
   esac
 }
 
+ensure_release_public_key() {
+  RELEASE_PUBLIC_KEY_FILE="${TMP_DIR}/release-public-key.pem"
+  cat >"$RELEASE_PUBLIC_KEY_FILE" <<'CORADE_RELEASE_PUBLIC_KEY'
+-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEAfdTCCGP0bVOLETELjtMHSKW6o7KLwO2A1tzt9xvW2GE=
+-----END PUBLIC KEY-----
+CORADE_RELEASE_PUBLIC_KEY
+}
+
+download_release_file() {
+  curl --proto '=https' --proto-redir '=https' --fail --location --silent --show-error --connect-timeout 10 --max-time 120 --max-filesize "${3:-536870912}" --retry 2 "$1" -o "$2"
+}
+
+verify_download() {
+  artifact="$1"
+  # Select exactly one signed digest; never feed remote filenames to sha256sum.
+  awk -v name="$artifact" '
+    NF == 2 && $2 == name { if (length($1) != 64 || $1 !~ /^[[:xdigit:]]+$/) exit 1; print $1 "  " name; count++ }
+    END { if (count != 1) exit 1 }
+  ' "${TMP_DIR}/release-manifest.sha256" >"${TMP_DIR}/${artifact}.sha256" || return 1
+  (cd "$TMP_DIR" && sha256sum -c "${artifact}.sha256" >/dev/null)
+}
+
+load_signed_manifest() {
+  manifest_url="$1"
+  version_file="$2"
+  requested_version="$3"
+  MANIFEST_BASE_URL=""
+  ensure_release_public_key || return 1
+  download_release_file "${manifest_url}/release-manifest.sha256" "${TMP_DIR}/release-manifest.sha256" 65536 || return 1
+  download_release_file "${manifest_url}/release-manifest.sha256.sig" "${TMP_DIR}/release-manifest.sha256.sig" 64 || return 1
+  [ "$(wc -c <"${TMP_DIR}/release-manifest.sha256")" -le 65536 ] || return 1
+  [ "$(wc -c <"${TMP_DIR}/release-manifest.sha256.sig")" -eq 64 ] || return 1
+  openssl pkeyutl -verify -pubin -inkey "$RELEASE_PUBLIC_KEY_FILE" -rawin \
+    -in "${TMP_DIR}/release-manifest.sha256" -sigfile "${TMP_DIR}/release-manifest.sha256.sig" >/dev/null 2>&1 || return 1
+  awk '
+    NF != 2 || length($1) != 64 || $1 !~ /^[[:xdigit:]]+$/ || length($2) > 128 || $2 !~ /^[A-Za-z0-9][A-Za-z0-9._-]*$/ { exit 1 }
+    seen[$2]++ { exit 1 }
+    END { if (NR == 0) exit 1 }
+  ' "${TMP_DIR}/release-manifest.sha256" || return 1
+  download_release_file "${manifest_url}/${version_file}" "${TMP_DIR}/${version_file}" 256 || return 1
+  verify_download "$version_file" || return 1
+  signed_version=$(tr -d '\r\n' <"${TMP_DIR}/${version_file}")
+  printf '%s' "$signed_version" | grep -Eq '^(v[0-9]+\.[0-9]+\.[0-9]+|main)(\+[A-Za-z0-9._-]+)?$' || return 1
+  requested_version=${requested_version#corade-}
+  requested_version=${requested_version#cpanel-}
+  if [ "$requested_version" != latest ] && [ -n "$requested_version" ]; then
+    case "$requested_version" in
+      *+*) [ "$signed_version" = "$requested_version" ] || return 1 ;;
+      *) [ "${signed_version%%+*}" = "$requested_version" ] || return 1 ;;
+    esac
+  fi
+  MANIFEST_BASE_URL="$manifest_url"
+}
+
+try_download() {
+  artifact="$1"
+  download_destination="$2"
+  base_url="$3"
+  rm -f "${TMP_DIR}/${artifact}" "${TMP_DIR}/${artifact}.sha256"
+  download_release_file "${base_url}/${artifact}" "${TMP_DIR}/${artifact}" || return 1
+  verify_download "$artifact" || return 1
+  mv "${TMP_DIR}/${artifact}" "$download_destination"
+}
+
 download_verified() {
-  local component="$1"
-  local requested_version="$2"
-  local filename="$3"
-  local destination="$4"
-  local release_tag
+  local component="$1" requested_version="$2" filename="$3" destination="$4"
+  local release_tag base_url version_file
   release_tag=$(component_release_tag "$component" "$requested_version")
-  local base_url="https://github.com/${REPOSITORY}/releases/download/${release_tag}"
-  log "downloading ${component} ${requested_version} ${filename}"
-  curl --fail --location --silent --show-error --retry 5 "${base_url}/${filename}" -o "${TMP_DIR}/${filename}"
-  curl --fail --location --silent --show-error --retry 5 "${base_url}/${filename}.sha256" -o "${TMP_DIR}/${filename}.sha256"
-  (cd "$TMP_DIR" && sha256sum --check --status "${filename}.sha256") || fail "checksum verification failed for ${filename}"
-  install -m 755 "${TMP_DIR}/${filename}" "$destination"
+  base_url="https://github.com/${REPOSITORY}/releases/download/${release_tag}"
+  case "$component" in corade) version_file=agent-version.txt ;; cpanel) version_file=cpanel-version.txt ;; *) fail "unknown release component" ;; esac
+  load_signed_manifest "$base_url" "$version_file" "$requested_version" || fail "release signature or version verification failed for ${component}"
+  try_download "$filename" "${TMP_DIR}/verified-${filename}" "$base_url" || fail "signed checksum verification failed for ${filename}"
+  install -m 755 "${TMP_DIR}/verified-${filename}" "$destination"
 }
 
 download_agent_artifacts() {
   mkdir -p "$AGENT_ARTIFACT_DIR"
-  local filename
-  local release_tag
-  release_tag=$(component_release_tag "corade" "$AGENT_VERSION")
+  local filename release_tag base_url
+  release_tag=$(component_release_tag corade "$AGENT_VERSION")
+  base_url="https://github.com/${REPOSITORY}/releases/download/${release_tag}"
+  if ! load_signed_manifest "$base_url" agent-version.txt "$AGENT_VERSION"; then
+    log "No authenticated Agent release available; skip caching untrusted artifacts"
+    return
+  fi
   for filename in corade-linux-amd64 corade-linux-arm64; do
-    local base_url="https://github.com/${REPOSITORY}/releases/download/${release_tag}"
-    log "downloading Agent artifact ${filename}"
-    if ! curl --fail --location --silent --show-error --retry 5 "${base_url}/${filename}" -o "${TMP_DIR}/${filename}" ||
-       ! curl --fail --location --silent --show-error --retry 5 "${base_url}/${filename}.sha256" -o "${TMP_DIR}/${filename}.sha256"; then
-      log "Agent artifact ${filename} is not published yet; Agents will download it directly from GitHub"
+    if ! try_download "$filename" "${TMP_DIR}/verified-${filename}" "$base_url"; then
+      log "Agent artifact ${filename} failed authenticated verification and was not cached"
       continue
     fi
-    if ! (cd "$TMP_DIR" && sha256sum --check --status "${filename}.sha256"); then
-      log "Agent artifact ${filename} failed checksum verification and was not cached"
-      continue
-    fi
-    install -m 644 "${TMP_DIR}/${filename}" "${AGENT_ARTIFACT_DIR}/${filename}"
+    install -m 644 "${TMP_DIR}/verified-${filename}" "${AGENT_ARTIFACT_DIR}/${filename}"
     install -m 644 "${TMP_DIR}/${filename}.sha256" "${AGENT_ARTIFACT_DIR}/${filename}.sha256"
   done
   chown -R cpanel:cpanel "$AGENT_ARTIFACT_DIR"
@@ -201,8 +260,9 @@ command -v sha256sum >/dev/null 2>&1 || fail "sha256sum is required"
 
 if [ "$ACTION" = "upgrade" ]; then
   [ -f "$ENV_FILE" ] || fail "CPanel is not installed; run install first"
+  download_verified "cpanel" "$VERSION" "cpanel-linux-${ARCH}" "${BINARY_PATH}.new"
   systemctl stop "$SERVICE_NAME" >/dev/null 2>&1 || true
-  download_verified "cpanel" "$VERSION" "cpanel-linux-${ARCH}" "$BINARY_PATH"
+  mv "${BINARY_PATH}.new" "$BINARY_PATH"
   download_agent_artifacts
   write_service
   systemctl enable "$SERVICE_NAME" >/dev/null

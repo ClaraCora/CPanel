@@ -152,7 +152,7 @@ func (s *Server) requireAgent(next http.Handler) http.Handler {
 		if err != nil {
 			machine, err = s.store.AuthenticateAgent(r.Context(), tokenHash)
 		}
-		if err != nil {
+		if err != nil || (machineID != "" && machineID != machine.ID) {
 			writeError(w, r, http.StatusUnauthorized, "AGENT_TOKEN_INVALID", "Agent 凭据无效", nil)
 			return
 		}

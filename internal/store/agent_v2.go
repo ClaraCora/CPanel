@@ -53,18 +53,25 @@ func (s *Store) AgentIdentity(ctx context.Context, machineID string) (AgentIdent
 	return identity, err
 }
 
-func (s *Store) EnrollAgentIdentity(ctx context.Context, machineID string, publicKey ed25519.PublicKey) (bool, error) {
+func (s *Store) EnrollAgentIdentity(ctx context.Context, machineID string, publicKey ed25519.PublicKey, enrollmentHash []byte) (bool, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return false, err
 	}
 	defer tx.Rollback(ctx)
 
-	var machineExists bool
-	if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM machines WHERE id=$1 AND status NOT IN ('disabled','archived'))`, machineID).Scan(&machineExists); err != nil {
+	var machine string
+	if err := tx.QueryRow(ctx, `SELECT id FROM machines WHERE id=$1 AND status NOT IN ('disabled','archived') FOR UPDATE`, machineID).Scan(&machine); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, ErrNotFound
+		}
 		return false, err
 	}
-	if !machineExists {
+	consumed, err := tx.Exec(ctx, `DELETE FROM agent_enrollment_credentials WHERE machine_id=$1 AND token_hash=$2 AND expires_at>now()`, machineID, enrollmentHash)
+	if err != nil {
+		return false, err
+	}
+	if consumed.RowsAffected() != 1 {
 		return false, ErrNotFound
 	}
 
@@ -77,13 +84,19 @@ func (s *Store) EnrollAgentIdentity(ctx context.Context, machineID string, publi
 		}
 	case err != nil:
 		return false, err
-	case !equalBytes(existing, publicKey):
+	default:
 		return false, ErrConflict
+	}
+	if _, err := tx.Exec(ctx, `UPDATE machines SET agent_protocol='v2',updated_at=now() WHERE id=$1`, machineID); err != nil {
+		return false, err
+	}
+	if _, err := tx.Exec(ctx, `UPDATE machine_credentials SET revoked_at=now() WHERE machine_id=$1 AND revoked_at IS NULL`, machineID); err != nil {
+		return false, err
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return false, err
 	}
-	return errors.Is(err, pgx.ErrNoRows), nil
+	return true, nil
 }
 
 func (s *Store) AgentMachineByID(ctx context.Context, machineID string) (domain.AgentMachine, error) {
@@ -115,6 +128,16 @@ func (s *Store) ResetAgentIdentity(ctx context.Context, machineID string) error 
 	}
 	defer tx.Rollback(ctx)
 
+	var lockedID string
+	if err := tx.QueryRow(ctx, `SELECT id FROM machines WHERE id=$1 AND status <> 'archived' FOR UPDATE`, machineID).Scan(&lockedID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM agent_enrollment_credentials WHERE machine_id=$1`, machineID); err != nil {
+		return err
+	}
 	tag, err := tx.Exec(ctx, `DELETE FROM agent_identities WHERE machine_id=$1`, machineID)
 	if err != nil {
 		return err
@@ -130,7 +153,7 @@ func (s *Store) ResetAgentIdentity(ctx context.Context, machineID string) error 
 	}
 	if _, err := tx.Exec(ctx, `UPDATE machines SET
 		status=CASE WHEN status='disabled' THEN status ELSE 'pending' END,
-		agent_protocol='legacy',agent_v2_last_seen_at=NULL,last_heartbeat_at=NULL,
+		agent_protocol='v2',agent_v2_last_seen_at=NULL,last_heartbeat_at=NULL,
 		agent_version='',capabilities='{}'::jsonb,
 		agent_upgrade_task_id=NULL,agent_upgrade_requested_at=NULL,agent_upgrade_dispatched_at=NULL,
 		agent_upgrade_target_version='',agent_upgrade_status='',agent_upgrade_acknowledged_at=NULL,
@@ -148,11 +171,11 @@ func (s *Store) ResetAgentIdentity(ctx context.Context, machineID string) error 
 func (s *Store) LegacyAgentAllowed(ctx context.Context) bool {
 	value, err := s.RawSetting(ctx, "agent", "allow_legacy_protocol")
 	if err != nil {
-		return true
+		return false
 	}
 	var allowed bool
 	if json.Unmarshal(value, &allowed) != nil {
-		return true
+		return false
 	}
 	return allowed
 }

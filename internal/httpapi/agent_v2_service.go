@@ -133,11 +133,11 @@ func (s *agentV2Service) acceptHandshake(ctx context.Context, request agentv2.Ha
 	case !errors.Is(identityErr, store.ErrNotFound):
 		return agentv2.HandshakeResponse{}, identityErr
 	default:
-		enrollmentKey, keyErr := s.enrollmentKey(ctx)
+		enrollmentKey, enrollmentHash, keyErr := s.enrollmentKey(ctx, request.MachineID)
 		if keyErr != nil || !agentv2.VerifyEnrollment(request, enrollmentKey) {
 			return agentv2.HandshakeResponse{}, errors.New("Agent enrollment verification failed")
 		}
-		if _, err := s.store.EnrollAgentIdentity(ctx, request.MachineID, claimedIdentity); err != nil {
+		if _, err := s.store.EnrollAgentIdentity(ctx, request.MachineID, claimedIdentity, enrollmentHash); err != nil {
 			return agentv2.HandshakeResponse{}, err
 		}
 		enrolled = true
@@ -163,20 +163,20 @@ func (s *agentV2Service) acceptHandshake(ctx context.Context, request agentv2.Ha
 	return response, nil
 }
 
-func (s *agentV2Service) enrollmentKey(ctx context.Context) ([]byte, error) {
-	sealed, err := s.store.RawSetting(ctx, "agent", "communication_key")
+func (s *agentV2Service) enrollmentKey(ctx context.Context, machineID string) ([]byte, []byte, error) {
+	sealed, hash, err := s.store.AgentEnrollmentCredential(ctx, machineID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	plain, err := s.box.Open(sealed)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var key string
 	if err := json.Unmarshal(plain, &key); err != nil || len(key) < 32 {
-		return nil, errors.New("Agent enrollment key is unavailable")
+		return nil, nil, errors.New("Agent enrollment key is unavailable")
 	}
-	return []byte(key), nil
+	return []byte(key), hash, nil
 }
 
 func (s *agentV2Service) sessionForEnvelope(ctx context.Context, envelope []byte, now time.Time) (agentV2SessionRecord, error) {

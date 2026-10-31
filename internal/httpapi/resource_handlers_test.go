@@ -15,7 +15,7 @@ func TestAgentInstallCommandUsesPOSIXShell(t *testing.T) {
 		"mch_test",
 		"panel-public-key",
 	)
-	if !strings.Contains(command, "| sudo sh -s --") {
+	if !strings.Contains(command, `sudo sh "$installer"`) || !strings.Contains(command, "sha256sum -c -") {
 		t.Fatalf("install command does not use POSIX sh: %q", command)
 	}
 	if strings.Contains(command, "bash") {
@@ -32,6 +32,19 @@ func TestValidPlanResetStrategy(t *testing.T) {
 	for _, value := range []string{"", "month", "daily", "CALENDAR_MONTH"} {
 		if validPlanResetStrategy(value) {
 			t.Errorf("validPlanResetStrategy(%q) = true, want false", value)
+		}
+	}
+}
+
+func TestAgentControlURLRequiresTLSOutsideNumericLoopback(t *testing.T) {
+	for _, value := range []string{"https://panel.example.com", "http://127.0.0.1:8256", "http://[::1]:8256"} {
+		if err := validateAgentControlURL(value); err != nil {
+			t.Errorf("valid %q: %v", value, err)
+		}
+	}
+	for _, value := range []string{"http://panel.example.com", "http://localhost", "https://user:password@panel.example.com", "https://panel.example.com?key=abc", "ftp://panel.example.com", "https:///missing-host"} {
+		if err := validateAgentControlURL(value); err == nil {
+			t.Errorf("unsafe control URL accepted: %q", value)
 		}
 	}
 }

@@ -1,0 +1,16 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Deterministic bootstrap key in the historical identity persistence unit test"
+condition = "AND"
+paths = ['''internal/platformclient/v2_credentials_test\.go$''']
+regexes = ['''0123456789abcdef0123456789abcdef''']
+
+[[allowlists]]
+description = "Generated dependencies and compiled frontend output"
+paths = ['''(^|/)node_modules/''', '''^web/dist/''']
+
+[[allowlists]]
+description = "Local Go toolchain downloads; never product source"
+paths = ['''^(?:\.build|\.tools)/''']

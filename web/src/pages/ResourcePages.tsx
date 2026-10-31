@@ -239,8 +239,9 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
 
   async function loadInstallation(item: T) {
     try {
-      const result = await api.get<{ command: string }>(`${endpoint}/${item.id}/installation`);
+      const result = await api.post<{ command: string }>(`${endpoint}/${item.id}/installation`);
       setInstall({ name: "name" in item ? String(item.name) : item.id, command: result.command });
+      toast("安装凭据仅限本机，30 分钟内有效且只能登记一次；重新生成会撤销旧命令");
     } catch (reason) {
       toast(requestErrorMessage(reason, "安装命令生成失败"), "error");
     }
@@ -267,7 +268,7 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
     setResettingIdentity(true);
     try {
       await api.delete(endpoint + "/" + identityResetTarget.id + "/agent-identity");
-      toast("旧 Agent 身份已清除，请重新运行一键安装命令或重启 Agent");
+      toast("旧 Agent 身份已清除，请重新生成并执行一键安装命令");
       setIdentityResetTarget(null);
       await reload();
     } catch (reason) {
@@ -320,7 +321,7 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
     <Drawer open={Boolean(install)} title="一键安装 Corade Agent" description={install ? `目标服务器：${install.name}` : undefined} onClose={() => setInstall(null)}>{install && <div className="install-command"><p>在目标服务器的 root shell 中执行以下命令。</p><textarea className="code-editor" readOnly rows={7} value={install.command} /><footer><Button variant="primary" onClick={() => void writeClipboard(install.command).then(() => toast("安装命令已复制")).catch(() => toast("复制失败，请手动选择命令", "error"))}><Copy size={16} />复制命令</Button></footer></div>}</Drawer>
     <ConfirmDialog open={Boolean(deleteTarget)} title={`删除${subscriptionActions ? "这个账号" : `这条${title}记录`}？`} description={deleteTarget ? subscriptionActions ? `“${resourceName(deleteTarget)}”将从订阅账号列表中移除，现有订阅链接会立即失效。流量与审计历史仍会保留。` : `“${resourceName(deleteTarget)}”将从${title}列表中移除。存在关联资源时系统会阻止删除，审计历史仍会保留。` : ""} confirmLabel="确认删除" loading={deleting} onClose={() => setDeleteTarget(null)} onConfirm={() => void deleteResource()} />
     <ConfirmDialog open={Boolean(upgradeTarget)} title="升级 Agent" description={upgradeTarget ? `将在 ${resourceName(upgradeTarget)} 的下一次心跳中领取升级任务，并从 GitHub 更新至 ${latestAgentVersion(upgradeTarget)}。当前 Agent 会在独立任务中重启。` : ""} confirmLabel="下发升级任务" confirmVariant="primary" loading={upgrading} onClose={() => { if (!upgrading) setUpgradeTarget(null); }} onConfirm={() => void requestUpgrade()} />
-    <ConfirmDialog open={Boolean(identityResetTarget)} title="重置 Agent 身份？" description={identityResetTarget ? `将清除 ${resourceName(identityResetTarget)} 当前绑定的 Agent 公钥和在线状态。仅在服务器重装系统或 Agent 身份文件丢失后使用；随后需要重新运行一键安装命令或重启 Agent。` : ""} confirmLabel="确认重置" loading={resettingIdentity} onClose={() => { if (!resettingIdentity) setIdentityResetTarget(null); }} onConfirm={() => void resetAgentIdentity()} />
+    <ConfirmDialog open={Boolean(identityResetTarget)} title="重置 Agent 身份？" description={identityResetTarget ? `将清除 ${resourceName(identityResetTarget)} 当前绑定的 Agent 公钥和在线状态。仅在服务器重装系统或 Agent 身份文件丢失后使用；随后需要重新生成并执行一键安装命令。` : ""} confirmLabel="确认重置" loading={resettingIdentity} onClose={() => { if (!resettingIdentity) setIdentityResetTarget(null); }} onConfirm={() => void resetAgentIdentity()} />
   </div>;
 }
 

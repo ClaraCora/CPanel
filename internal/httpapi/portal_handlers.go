@@ -33,10 +33,12 @@ func (s *Server) handlePortalLogin(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	maximumFailures := s.loginFailureLimit(r.Context())
 	sourceIP := clientIP(r)
-	if !s.loginAllowed("portal", sourceIP, login, maximumFailures, now) {
+	release, allowed := s.beginLogin("portal", sourceIP, login, maximumFailures, now)
+	if !allowed {
 		writeLoginRateLimited(w, r)
 		return
 	}
+	defer release()
 	if !validPortalLogin(login) || !validLoginPassword(input.Password) {
 		s.recordLoginFailure("portal", sourceIP, login, maximumFailures, now)
 		writeError(w, r, http.StatusUnauthorized, "PORTAL_LOGIN_FAILED", "账号或密码错误", nil)

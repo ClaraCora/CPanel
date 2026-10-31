@@ -22,7 +22,8 @@ func (s *Store) AuthenticateAgent(ctx context.Context, tokenHash []byte) (domain
 		FROM machine_credentials c JOIN machines m ON m.id=c.machine_id
 		WHERE c.token_hash=$1 AND c.revoked_at IS NULL
 		  AND (c.expires_at IS NULL OR c.expires_at > now())
-		  AND m.status NOT IN ('disabled','archived')`, tokenHash,
+		  AND m.status NOT IN ('disabled','archived') AND m.agent_protocol <> 'v2'
+		  AND NOT EXISTS (SELECT 1 FROM agent_identities i WHERE i.machine_id=m.id)`, tokenHash,
 	).Scan(&machine.ID, &machine.Name, &machine.Status, &machine.KernelType, &machine.TokenID, &machine.Capabilities)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.AgentMachine{}, ErrNotFound
@@ -39,7 +40,9 @@ func (s *Store) AuthenticateSharedAgent(ctx context.Context, machineID string, t
 	err := s.pool.QueryRow(ctx, `
 		SELECT m.id,m.name,m.status,m.kernel_type,'shared',m.capabilities
 		FROM agent_shared_credentials c CROSS JOIN machines m
-		WHERE c.token_hash=$1 AND m.id=$2 AND m.status NOT IN ('disabled','archived')`,
+		WHERE c.token_hash=$1 AND m.id=$2 AND m.status NOT IN ('disabled','archived')
+		  AND m.agent_protocol <> 'v2'
+		  AND NOT EXISTS (SELECT 1 FROM agent_identities i WHERE i.machine_id=m.id)`,
 		tokenHash, machineID,
 	).Scan(&machine.ID, &machine.Name, &machine.Status, &machine.KernelType, &machine.TokenID, &machine.Capabilities)
 	if errors.Is(err, pgx.ErrNoRows) {

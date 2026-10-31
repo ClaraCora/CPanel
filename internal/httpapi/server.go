@@ -31,6 +31,8 @@ type Server struct {
 	telegramBot       TelegramBotService
 	loginRateMu       sync.Mutex
 	loginAttempts     map[string]loginAttempt
+	loginAdmissions   map[string]loginAdmission
+	passwordChecks    int
 	ipLocation        ipLocationResolver
 	ipLocationRateMu  sync.Mutex
 	ipLocationLookups map[string]time.Time
@@ -57,6 +59,7 @@ func New(cfg config.Config, dataStore *store.Store, box *securebox.Box, telegram
 func (s *Server) Handler() http.Handler {
 	router := chi.NewRouter()
 	router.Use(recoveryMiddleware)
+	router.Use(requestBodyDeadline)
 	router.Use(s.commonMiddleware)
 	router.Use(middleware.Compress(5))
 
@@ -89,7 +92,7 @@ func (s *Server) Handler() http.Handler {
 		ops.Post("/fwq", s.handleCreateMachine)
 		ops.Patch("/fwq/{id}", s.handleUpdateMachine)
 		ops.Delete("/fwq/{id}", s.handleDeleteMachine)
-		ops.Get("/fwq/{id}/az", s.handleMachineInstallation)
+		ops.Post("/fwq/{id}/az", s.handleMachineInstallation)
 		ops.Post("/fwq/{id}/sj", s.handleMachineAgentUpgrade)
 		ops.Get("/fwq/{id}/sj", s.handleMachineAgentUpgradeStatus)
 		ops.Delete("/fwq/{id}/sf", s.handleResetMachineAgentIdentity)

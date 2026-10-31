@@ -38,10 +38,12 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	maximumFailures := s.loginFailureLimit(r.Context())
 	sourceIP := clientIP(r)
-	if !s.loginAllowed("admin", sourceIP, input.Email, maximumFailures, now) {
+	release, allowed := s.beginLogin("admin", sourceIP, input.Email, maximumFailures, now)
+	if !allowed {
 		writeLoginRateLimited(w, r)
 		return
 	}
+	defer release()
 	if !validAdminLogin(input.Email) || !validLoginPassword(input.Password) {
 		s.recordLoginFailure("admin", sourceIP, input.Email, maximumFailures, now)
 		writeError(w, r, http.StatusUnauthorized, "LOGIN_FAILED", "邮箱或密码错误", nil)

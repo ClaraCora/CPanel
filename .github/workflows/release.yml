@@ -18,7 +18,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  security:
+    uses: ./.github/workflows/security.yml
   build:
+    needs: security
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -35,14 +38,14 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
           cache: true
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 24
+          node-version-file: web/.node-version
           cache: npm
           cache-dependency-path: web/package-lock.json
       - name: Validate installers
@@ -66,7 +69,7 @@ jobs:
         run: |
           mkdir -p dist
           for arch in amd64 arm64; do
-            GOARCH="$arch" go build -trimpath -ldflags "-s -w" -o "dist/cpanel-linux-$arch" ./cmd/cpanel
+            GOARCH="$arch" go build -trimpath -o "dist/cpanel-linux-$arch" ./cmd/cpanel
           done
           cd dist
           for arch in amd64 arm64; do
@@ -75,19 +78,45 @@ jobs:
             sha256sum "$artifact" > "$artifact.sha256"
           done
           sha256sum -c ./*.sha256
+      # Retain Go symbol metadata: stripped binaries force module-level approximations.
+      - name: Scan built release binaries
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+          for binary in dist/*linux-*; do
+            case "$binary" in *.sha256) continue ;; esac
+            go version -m "$binary"
+            govulncheck -mode=binary "$binary"
+          done
       - name: Publish to CPP
         env:
           GH_TOKEN: ${{ secrets.CPP_RELEASE_TOKEN }}
           GH_REPO: ClaraCora/CPP
+          RELEASE_SIGNING_PRIVATE_KEY: ${{ secrets.RELEASE_SIGNING_PRIVATE_KEY }}
           REQUESTED_VERSION: ${{ inputs.version }}
         run: |
           test -n "$GH_TOKEN" || { echo "CPP_RELEASE_TOKEN is not configured" >&2; exit 1; }
           BUILD_ID="main+${GITHUB_SHA::12}"
+          if [ -n "$REQUESTED_VERSION" ]; then
+            printf '%s' "$REQUESTED_VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' || exit 1
+            BUILD_ID="$REQUESTED_VERSION+${GITHUB_SHA::12}"
+          fi
           printf '%s\n' "$BUILD_ID" > dist/cpanel-version.txt
           printf '%s\n' "$GITHUB_SHA" > dist/source-sha.txt
           cat > dist/release-manifest.json <<EOF
           {"component":"cpanel","version":"${BUILD_ID}","source_repository":"${GITHUB_REPOSITORY}","source_commit":"${GITHUB_SHA}"}
           EOF
+
+          test -n "$RELEASE_SIGNING_PRIVATE_KEY" || { echo "RELEASE_SIGNING_PRIVATE_KEY is not configured" >&2; exit 1; }
+          umask 077
+          signing_key=$(mktemp)
+          trap 'rm -f "$signing_key"' EXIT
+          printf '%s\n' "$RELEASE_SIGNING_PRIVATE_KEY" >"$signing_key"
+          openssl pkey -in "$signing_key" -pubout | cmp - release-public-key.pem
+          cp install.sh dist/install.sh
+          (cd dist && find . -maxdepth 1 -type f ! -name release-manifest.sha256 ! -name release-manifest.sha256.sig -printf '%f\0' | LC_ALL=C sort -z | xargs -0 sha256sum >release-manifest.sha256)
+          openssl pkeyutl -sign -inkey "$signing_key" -rawin -in dist/release-manifest.sha256 -out dist/release-manifest.sha256.sig
+          openssl pkeyutl -verify -pubin -inkey release-public-key.pem -rawin -in dist/release-manifest.sha256 -sigfile dist/release-manifest.sha256.sig
+          rm -f "$signing_key"
 
           ROLLING_TAG="cpanel-latest"
           NOTES="Rolling CPanel build ${BUILD_ID}. Checksums and source metadata are included in the assets."

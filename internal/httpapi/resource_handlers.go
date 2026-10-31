@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"cpanel/internal/auth"
 	"cpanel/internal/domain"
 	"cpanel/internal/store"
+	webui "cpanel/web"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -147,39 +149,74 @@ func (s *Server) handleMachineInstallation(w http.ResponseWriter, r *http.Reques
 		writeStoreError(w, r, store.ErrNotFound)
 		return
 	}
-	sealed, err := s.store.RawSetting(r.Context(), "agent", "communication_key")
-	if err != nil {
-		writeError(w, r, http.StatusUnprocessableEntity, "AGENT_KEY_NOT_CONFIGURED", "请先在系统设置中配置 Agent 统一通讯密钥", nil)
-		return
-	}
-	plain, err := s.secureBox.Open(sealed)
-	if err != nil {
-		writeError(w, r, http.StatusInternalServerError, "AGENT_KEY_UNAVAILABLE", "Agent 通讯密钥无法读取", nil)
-		return
-	}
-	var key string
-	if json.Unmarshal(plain, &key) != nil || key == "" {
-		writeError(w, r, http.StatusInternalServerError, "AGENT_KEY_UNAVAILABLE", "Agent 通讯密钥无法读取", nil)
-		return
-	}
 	controlURL := s.store.SettingString(r.Context(), "agent", "external_url", s.cfg.ExternalURL)
-	installerURL := s.store.SettingString(r.Context(), "agent", "installer_url", "https://raw.githubusercontent.com/ClaraCora/CPP/main/corade-install.sh")
+	if err := validateAgentControlURL(controlURL); err != nil {
+		writeError(w, r, http.StatusUnprocessableEntity, "AGENT_CONTROL_URL_INVALID", "请配置 HTTPS Agent 外部地址（仅数字回环地址允许 HTTP）", nil)
+		return
+	}
+	installerURL := strings.TrimRight(controlURL, "/") + "/ca/wj/corade-install.sh"
 	panelPublicKey, err := s.agentV2.panelPublicKey(r.Context())
 	if err != nil {
 		writeError(w, r, http.StatusInternalServerError, "AGENT_IDENTITY_UNAVAILABLE", "Agent V2 面板身份无法读取", nil)
 		return
 	}
+	key, tokenHash, err := auth.NewSecret("cpenroll_", 32)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	encodedKey, err := json.Marshal(key)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	sealed, err := s.secureBox.Seal(encodedKey)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	expiresAt := time.Now().Add(30 * time.Minute)
+	if err := s.store.IssueAgentEnrollment(r.Context(), machineID, tokenHash, sealed, expiresAt); err != nil {
+		if errors.Is(err, store.ErrConflict) {
+			writeError(w, r, http.StatusConflict, "AGENT_ALREADY_ENROLLED", "请先重置该服务器的 Agent 身份，再生成安装命令", nil)
+		} else {
+			writeStoreError(w, r, err)
+		}
+		return
+	}
+	auditCreate(s, r, "agent_enrollment", machineID, map[string]string{"machine_id": machineID, "expires_at": expiresAt.UTC().Format(time.RFC3339)})
 	encodedPanelPublicKey := base64.RawURLEncoding.EncodeToString(panelPublicKey)
 	command := agentInstallCommand(installerURL, controlURL, key, machineID, encodedPanelPublicKey)
 	writeData(w, r, http.StatusOK, map[string]string{
 		"machine_id": machineID, "control_url": controlURL, "installer_url": installerURL,
 		"panel_public_key": encodedPanelPublicKey, "command": command,
+		"expires_at": expiresAt.UTC().Format(time.RFC3339),
 	})
 }
 
+func validateAgentControlURL(value string) error {
+	u, err := url.Parse(value)
+	if err != nil || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+		return errors.New("invalid Agent control URL")
+	}
+	if u.Scheme == "https" {
+		return nil
+	}
+	if ip := net.ParseIP(u.Hostname()); u.Scheme == "http" && ip != nil && ip.IsLoopback() {
+		return nil
+	}
+	return errors.New("Agent control URL requires HTTPS")
+}
+
 func agentInstallCommand(installerURL, controlURL, key, machineID, panelPublicKey string) string {
-	return fmt.Sprintf("curl -fsSL %s | sudo sh -s -- --control-url %s --communication-key %s --machine-id %s --panel-public-key %s",
-		shellQuote(installerURL), shellQuote(controlURL), shellQuote(key), shellQuote(machineID), shellQuote(panelPublicKey))
+	protocols := "=https"
+	if parsed, err := url.Parse(installerURL); err == nil && parsed.Scheme == "http" {
+		if ip := net.ParseIP(parsed.Hostname()); ip != nil && ip.IsLoopback() {
+			protocols = "=http,https"
+		}
+	}
+	return fmt.Sprintf(`(umask 077; installer=$(mktemp) || exit $?; trap 'rm -f "$installer"' EXIT; curl --proto %s --proto-redir %s -fsSL --max-time 120 %s -o "$installer" && printf '%%s  %%s\n' %s "$installer" | sha256sum -c - && sudo sh "$installer" --control-url %s --communication-key %s --machine-id %s --panel-public-key %s)`,
+		shellQuote(protocols), shellQuote(protocols), shellQuote(installerURL), shellQuote(webui.AgentInstallerSHA256()), shellQuote(controlURL), shellQuote(key), shellQuote(machineID), shellQuote(panelPublicKey))
 }
 
 func (s *Server) handleResetMachineAgentIdentity(w http.ResponseWriter, r *http.Request) {
@@ -243,6 +280,13 @@ func timeValue(value *time.Time) time.Time {
 
 func (s *Server) handleAgentArtifact(w http.ResponseWriter, r *http.Request) {
 	artifact := chi.URLParam(r, "artifact")
+	if artifact == "corade-install.sh" {
+		w.Header().Set("Content-Type", "text/x-shellscript; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		_, _ = w.Write(webui.AgentInstaller())
+		return
+	}
 	allowed := map[string]bool{
 		"corade-linux-amd64":        true,
 		"corade-linux-amd64.sha256": true,

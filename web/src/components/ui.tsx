@@ -49,7 +49,7 @@ export function DataFreshness({ lastSuccessAt, stale = false, refreshing = false
   return <span className={`data-freshness ${stale ? "data-freshness--stale" : ""}`} role={stale ? "alert" : "status"} title={stale && error ? error : undefined}>{stale ? `更新失败，上次成功 ${time}` : refreshing ? `正在更新 · 上次 ${time}` : `更新于 ${time}`}</span>;
 }
 
-export function Drawer({ open, wide = false, title, description, children, onClose }: { open: boolean; wide?: boolean; title: string; description?: string; children: ReactNode; onClose: () => void }) {
+export function Drawer({ open, wide = false, title, description, children, onClose, className = "" }: { open: boolean; wide?: boolean; title: string; description?: string; children: ReactNode; onClose: () => void; className?: string }) {
   const titleID = useId();
   const descriptionID = useId();
   const dialogRef = useRef<HTMLElement>(null);
@@ -81,10 +81,10 @@ export function Drawer({ open, wide = false, title, description, children, onClo
     };
   }, [open]);
   if (!open) return null;
-  return createPortal(<div className="drawer-layer"><button type="button" className="drawer-backdrop" aria-label="关闭对话框背景" onClick={() => onCloseRef.current()} /><section ref={dialogRef} data-modal-root className={`drawer ${wide ? "drawer--wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby={titleID} aria-describedby={description ? descriptionID : undefined} tabIndex={-1}><header className="drawer__header"><div><h2 id={titleID}>{title}</h2>{description && <p id={descriptionID}>{description}</p>}</div><button ref={closeRef} type="button" className="icon-button" aria-label="关闭对话框" title="关闭" onClick={() => onCloseRef.current()}><X size={19} /></button></header><div className="drawer__body">{children}</div></section></div>, document.body);
+  return createPortal(<div className={`drawer-layer ${className}`.trim()}><button type="button" className="drawer-backdrop" aria-label="关闭对话框背景" onClick={() => onCloseRef.current()} /><section ref={dialogRef} data-modal-root className={`drawer ${wide ? "drawer--wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby={titleID} aria-describedby={description ? descriptionID : undefined} tabIndex={-1}><header className="drawer__header"><div><h2 id={titleID}>{title}</h2>{description && <p id={descriptionID}>{description}</p>}</div><button ref={closeRef} type="button" className="icon-button" aria-label="关闭对话框" title="关闭" onClick={() => onCloseRef.current()}><X size={19} /></button></header><div className="drawer__body">{children}</div></section></div>, document.body);
 }
 
-export function RowMenu({ label, children }: { label: string; children: ReactNode }) {
+export function RowMenu({ label, children, className = "" }: { label: string; children: ReactNode; className?: string }) {
   const menuID = useId();
   const anchorRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -143,7 +143,7 @@ export function RowMenu({ label, children }: { label: string; children: ReactNod
     <button ref={anchorRef} type="button" className="icon-button" aria-label={label} title="更多操作" aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuID : undefined} onClick={() => { setPosition(null); setOpen((value) => !value); }}>
       <MoreHorizontalIcon />
     </button>
-    {open && createPortal(<div ref={panelRef} id={menuID} role="menu" aria-label={label} className="row-menu__panel row-menu__panel--portal" style={{ left: position?.left ?? 0, top: position?.top ?? 0, visibility: position ? "visible" : "hidden" }} onKeyDown={navigateMenu} onClick={(event) => { if ((event.target as Element).closest("button, a")) close(); }}>{children}</div>, document.body)}
+    {open && createPortal(<div ref={panelRef} id={menuID} role="menu" aria-label={label} className={`row-menu__panel row-menu__panel--portal ${className}`.trim()} style={{ left: position?.left ?? 0, top: position?.top ?? 0, visibility: position ? "visible" : "hidden" }} onKeyDown={navigateMenu} onClick={(event) => { if ((event.target as Element).closest("button, a")) close(); }}>{children}</div>, document.body)}
   </>;
 }
 

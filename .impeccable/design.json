@@ -1,0 +1,679 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-01T11:11:57.623348Z",
+  "title": "Design System: CPanel",
+  "extensions": {
+    "colorMeta": {
+      "clear-primary": {
+        "role": "primary",
+        "displayName": "Clear Primary",
+        "canonical": "#3767d0",
+        "tonalRamp": [
+          "oklch(15% 0.17087 263.32)",
+          "oklch(27% 0.17087 263.32)",
+          "oklch(39% 0.17087 263.32)",
+          "oklch(51% 0.17087 263.32)",
+          "oklch(63% 0.17087 263.32)",
+          "oklch(75% 0.17087 263.32)",
+          "oklch(87% 0.17087 263.32)",
+          "oklch(95% 0.17087 263.32)"
+        ]
+      },
+      "clear-primary-hover": {
+        "role": "primary",
+        "displayName": "Clear Primary Hover",
+        "canonical": "#315cbb",
+        "tonalRamp": [
+          "oklch(15% 0.15757 263.44)",
+          "oklch(27% 0.15757 263.44)",
+          "oklch(39% 0.15757 263.44)",
+          "oklch(51% 0.15757 263.44)",
+          "oklch(63% 0.15757 263.44)",
+          "oklch(75% 0.15757 263.44)",
+          "oklch(87% 0.15757 263.44)",
+          "oklch(95% 0.15757 263.44)"
+        ]
+      },
+      "clear-command-text": {
+        "role": "neutral",
+        "displayName": "Clear Command Text",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "oklch(15% 0.00000 0.00)",
+          "oklch(27% 0.00000 0.00)",
+          "oklch(39% 0.00000 0.00)",
+          "oklch(51% 0.00000 0.00)",
+          "oklch(63% 0.00000 0.00)",
+          "oklch(75% 0.00000 0.00)",
+          "oklch(87% 0.00000 0.00)",
+          "oklch(95% 0.00000 0.00)"
+        ]
+      },
+      "clear-dark-surface": {
+        "role": "neutral",
+        "displayName": "Clear Dark Surface",
+        "canonical": "#10151f",
+        "tonalRamp": [
+          "oklch(15% 0.02175 263.87)",
+          "oklch(27% 0.02175 263.87)",
+          "oklch(39% 0.02175 263.87)",
+          "oklch(51% 0.02175 263.87)",
+          "oklch(63% 0.02175 263.87)",
+          "oklch(75% 0.02175 263.87)",
+          "oklch(87% 0.02175 263.87)",
+          "oklch(95% 0.02175 263.87)"
+        ]
+      },
+      "clear-dark-panel": {
+        "role": "neutral",
+        "displayName": "Clear Dark Panel",
+        "canonical": "#171e2a",
+        "tonalRamp": [
+          "oklch(15% 0.02551 261.03)",
+          "oklch(27% 0.02551 261.03)",
+          "oklch(39% 0.02551 261.03)",
+          "oklch(51% 0.02551 261.03)",
+          "oklch(63% 0.02551 261.03)",
+          "oklch(75% 0.02551 261.03)",
+          "oklch(87% 0.02551 261.03)",
+          "oklch(95% 0.02551 261.03)"
+        ]
+      },
+      "clear-dark-panel-strong": {
+        "role": "neutral",
+        "displayName": "Clear Dark Panel Strong",
+        "canonical": "#1e2837",
+        "tonalRamp": [
+          "oklch(15% 0.03136 258.32)",
+          "oklch(27% 0.03136 258.32)",
+          "oklch(39% 0.03136 258.32)",
+          "oklch(51% 0.03136 258.32)",
+          "oklch(63% 0.03136 258.32)",
+          "oklch(75% 0.03136 258.32)",
+          "oklch(87% 0.03136 258.32)",
+          "oklch(95% 0.03136 258.32)"
+        ]
+      },
+      "clear-dark-foreground": {
+        "role": "neutral",
+        "displayName": "Clear Dark Foreground",
+        "canonical": "#edf2fa",
+        "tonalRamp": [
+          "oklch(15% 0.01199 259.82)",
+          "oklch(27% 0.01199 259.82)",
+          "oklch(39% 0.01199 259.82)",
+          "oklch(51% 0.01199 259.82)",
+          "oklch(63% 0.01199 259.82)",
+          "oklch(75% 0.01199 259.82)",
+          "oklch(87% 0.01199 259.82)",
+          "oklch(95% 0.01199 259.82)"
+        ]
+      },
+      "clear-dark-secondary": {
+        "role": "neutral",
+        "displayName": "Clear Dark Secondary",
+        "canonical": "#a1afc2",
+        "tonalRamp": [
+          "oklch(15% 0.03157 256.04)",
+          "oklch(27% 0.03157 256.04)",
+          "oklch(39% 0.03157 256.04)",
+          "oklch(51% 0.03157 256.04)",
+          "oklch(63% 0.03157 256.04)",
+          "oklch(75% 0.03157 256.04)",
+          "oklch(87% 0.03157 256.04)",
+          "oklch(95% 0.03157 256.04)"
+        ]
+      },
+      "clear-dark-border": {
+        "role": "neutral",
+        "displayName": "Clear Dark Border",
+        "canonical": "#2c3749",
+        "tonalRamp": [
+          "oklch(15% 0.03526 260.12)",
+          "oklch(27% 0.03526 260.12)",
+          "oklch(39% 0.03526 260.12)",
+          "oklch(51% 0.03526 260.12)",
+          "oklch(63% 0.03526 260.12)",
+          "oklch(75% 0.03526 260.12)",
+          "oklch(87% 0.03526 260.12)",
+          "oklch(95% 0.03526 260.12)"
+        ]
+      },
+      "clear-dark-border-strong": {
+        "role": "neutral",
+        "displayName": "Clear Dark Border Strong",
+        "canonical": "#49617f",
+        "tonalRamp": [
+          "oklch(15% 0.05656 254.35)",
+          "oklch(27% 0.05656 254.35)",
+          "oklch(39% 0.05656 254.35)",
+          "oklch(51% 0.05656 254.35)",
+          "oklch(63% 0.05656 254.35)",
+          "oklch(75% 0.05656 254.35)",
+          "oklch(87% 0.05656 254.35)",
+          "oklch(95% 0.05656 254.35)"
+        ]
+      },
+      "clear-dark-accent": {
+        "role": "primary",
+        "displayName": "Clear Dark Accent",
+        "canonical": "#82acff",
+        "tonalRamp": [
+          "oklch(15% 0.12896 263.16)",
+          "oklch(27% 0.12896 263.16)",
+          "oklch(39% 0.12896 263.16)",
+          "oklch(51% 0.12896 263.16)",
+          "oklch(63% 0.12896 263.16)",
+          "oklch(75% 0.12896 263.16)",
+          "oklch(87% 0.12896 263.16)",
+          "oklch(95% 0.12896 263.16)"
+        ]
+      },
+      "clear-dark-active": {
+        "role": "neutral",
+        "displayName": "Clear Dark Active",
+        "canonical": "#263c60",
+        "tonalRamp": [
+          "oklch(15% 0.06888 259.83)",
+          "oklch(27% 0.06888 259.83)",
+          "oklch(39% 0.06888 259.83)",
+          "oklch(51% 0.06888 259.83)",
+          "oklch(63% 0.06888 259.83)",
+          "oklch(75% 0.06888 259.83)",
+          "oklch(87% 0.06888 259.83)",
+          "oklch(95% 0.06888 259.83)"
+        ]
+      },
+      "clear-dark-hover": {
+        "role": "neutral",
+        "displayName": "Clear Dark Hover",
+        "canonical": "#1c2a40",
+        "tonalRamp": [
+          "oklch(15% 0.04507 259.18)",
+          "oklch(27% 0.04507 259.18)",
+          "oklch(39% 0.04507 259.18)",
+          "oklch(51% 0.04507 259.18)",
+          "oklch(63% 0.04507 259.18)",
+          "oklch(75% 0.04507 259.18)",
+          "oklch(87% 0.04507 259.18)",
+          "oklch(95% 0.04507 259.18)"
+        ]
+      },
+      "clear-dark-success": {
+        "role": "secondary",
+        "displayName": "Clear Dark Success",
+        "canonical": "#83d9b1",
+        "tonalRamp": [
+          "oklch(15% 0.10186 162.93)",
+          "oklch(27% 0.10186 162.93)",
+          "oklch(39% 0.10186 162.93)",
+          "oklch(51% 0.10186 162.93)",
+          "oklch(63% 0.10186 162.93)",
+          "oklch(75% 0.10186 162.93)",
+          "oklch(87% 0.10186 162.93)",
+          "oklch(95% 0.10186 162.93)"
+        ]
+      },
+      "clear-dark-warning": {
+        "role": "secondary",
+        "displayName": "Clear Dark Warning",
+        "canonical": "#f2c782",
+        "tonalRamp": [
+          "oklch(15% 0.09961 78.64)",
+          "oklch(27% 0.09961 78.64)",
+          "oklch(39% 0.09961 78.64)",
+          "oklch(51% 0.09961 78.64)",
+          "oklch(63% 0.09961 78.64)",
+          "oklch(75% 0.09961 78.64)",
+          "oklch(87% 0.09961 78.64)",
+          "oklch(95% 0.09961 78.64)"
+        ]
+      },
+      "clear-dark-danger": {
+        "role": "secondary",
+        "displayName": "Clear Dark Danger",
+        "canonical": "#ffa4b0",
+        "tonalRamp": [
+          "oklch(15% 0.10853 11.17)",
+          "oklch(27% 0.10853 11.17)",
+          "oklch(39% 0.10853 11.17)",
+          "oklch(51% 0.10853 11.17)",
+          "oklch(63% 0.10853 11.17)",
+          "oklch(75% 0.10853 11.17)",
+          "oklch(87% 0.10853 11.17)",
+          "oklch(95% 0.10853 11.17)"
+        ]
+      },
+      "clear-dark-success-bg": {
+        "role": "secondary",
+        "displayName": "Clear Dark Success Bg",
+        "canonical": "#203b34",
+        "tonalRamp": [
+          "oklch(15% 0.03559 175.56)",
+          "oklch(27% 0.03559 175.56)",
+          "oklch(39% 0.03559 175.56)",
+          "oklch(51% 0.03559 175.56)",
+          "oklch(63% 0.03559 175.56)",
+          "oklch(75% 0.03559 175.56)",
+          "oklch(87% 0.03559 175.56)",
+          "oklch(95% 0.03559 175.56)"
+        ]
+      },
+      "clear-dark-warning-bg": {
+        "role": "secondary",
+        "displayName": "Clear Dark Warning Bg",
+        "canonical": "#3c3222",
+        "tonalRamp": [
+          "oklch(15% 0.03008 79.09)",
+          "oklch(27% 0.03008 79.09)",
+          "oklch(39% 0.03008 79.09)",
+          "oklch(51% 0.03008 79.09)",
+          "oklch(63% 0.03008 79.09)",
+          "oklch(75% 0.03008 79.09)",
+          "oklch(87% 0.03008 79.09)",
+          "oklch(95% 0.03008 79.09)"
+        ]
+      },
+      "clear-dark-danger-bg": {
+        "role": "secondary",
+        "displayName": "Clear Dark Danger Bg",
+        "canonical": "#412a32",
+        "tonalRamp": [
+          "oklch(15% 0.03639 356.85)",
+          "oklch(27% 0.03639 356.85)",
+          "oklch(39% 0.03639 356.85)",
+          "oklch(51% 0.03639 356.85)",
+          "oklch(63% 0.03639 356.85)",
+          "oklch(75% 0.03639 356.85)",
+          "oklch(87% 0.03639 356.85)",
+          "oklch(95% 0.03639 356.85)"
+        ]
+      },
+      "clear-light-surface": {
+        "role": "neutral",
+        "displayName": "Clear Light Surface",
+        "canonical": "#f3f6fb",
+        "tonalRamp": [
+          "oklch(15% 0.00740 260.73)",
+          "oklch(27% 0.00740 260.73)",
+          "oklch(39% 0.00740 260.73)",
+          "oklch(51% 0.00740 260.73)",
+          "oklch(63% 0.00740 260.73)",
+          "oklch(75% 0.00740 260.73)",
+          "oklch(87% 0.00740 260.73)",
+          "oklch(95% 0.00740 260.73)"
+        ]
+      },
+      "clear-light-panel": {
+        "role": "neutral",
+        "displayName": "Clear Light Panel",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "oklch(15% 0.00000 0.00)",
+          "oklch(27% 0.00000 0.00)",
+          "oklch(39% 0.00000 0.00)",
+          "oklch(51% 0.00000 0.00)",
+          "oklch(63% 0.00000 0.00)",
+          "oklch(75% 0.00000 0.00)",
+          "oklch(87% 0.00000 0.00)",
+          "oklch(95% 0.00000 0.00)"
+        ]
+      },
+      "clear-light-panel-strong": {
+        "role": "neutral",
+        "displayName": "Clear Light Panel Strong",
+        "canonical": "#edf1f7",
+        "tonalRamp": [
+          "oklch(15% 0.00912 258.34)",
+          "oklch(27% 0.00912 258.34)",
+          "oklch(39% 0.00912 258.34)",
+          "oklch(51% 0.00912 258.34)",
+          "oklch(63% 0.00912 258.34)",
+          "oklch(75% 0.00912 258.34)",
+          "oklch(87% 0.00912 258.34)",
+          "oklch(95% 0.00912 258.34)"
+        ]
+      },
+      "clear-light-foreground": {
+        "role": "neutral",
+        "displayName": "Clear Light Foreground",
+        "canonical": "#243047",
+        "tonalRamp": [
+          "oklch(15% 0.04482 262.86)",
+          "oklch(27% 0.04482 262.86)",
+          "oklch(39% 0.04482 262.86)",
+          "oklch(51% 0.04482 262.86)",
+          "oklch(63% 0.04482 262.86)",
+          "oklch(75% 0.04482 262.86)",
+          "oklch(87% 0.04482 262.86)",
+          "oklch(95% 0.04482 262.86)"
+        ]
+      },
+      "clear-light-secondary": {
+        "role": "neutral",
+        "displayName": "Clear Light Secondary",
+        "canonical": "#586b83",
+        "tonalRamp": [
+          "oklch(15% 0.04446 254.46)",
+          "oklch(27% 0.04446 254.46)",
+          "oklch(39% 0.04446 254.46)",
+          "oklch(51% 0.04446 254.46)",
+          "oklch(63% 0.04446 254.46)",
+          "oklch(75% 0.04446 254.46)",
+          "oklch(87% 0.04446 254.46)",
+          "oklch(95% 0.04446 254.46)"
+        ]
+      },
+      "clear-light-border": {
+        "role": "neutral",
+        "displayName": "Clear Light Border",
+        "canonical": "#dce3ed",
+        "tonalRamp": [
+          "oklch(15% 0.01557 257.20)",
+          "oklch(27% 0.01557 257.20)",
+          "oklch(39% 0.01557 257.20)",
+          "oklch(51% 0.01557 257.20)",
+          "oklch(63% 0.01557 257.20)",
+          "oklch(75% 0.01557 257.20)",
+          "oklch(87% 0.01557 257.20)",
+          "oklch(95% 0.01557 257.20)"
+        ]
+      },
+      "clear-light-border-strong": {
+        "role": "neutral",
+        "displayName": "Clear Light Border Strong",
+        "canonical": "#a6b7ce",
+        "tonalRamp": [
+          "oklch(15% 0.03796 255.98)",
+          "oklch(27% 0.03796 255.98)",
+          "oklch(39% 0.03796 255.98)",
+          "oklch(51% 0.03796 255.98)",
+          "oklch(63% 0.03796 255.98)",
+          "oklch(75% 0.03796 255.98)",
+          "oklch(87% 0.03796 255.98)",
+          "oklch(95% 0.03796 255.98)"
+        ]
+      },
+      "clear-light-accent": {
+        "role": "primary",
+        "displayName": "Clear Light Accent",
+        "canonical": "#345fc5",
+        "tonalRamp": [
+          "oklch(15% 0.16663 264.16)",
+          "oklch(27% 0.16663 264.16)",
+          "oklch(39% 0.16663 264.16)",
+          "oklch(51% 0.16663 264.16)",
+          "oklch(63% 0.16663 264.16)",
+          "oklch(75% 0.16663 264.16)",
+          "oklch(87% 0.16663 264.16)",
+          "oklch(95% 0.16663 264.16)"
+        ]
+      },
+      "clear-light-active": {
+        "role": "neutral",
+        "displayName": "Clear Light Active",
+        "canonical": "#edf2ff",
+        "tonalRamp": [
+          "oklch(15% 0.01824 269.09)",
+          "oklch(27% 0.01824 269.09)",
+          "oklch(39% 0.01824 269.09)",
+          "oklch(51% 0.01824 269.09)",
+          "oklch(63% 0.01824 269.09)",
+          "oklch(75% 0.01824 269.09)",
+          "oklch(87% 0.01824 269.09)",
+          "oklch(95% 0.01824 269.09)"
+        ]
+      },
+      "clear-light-hover": {
+        "role": "neutral",
+        "displayName": "Clear Light Hover",
+        "canonical": "#f2f6fd",
+        "tonalRamp": [
+          "oklch(15% 0.01028 261.79)",
+          "oklch(27% 0.01028 261.79)",
+          "oklch(39% 0.01028 261.79)",
+          "oklch(51% 0.01028 261.79)",
+          "oklch(63% 0.01028 261.79)",
+          "oklch(75% 0.01028 261.79)",
+          "oklch(87% 0.01028 261.79)",
+          "oklch(95% 0.01028 261.79)"
+        ]
+      },
+      "clear-light-success": {
+        "role": "secondary",
+        "displayName": "Clear Light Success",
+        "canonical": "#256448",
+        "tonalRamp": [
+          "oklch(15% 0.07980 161.35)",
+          "oklch(27% 0.07980 161.35)",
+          "oklch(39% 0.07980 161.35)",
+          "oklch(51% 0.07980 161.35)",
+          "oklch(63% 0.07980 161.35)",
+          "oklch(75% 0.07980 161.35)",
+          "oklch(87% 0.07980 161.35)",
+          "oklch(95% 0.07980 161.35)"
+        ]
+      },
+      "clear-light-warning": {
+        "role": "secondary",
+        "displayName": "Clear Light Warning",
+        "canonical": "#845a1a",
+        "tonalRamp": [
+          "oklch(15% 0.09475 73.06)",
+          "oklch(27% 0.09475 73.06)",
+          "oklch(39% 0.09475 73.06)",
+          "oklch(51% 0.09475 73.06)",
+          "oklch(63% 0.09475 73.06)",
+          "oklch(75% 0.09475 73.06)",
+          "oklch(87% 0.09475 73.06)",
+          "oklch(95% 0.09475 73.06)"
+        ]
+      },
+      "clear-light-danger": {
+        "role": "secondary",
+        "displayName": "Clear Light Danger",
+        "canonical": "#a43c4d",
+        "tonalRamp": [
+          "oklch(15% 0.13742 13.69)",
+          "oklch(27% 0.13742 13.69)",
+          "oklch(39% 0.13742 13.69)",
+          "oklch(51% 0.13742 13.69)",
+          "oklch(63% 0.13742 13.69)",
+          "oklch(75% 0.13742 13.69)",
+          "oklch(87% 0.13742 13.69)",
+          "oklch(95% 0.13742 13.69)"
+        ]
+      },
+      "clear-light-success-bg": {
+        "role": "secondary",
+        "displayName": "Clear Light Success Bg",
+        "canonical": "#e8f4ee",
+        "tonalRamp": [
+          "oklch(15% 0.01496 164.73)",
+          "oklch(27% 0.01496 164.73)",
+          "oklch(39% 0.01496 164.73)",
+          "oklch(51% 0.01496 164.73)",
+          "oklch(63% 0.01496 164.73)",
+          "oklch(75% 0.01496 164.73)",
+          "oklch(87% 0.01496 164.73)",
+          "oklch(95% 0.01496 164.73)"
+        ]
+      },
+      "clear-light-warning-bg": {
+        "role": "secondary",
+        "displayName": "Clear Light Warning Bg",
+        "canonical": "#fff3df",
+        "tonalRamp": [
+          "oklch(15% 0.02931 80.66)",
+          "oklch(27% 0.02931 80.66)",
+          "oklch(39% 0.02931 80.66)",
+          "oklch(51% 0.02931 80.66)",
+          "oklch(63% 0.02931 80.66)",
+          "oklch(75% 0.02931 80.66)",
+          "oklch(87% 0.02931 80.66)",
+          "oklch(95% 0.02931 80.66)"
+        ]
+      },
+      "clear-light-danger-bg": {
+        "role": "secondary",
+        "displayName": "Clear Light Danger Bg",
+        "canonical": "#ffedf0",
+        "tonalRamp": [
+          "oklch(15% 0.01989 5.98)",
+          "oklch(27% 0.01989 5.98)",
+          "oklch(39% 0.01989 5.98)",
+          "oklch(51% 0.01989 5.98)",
+          "oklch(63% 0.01989 5.98)",
+          "oklch(75% 0.01989 5.98)",
+          "oklch(87% 0.01989 5.98)",
+          "oklch(95% 0.01989 5.98)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "clear-title": {
+        "displayName": "Clear A page title",
+        "purpose": "Selected resource lists; 25px on phones."
+      },
+      "clear-body": {
+        "displayName": "Clear A native UI body",
+        "purpose": "Native Chinese UI font stack in the local scope."
+      },
+      "clear-machine-data": {
+        "displayName": "Clear A machine data",
+        "purpose": "Technical values with tabular numerals; IDs are 11px."
+      }
+    },
+    "shadows": [
+      {
+        "name": "clear-editor",
+        "value": "-12px 0 40px #0003",
+        "purpose": "Local right-side editor only."
+      },
+      {
+        "name": "clear-menu",
+        "value": "0 12px 24px #0003",
+        "purpose": "Local resource menu only."
+      }
+    ],
+    "motion": [
+      {
+        "name": "clear-button-feedback",
+        "value": "color 180ms ease, background-color 180ms ease",
+        "purpose": "Local hover/focus state feedback; no lift, sweep, entrance, or status-dot animation."
+      },
+      {
+        "name": "clear-reduced-motion",
+        "value": "animation: none !important; transition: none !important",
+        "purpose": "All local descendants under prefers-reduced-motion: reduce."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "clear-compact",
+        "value": "1100px"
+      },
+      {
+        "name": "clear-mobile",
+        "value": "700px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Clear A primary command",
+      "kind": "button",
+      "refersTo": "clear-button-primary",
+      "description": "Local solid command; add ds-clear-light to the wrapper for the light variant.",
+      "html": "<div class=\"ds-clear-scope\"><button type=\"button\" class=\"ds-clear-button ds-clear-primary\">添加服务器</button></div>",
+      "css": ".ds-clear-scope{--surface:#10151f;--panel:#171e2a;--panel-strong:#1e2837;--foreground:#edf2fa;--text:#edf2fa;--secondary:#a1afc2;--border:#2c3749;--border-strong:#49617f;--primary:#3767d0;--primary-hover:#315cbb;--clear-accent:#82acff;--clear-active:#263c60;--clear-hover:#1c2a40;--success:#83d9b1;--warning:#f2c782;--danger:#ffa4b0;--focus:#82acff;--clear-success-bg:#203b34;--clear-warning-bg:#3c3222;--clear-danger-bg:#412a32;font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"PingFang SC\", \"Microsoft YaHei UI\", system-ui, sans-serif;font-size:13px;line-height:1.5;color:var(--foreground);color-scheme:dark}.ds-clear-scope.ds-clear-light{--surface:#f3f6fb;--panel:#ffffff;--panel-strong:#edf1f7;--foreground:#243047;--text:#243047;--secondary:#586b83;--border:#dce3ed;--border-strong:#a6b7ce;--clear-accent:#345fc5;--clear-active:#edf2ff;--clear-hover:#f2f6fd;--success:#256448;--warning:#845a1a;--danger:#a43c4d;--focus:#345fc5;--clear-success-bg:#e8f4ee;--clear-warning-bg:#fff3df;--clear-danger-bg:#ffedf0;color-scheme:light}.ds-clear-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:7px 12px;border:1px solid var(--border);border-radius:7px;color:var(--foreground);background:var(--panel);font-family:inherit;font-size:12px;font-weight:500;line-height:1;cursor:pointer;box-shadow:none;transition:color 180ms ease,background-color 180ms ease}.ds-clear-button:hover:not(:disabled){background:var(--panel-strong);border-color:var(--border-strong)}.ds-clear-button:disabled{opacity:.48;cursor:not-allowed}@media(max-width:700px){.ds-clear-button{min-height:44px}}.ds-clear-primary{color:#fff;background:var(--primary);border-color:transparent;font-weight:600}.ds-clear-primary:hover:not(:disabled){color:#fff;background:var(--primary-hover);border-color:transparent}.ds-clear-scope :is(button,a,input,select,textarea):focus-visible{outline:2px solid var(--focus);outline-offset:3px;box-shadow:none}@media(prefers-reduced-motion:reduce){.ds-clear-scope *{animation:none!important;transition:none!important}}"
+    },
+    {
+      "name": "Clear A secondary command",
+      "kind": "button",
+      "refersTo": "clear-button-secondary",
+      "description": "Local quiet bordered command without lift or glow.",
+      "html": "<div class=\"ds-clear-scope\"><button type=\"button\" class=\"ds-clear-button\">刷新</button></div>",
+      "css": ".ds-clear-scope{--surface:#10151f;--panel:#171e2a;--panel-strong:#1e2837;--foreground:#edf2fa;--text:#edf2fa;--secondary:#a1afc2;--border:#2c3749;--border-strong:#49617f;--primary:#3767d0;--primary-hover:#315cbb;--clear-accent:#82acff;--clear-active:#263c60;--clear-hover:#1c2a40;--success:#83d9b1;--warning:#f2c782;--danger:#ffa4b0;--focus:#82acff;--clear-success-bg:#203b34;--clear-warning-bg:#3c3222;--clear-danger-bg:#412a32;font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"PingFang SC\", \"Microsoft YaHei UI\", system-ui, sans-serif;font-size:13px;line-height:1.5;color:var(--foreground);color-scheme:dark}.ds-clear-scope.ds-clear-light{--surface:#f3f6fb;--panel:#ffffff;--panel-strong:#edf1f7;--foreground:#243047;--text:#243047;--secondary:#586b83;--border:#dce3ed;--border-strong:#a6b7ce;--clear-accent:#345fc5;--clear-active:#edf2ff;--clear-hover:#f2f6fd;--success:#256448;--warning:#845a1a;--danger:#a43c4d;--focus:#345fc5;--clear-success-bg:#e8f4ee;--clear-warning-bg:#fff3df;--clear-danger-bg:#ffedf0;color-scheme:light}.ds-clear-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:7px 12px;border:1px solid var(--border);border-radius:7px;color:var(--foreground);background:var(--panel);font-family:inherit;font-size:12px;font-weight:500;line-height:1;cursor:pointer;box-shadow:none;transition:color 180ms ease,background-color 180ms ease}.ds-clear-button:hover:not(:disabled){background:var(--panel-strong);border-color:var(--border-strong)}.ds-clear-button:disabled{opacity:.48;cursor:not-allowed}@media(max-width:700px){.ds-clear-button{min-height:44px}}.ds-clear-scope :is(button,a,input,select,textarea):focus-visible{outline:2px solid var(--focus);outline-offset:3px;box-shadow:none}@media(prefers-reduced-motion:reduce){.ds-clear-scope *{animation:none!important;transition:none!important}}"
+    },
+    {
+      "name": "Clear A search",
+      "kind": "input",
+      "refersTo": "clear-search",
+      "description": "Search text retains the resolved 33px inline-start inset.",
+      "html": "<div class=\"ds-clear-scope\"><label class=\"ds-clear-search\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"8\"></circle><path d=\"m21 21-4.35-4.35\"></path></svg><input type=\"search\" aria-label=\"搜索服务器\" placeholder=\"搜索服务器名称或地址\"></label></div>",
+      "css": ".ds-clear-scope{--surface:#10151f;--panel:#171e2a;--panel-strong:#1e2837;--foreground:#edf2fa;--text:#edf2fa;--secondary:#a1afc2;--border:#2c3749;--border-strong:#49617f;--primary:#3767d0;--primary-hover:#315cbb;--clear-accent:#82acff;--clear-active:#263c60;--clear-hover:#1c2a40;--success:#83d9b1;--warning:#f2c782;--danger:#ffa4b0;--focus:#82acff;--clear-success-bg:#203b34;--clear-warning-bg:#3c3222;--clear-danger-bg:#412a32;font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"PingFang SC\", \"Microsoft YaHei UI\", system-ui, sans-serif;font-size:13px;line-height:1.5;color:var(--foreground);color-scheme:dark}.ds-clear-scope.ds-clear-light{--surface:#f3f6fb;--panel:#ffffff;--panel-strong:#edf1f7;--foreground:#243047;--text:#243047;--secondary:#586b83;--border:#dce3ed;--border-strong:#a6b7ce;--clear-accent:#345fc5;--clear-active:#edf2ff;--clear-hover:#f2f6fd;--success:#256448;--warning:#845a1a;--danger:#a43c4d;--focus:#345fc5;--clear-success-bg:#e8f4ee;--clear-warning-bg:#fff3df;--clear-danger-bg:#ffedf0;color-scheme:light}.ds-clear-search{position:relative;display:block;max-width:350px}.ds-clear-search>svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--secondary);pointer-events:none}.ds-clear-search input{min-height:36px;width:100%;padding:7px 10px 7px 33px;padding-inline:33px 10px;color:var(--foreground);background:var(--surface);border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;transition:border-color 150ms ease}.ds-clear-search input::placeholder{color:var(--secondary);opacity:1}.ds-clear-search input:focus{border-color:var(--focus)}@media(max-width:700px){.ds-clear-search{max-width:none}.ds-clear-search input{min-height:44px;font-size:13px}}.ds-clear-scope :is(button,a,input,select,textarea):focus-visible{outline:2px solid var(--focus);outline-offset:3px;box-shadow:none}@media(prefers-reduced-motion:reduce){.ds-clear-scope *{animation:none!important;transition:none!important}}"
+    },
+    {
+      "name": "Clear A classification",
+      "kind": "nav",
+      "refersTo": "clear-category-selected",
+      "description": "Labeled pressed-state category controls; displayed zeroes illustrate an empty data set.",
+      "html": "<div class=\"ds-clear-scope\"><div class=\"ds-clear-categories\" role=\"group\" aria-label=\"服务器分类筛选\"><button type=\"button\" class=\"ds-clear-category ds-clear-selected\" aria-pressed=\"true\">全部<span>0</span></button><button type=\"button\" class=\"ds-clear-category\" aria-pressed=\"false\">在线<span>0</span></button></div></div>",
+      "css": ".ds-clear-scope{--surface:#10151f;--panel:#171e2a;--panel-strong:#1e2837;--foreground:#edf2fa;--text:#edf2fa;--secondary:#a1afc2;--border:#2c3749;--border-strong:#49617f;--primary:#3767d0;--primary-hover:#315cbb;--clear-accent:#82acff;--clear-active:#263c60;--clear-hover:#1c2a40;--success:#83d9b1;--warning:#f2c782;--danger:#ffa4b0;--focus:#82acff;--clear-success-bg:#203b34;--clear-warning-bg:#3c3222;--clear-danger-bg:#412a32;font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"PingFang SC\", \"Microsoft YaHei UI\", system-ui, sans-serif;font-size:13px;line-height:1.5;color:var(--foreground);color-scheme:dark}.ds-clear-scope.ds-clear-light{--surface:#f3f6fb;--panel:#ffffff;--panel-strong:#edf1f7;--foreground:#243047;--text:#243047;--secondary:#586b83;--border:#dce3ed;--border-strong:#a6b7ce;--clear-accent:#345fc5;--clear-active:#edf2ff;--clear-hover:#f2f6fd;--success:#256448;--warning:#845a1a;--danger:#a43c4d;--focus:#345fc5;--clear-success-bg:#e8f4ee;--clear-warning-bg:#fff3df;--clear-danger-bg:#ffedf0;color-scheme:light}.ds-clear-categories{display:flex;flex-wrap:wrap;align-items:stretch;gap:0 25px;min-height:52px;padding:0 19px;border-bottom:1px solid var(--border);background:var(--panel)}.ds-clear-category{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:13px 0;border:0;border-bottom:2px solid transparent;color:var(--secondary);background:transparent;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer}.ds-clear-category:hover{color:var(--foreground)}.ds-clear-category.ds-clear-selected{color:var(--clear-accent);border-bottom-color:var(--clear-accent)}.ds-clear-category>span{padding:0 6px;border-radius:4px;color:var(--secondary);background:var(--panel-strong);font-size:11px;font-variant-numeric:tabular-nums}@media(max-width:700px){.ds-clear-categories{padding:0 14px;gap:0 17px}.ds-clear-category{font-size:12px;gap:5px}}.ds-clear-scope :is(button,a,input,select,textarea):focus-visible{outline:2px solid var(--focus);outline-offset:3px;box-shadow:none}@media(prefers-reduced-motion:reduce){.ds-clear-scope *{animation:none!important;transition:none!important}}"
+    },
+    {
+      "name": "Clear A status",
+      "kind": "chip",
+      "refersTo": "clear-status-success",
+      "description": "Chinese text and static dot convey state together.",
+      "html": "<div class=\"ds-clear-scope\"><span class=\"ds-clear-status\"><span class=\"ds-clear-dot\" aria-hidden=\"true\"></span>在线</span></div>",
+      "css": ".ds-clear-scope{--surface:#10151f;--panel:#171e2a;--panel-strong:#1e2837;--foreground:#edf2fa;--text:#edf2fa;--secondary:#a1afc2;--border:#2c3749;--border-strong:#49617f;--primary:#3767d0;--primary-hover:#315cbb;--clear-accent:#82acff;--clear-active:#263c60;--clear-hover:#1c2a40;--success:#83d9b1;--warning:#f2c782;--danger:#ffa4b0;--focus:#82acff;--clear-success-bg:#203b34;--clear-warning-bg:#3c3222;--clear-danger-bg:#412a32;font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"PingFang SC\", \"Microsoft YaHei UI\", system-ui, sans-serif;font-size:13px;line-height:1.5;color:var(--foreground);color-scheme:dark}.ds-clear-scope.ds-clear-light{--surface:#f3f6fb;--panel:#ffffff;--panel-strong:#edf1f7;--foreground:#243047;--text:#243047;--secondary:#586b83;--border:#dce3ed;--border-strong:#a6b7ce;--clear-accent:#345fc5;--clear-active:#edf2ff;--clear-hover:#f2f6fd;--success:#256448;--warning:#845a1a;--danger:#a43c4d;--focus:#345fc5;--clear-success-bg:#e8f4ee;--clear-warning-bg:#fff3df;--clear-danger-bg:#ffedf0;color-scheme:light}.ds-clear-status{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;border:0;border-radius:5px;color:var(--success);background:var(--clear-success-bg);font-size:11px;font-weight:500;white-space:nowrap}.ds-clear-dot{width:5px;height:5px;border-radius:50%;background:currentColor;animation:none;box-shadow:none}.ds-clear-scope :is(button,a,input,select,textarea):focus-visible{outline:2px solid var(--focus);outline-offset:3px;box-shadow:none}@media(prefers-reduced-motion:reduce){.ds-clear-scope *{animation:none!important;transition:none!important}}"
+    },
+    {
+      "name": "Clear A connected list",
+      "kind": "card",
+      "refersTo": "clear-list",
+      "description": "One panel with a real-count footer; the preview shows an empty data set.",
+      "html": "<div class=\"ds-clear-scope\"><section class=\"ds-clear-list\"><div class=\"ds-clear-empty\"><strong>暂无服务器</strong><p>添加服务器后会显示在这里</p></div><footer class=\"ds-clear-footer\"><span>显示 0 条，共 0 条</span><span>已显示全部记录</span></footer></section></div>",
+      "css": ".ds-clear-scope{--surface:#10151f;--panel:#171e2a;--panel-strong:#1e2837;--foreground:#edf2fa;--text:#edf2fa;--secondary:#a1afc2;--border:#2c3749;--border-strong:#49617f;--primary:#3767d0;--primary-hover:#315cbb;--clear-accent:#82acff;--clear-active:#263c60;--clear-hover:#1c2a40;--success:#83d9b1;--warning:#f2c782;--danger:#ffa4b0;--focus:#82acff;--clear-success-bg:#203b34;--clear-warning-bg:#3c3222;--clear-danger-bg:#412a32;font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"PingFang SC\", \"Microsoft YaHei UI\", system-ui, sans-serif;font-size:13px;line-height:1.5;color:var(--foreground);color-scheme:dark}.ds-clear-scope.ds-clear-light{--surface:#f3f6fb;--panel:#ffffff;--panel-strong:#edf1f7;--foreground:#243047;--text:#243047;--secondary:#586b83;--border:#dce3ed;--border-strong:#a6b7ce;--clear-accent:#345fc5;--clear-active:#edf2ff;--clear-hover:#f2f6fd;--success:#256448;--warning:#845a1a;--danger:#a43c4d;--focus:#345fc5;--clear-success-bg:#e8f4ee;--clear-warning-bg:#fff3df;--clear-danger-bg:#ffedf0;color-scheme:light}.ds-clear-list{min-width:0;background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden}.ds-clear-empty{display:flex;min-height:240px;align-items:center;justify-content:center;flex-direction:column;gap:8px}.ds-clear-empty strong{color:var(--foreground);font-size:15px}.ds-clear-empty p{margin:0;color:var(--secondary);font-size:12px}.ds-clear-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;min-height:52px;padding:13px 19px;border-top:1px solid var(--border);color:var(--secondary);font-size:11px}@media(max-width:700px){.ds-clear-footer{padding:13px 14px}}.ds-clear-scope :is(button,a,input,select,textarea):focus-visible{outline:2px solid var(--focus);outline-offset:3px;box-shadow:none}@media(prefers-reduced-motion:reduce){.ds-clear-scope *{animation:none!important;transition:none!important}}"
+    },
+    {
+      "name": "Clear A local editor",
+      "kind": "custom",
+      "refersTo": "clear-editor",
+      "description": "Single-column 480px local drawer appearance; the application owns modal behavior.",
+      "html": "<div class=\"ds-clear-scope\"><section class=\"ds-clear-editor\" aria-labelledby=\"ds-clear-editor-title\"><header class=\"ds-clear-editor-header\"><h2 id=\"ds-clear-editor-title\">编辑权限组</h2></header><form class=\"ds-clear-editor-body\"><label class=\"ds-clear-field\"><span>权限组名称</span><input name=\"name\" value=\"标准线路\"></label><footer class=\"ds-clear-editor-actions\"><button type=\"button\" class=\"ds-clear-button\">取消</button><button type=\"button\" class=\"ds-clear-button ds-clear-primary\">保存修改</button></footer></form></section></div>",
+      "css": ".ds-clear-scope{--surface:#10151f;--panel:#171e2a;--panel-strong:#1e2837;--foreground:#edf2fa;--text:#edf2fa;--secondary:#a1afc2;--border:#2c3749;--border-strong:#49617f;--primary:#3767d0;--primary-hover:#315cbb;--clear-accent:#82acff;--clear-active:#263c60;--clear-hover:#1c2a40;--success:#83d9b1;--warning:#f2c782;--danger:#ffa4b0;--focus:#82acff;--clear-success-bg:#203b34;--clear-warning-bg:#3c3222;--clear-danger-bg:#412a32;font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"PingFang SC\", \"Microsoft YaHei UI\", system-ui, sans-serif;font-size:13px;line-height:1.5;color:var(--foreground);color-scheme:dark}.ds-clear-scope.ds-clear-light{--surface:#f3f6fb;--panel:#ffffff;--panel-strong:#edf1f7;--foreground:#243047;--text:#243047;--secondary:#586b83;--border:#dce3ed;--border-strong:#a6b7ce;--clear-accent:#345fc5;--clear-active:#edf2ff;--clear-hover:#f2f6fd;--success:#256448;--warning:#845a1a;--danger:#a43c4d;--focus:#345fc5;--clear-success-bg:#e8f4ee;--clear-warning-bg:#fff3df;--clear-danger-bg:#ffedf0;color-scheme:light}.ds-clear-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:7px 12px;border:1px solid var(--border);border-radius:7px;color:var(--foreground);background:var(--panel);font-family:inherit;font-size:12px;font-weight:500;line-height:1;cursor:pointer;box-shadow:none;transition:color 180ms ease,background-color 180ms ease}.ds-clear-button:hover:not(:disabled){background:var(--panel-strong);border-color:var(--border-strong)}.ds-clear-button:disabled{opacity:.48;cursor:not-allowed}@media(max-width:700px){.ds-clear-button{min-height:44px}}.ds-clear-primary{color:#fff;background:var(--primary);border-color:transparent;font-weight:600}.ds-clear-primary:hover:not(:disabled){color:#fff;background:var(--primary-hover);border-color:transparent}.ds-clear-editor{width:min(480px,100%);height:100dvh;max-height:none;margin-left:auto;color:var(--foreground);background:var(--panel);border-left:1px solid var(--border);border-radius:0;box-shadow:-12px 0 40px #0003;animation:none}.ds-clear-editor-header{padding:24px;border-bottom:1px solid var(--border)}.ds-clear-editor-header h2{margin:0;color:var(--foreground);font-size:20px}.ds-clear-editor-body{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding:24px}.ds-clear-field{display:grid;gap:6px;min-width:0}.ds-clear-field span{font-size:13px;font-weight:500}.ds-clear-field input{min-height:40px;padding:9px 11px;border:1px solid var(--border);border-radius:6px;color:var(--foreground);background:var(--surface);font-family:inherit;font-size:13px;caret-color:var(--focus)}.ds-clear-field input:focus{border-color:var(--focus)}.ds-clear-editor-actions{display:flex;justify-content:flex-end;gap:8px;padding-top:16px;border-top:1px solid var(--border)}.ds-clear-editor :is(button,input):focus-visible{outline-offset:2px}@media(max-width:700px){.ds-clear-editor-header,.ds-clear-editor-body{padding:20px}}.ds-clear-scope :is(button,a,input,select,textarea):focus-visible{outline:2px solid var(--focus);outline-offset:3px;box-shadow:none}@media(prefers-reduced-motion:reduce){.ds-clear-scope *{animation:none!important;transition:none!important}}"
+    },
+    {
+      "name": "Clear A local menu",
+      "kind": "custom",
+      "refersTo": "clear-menu",
+      "description": "Local row-menu appearance; application keyboard navigation and confirmations remain in place.",
+      "html": "<div class=\"ds-clear-scope\"><div class=\"ds-clear-menu\" role=\"menu\" aria-label=\"资源更多操作\"><button type=\"button\" role=\"menuitem\">编辑</button><button type=\"button\" role=\"menuitem\" disabled>复制订阅链接</button><button type=\"button\" role=\"menuitem\" class=\"ds-clear-menu-danger\">删除</button></div></div>",
+      "css": ".ds-clear-scope{--surface:#10151f;--panel:#171e2a;--panel-strong:#1e2837;--foreground:#edf2fa;--text:#edf2fa;--secondary:#a1afc2;--border:#2c3749;--border-strong:#49617f;--primary:#3767d0;--primary-hover:#315cbb;--clear-accent:#82acff;--clear-active:#263c60;--clear-hover:#1c2a40;--success:#83d9b1;--warning:#f2c782;--danger:#ffa4b0;--focus:#82acff;--clear-success-bg:#203b34;--clear-warning-bg:#3c3222;--clear-danger-bg:#412a32;font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"PingFang SC\", \"Microsoft YaHei UI\", system-ui, sans-serif;font-size:13px;line-height:1.5;color:var(--foreground);color-scheme:dark}.ds-clear-scope.ds-clear-light{--surface:#f3f6fb;--panel:#ffffff;--panel-strong:#edf1f7;--foreground:#243047;--text:#243047;--secondary:#586b83;--border:#dce3ed;--border-strong:#a6b7ce;--clear-accent:#345fc5;--clear-active:#edf2ff;--clear-hover:#f2f6fd;--success:#256448;--warning:#845a1a;--danger:#a43c4d;--focus:#345fc5;--clear-success-bg:#e8f4ee;--clear-warning-bg:#fff3df;--clear-danger-bg:#ffedf0;color-scheme:light}.ds-clear-menu{display:flex;min-width:190px;flex-direction:column;padding:6px;border:1px solid var(--border);border-radius:8px;background:var(--panel);box-shadow:0 12px 24px #0003}.ds-clear-menu button{display:flex;align-items:center;width:100%;min-height:36px;padding:0 9px;color:var(--foreground);background:transparent;border:0;border-radius:3px;font-family:inherit;font-size:12px;text-align:left;cursor:pointer}.ds-clear-menu button:hover:not(:disabled){color:var(--foreground);background:var(--clear-hover)}.ds-clear-menu .ds-clear-menu-danger{color:var(--danger)}.ds-clear-menu :disabled{opacity:.5;cursor:not-allowed}.ds-clear-menu button:focus-visible{outline-offset:2px}@media(max-width:700px){.ds-clear-menu button{min-height:44px}}.ds-clear-scope :is(button,a,input,select,textarea):focus-visible{outline:2px solid var(--focus);outline-offset:3px;box-shadow:none}@media(prefers-reduced-motion:reduce){.ds-clear-scope *{animation:none!important;transition:none!important}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Illuminated Control Desk.",
+    "overview": "CPanel is an operations surface used by one administrator to monitor and configure Corade infrastructure. Its layout stays dense and familiar: grouped navigation, resource tables, full editors, drawers, forms, and explicit state. Its new identity comes from graphite glass, restrained spectral light, and crisp luminous status feedback.\n\nThe interface is dark because the administrator may keep it open beside terminals during long or low-light maintenance sessions. Cyan-blue light identifies commands, green confirms healthy runtime state, amber marks pending work, and rose marks failures. Glass is functional: it separates persistent navigation, working surfaces, and temporary overlays while preserving spatial context.\n\n`/edu` is intentionally a separate, light account-center surface for subscribers. It keeps the same compact operational hierarchy but does not inherit the dark administration shell: white panels, quiet neutral borders, black commands, and restrained green status feedback make subscription copying and single-node import immediately legible on both desktop and phone.\n\nNo topology, relationship, force, or connection diagrams are permitted. Lists and forms remain the only management surfaces.\n\nThe user-selected **Clear A / 清晰表格** is a local exception for `/machines`, `/nodes`, `/users`, `/plans`, and `/access-groups`, and their explicitly marked local editor/menu overlays. Its solid blue-gray list treatment overrides the incumbent only within `.clear-resources`, `.clear-resource-editor`, and `.clear-resource-menu`. The frontmatter's `clear-*` tokens describe this exception. The overview, navigation shell, full node editor, other resource pages, and `/edu` retain their incumbent authority. See `.impeccable/surfaces/resource-lists.md` and `web/src/resource-clear.css`.",
+    "keyCharacteristics": [
+      "Dense, familiar list-and-form operations.",
+      "Incumbent graphite glass outside the five selected resource lists.",
+      "Solid Clear A lists with explicit dark/light palettes and real counts.",
+      "Visible Chinese status labels, focus, and genuine operations."
+    ],
+    "rules": [
+      {
+        "name": "The Local Override Rule",
+        "body": "Keep Clear A tokens on the three local scopes; never promote them to `:root` or recolor the shared shell.",
+        "section": "colors"
+      }
+    ],
+    "dos": [
+      "Preserve all existing content, roles, workflows, and responsive composition.",
+      "Do keep Clear A scoped to the five selected lists and their marked local overlays, including the explicit light palette.",
+      "Do preserve the overview, shared navigation, full node editor, other resource pages, and `/edu`.",
+      "Do preserve 33px search text inset, labeled mobile records, real counts, and genuine accessible operations."
+    ],
+    "donts": [
+      "Never add topology graphs, relationship maps, force diagrams, or decorative connection lines.",
+      "Never copy Xboard styling or navigation structure.",
+      "Never nest cards or turn every form section into an isolated floating card.",
+      "Never use gradient text.",
+      "Never let glow replace legibility, labels, or focus indication.",
+      "Don't introduce shipping raster assets or invented pagination for these lists."
+    ]
+  }
+}

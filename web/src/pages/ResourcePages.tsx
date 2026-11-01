@@ -5,11 +5,20 @@ import { Button, ConfirmDialog, DataFreshness, Drawer, EmptyState, Field, PageHe
 import { NodeMultiSelect, type MultiSelectOption } from "../components/NodeMultiSelect";
 import { OutboundConfigForm, defaultOutboundSettings, parseOutboundSettings, validateOutboundSettingsValue } from "../components/OutboundConfigForm";
 import { RouteRulesEditor, validateRouteRulesValue } from "../components/RouteRulesEditor";
+import { ResourceCategoryFilters, ResourceDate, ResourceListFooter, ResourceListNote, ResourceListSurface, ResourceRowActions } from "../components/ResourceList";
 import { useResource } from "../hooks";
 import type { AccessGroup, Machine, Node, Outbound, Plan, RoutePolicy, User } from "../types";
 
 type Resource = { id: string; status: string; created_at: string; updated_at: string };
-type Column<T> = { label: string; render: (item: T) => ReactNode; className?: string };
+type Column<T> = { label: string; render: (item: T) => ReactNode; className?: string; width?: string };
+
+type ClearListOptions<T> = {
+  kind: "machines" | "users" | "plans" | "groups";
+  searchPlaceholder: string;
+  note: string;
+  categories?: { value: string; label: string; matches: (item: T) => boolean }[];
+  filter?: { label: string; allLabel: string; value: (item: T) => string };
+};
 type FieldSpec = {
   key: string;
   label: string;
@@ -46,14 +55,17 @@ type ResourcePageProps<T extends Resource> = {
   identifierAction?: { label: string; value: (item: T) => string };
   protectedItem?: (item: T) => boolean;
   refreshIntervalMs?: number;
+  list?: ClearListOptions<T>;
 };
 
-function ResourcePage<T extends Resource>({ title, description, endpoint, createLabel, columns, fields, defaults, transform, toValues, enabledStatus = "active", disabledStatus = "disabled", installable = false, upgradeable = false, identityResettable = false, subscriptionActions = false, portalActions = false, quickAccountCreation = false, deletable = false, identifierAction, protectedItem, refreshIntervalMs = 0 }: ResourcePageProps<T>) {
+function ResourcePage<T extends Resource>({ title, description, endpoint, createLabel, columns, fields, defaults, transform, toValues, enabledStatus = "active", disabledStatus = "disabled", installable = false, upgradeable = false, identityResettable = false, subscriptionActions = false, portalActions = false, quickAccountCreation = false, deletable = false, identifierAction, protectedItem, refreshIntervalMs = 0, list }: ResourcePageProps<T>) {
 	deletable = deletable || ["/machines", "/access-groups", "/plans", "/route-policies", "/outbounds"].includes(endpoint);
 	if (endpoint === "/route-policies") enabledStatus = "published";
   const { data, loading, refreshing, error, refreshError, lastSuccessAt, stale, reload } = useResource<T[]>(endpoint, [], refreshIntervalMs);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [category, setCategory] = useState("all");
+  const [detailFilter, setDetailFilter] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<T | null>(null);
   const [values, setValues] = useState(defaults);
@@ -76,11 +88,15 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
   const [quickCreating, setQuickCreating] = useState<"user" | "friend" | "">("");
   const toast = useToast();
   const statusOptions = useMemo(() => Array.from(new Set(data.map((item) => item.status).filter(Boolean))), [data]);
+  const categories = list?.categories ?? statusOptions.map((status) => ({ value: status, label: statusLabel(status), matches: (item: T) => item.status === status }));
+  const detailOptions = list?.filter ? Array.from(new Set(data.map(list.filter.value).filter(Boolean))).sort((a, b) => a.localeCompare(b, "zh-CN")) : [];
   const filtered = useMemo(() => data.filter((item) => {
     const matchesQuery = !query.trim() || JSON.stringify(item).toLowerCase().includes(query.trim().toLowerCase());
     const matchesStatus = statusFilter === "all" || item.status === statusFilter;
-    return matchesQuery && matchesStatus;
-  }), [data, query, statusFilter]);
+    const matchesCategory = !list || category === "all" || (list.categories ? list.categories.find((option) => option.value === category)?.matches(item) : item.status === category);
+    const matchesDetail = !list?.filter || !detailFilter || list.filter.value(item) === detailFilter;
+    return matchesQuery && matchesStatus && matchesCategory && matchesDetail;
+  }), [data, query, statusFilter, category, detailFilter, list]);
   const formDirty = open && !sameFormValues(values, initialValues);
 
   useEffect(() => {
@@ -297,28 +313,33 @@ function ResourcePage<T extends Resource>({ title, description, endpoint, create
     setErrors((current) => ({ ...current, [key]: "" }));
   }
 
-  return <div className="page">
+  return <div className={`page${list ? ` clear-resources clear-resources--${list.kind}` : ""}`}>
     <PageHeader title={title} description={description} actions={<>{quickAccountCreation && <><Button type="button" loading={quickCreating === "user"} disabled={Boolean(quickCreating)} onClick={() => void quickCreateAccount("user")}><UserPlus size={16} />{quickCreating === "user" ? "添加中…" : "一键添加用户"}</Button><Button type="button" loading={quickCreating === "friend"} disabled={Boolean(quickCreating)} onClick={() => void quickCreateAccount("friend")}><UsersRound size={16} />{quickCreating === "friend" ? "添加中…" : "一键添加朋友"}</Button></>}<Button type="button" variant="primary" disabled={Boolean(quickCreating)} onClick={showCreate}><Plus size={16} />{createLabel}</Button></>} />
-    <div className="toolbar"><label className="search-box"><Search size={16} /><span className="sr-only">搜索{title}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`搜索${title}`} /></label>{statusOptions.length > 1 && <div className="toolbar__filters"><Filter size={15} aria-hidden="true" /><label className="sr-only" htmlFor={`${endpoint.slice(1)}-status-filter`}>按状态筛选{title}</label><select id={`${endpoint.slice(1)}-status-filter`} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">全部状态</option>{statusOptions.map((status) => <option value={status} key={status}>{statusLabel(status)}</option>)}</select></div>}{refreshIntervalMs > 0 && <DataFreshness lastSuccessAt={lastSuccessAt} stale={stale} refreshing={refreshing} error={refreshError} />}<span className="toolbar__count">{filtered.length}{filtered.length !== data.length ? ` / ${data.length}` : ""} 条记录</span></div>
+    <ResourceListSurface enabled={Boolean(list)}>
+    {list && <ResourceCategoryFilters label={`${title}分类筛选`} value={category} options={[{ value: "all", label: "全部", count: data.length }, ...categories.map((option) => ({ value: option.value, label: option.label, count: data.filter(option.matches).length }))]} onChange={setCategory} />}
+    <div className="toolbar"><label className="search-box"><Search size={16} aria-hidden="true" /><span className="sr-only">搜索{title}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={list?.searchPlaceholder ?? `搜索${title}`} /></label>{statusOptions.length > 1 && (!list || list.categories) && <div className="toolbar__filters"><Filter size={15} aria-hidden="true" /><label className="sr-only" htmlFor={`${endpoint.slice(1)}-status-filter`}>按状态筛选{title}</label><select id={`${endpoint.slice(1)}-status-filter`} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">全部状态</option>{statusOptions.map((status) => <option value={status} key={status}>{statusLabel(status)}</option>)}</select></div>}{list?.filter && <label className="toolbar__filters"><span className="sr-only">{list.filter.label}</span><select value={detailFilter} onChange={(event) => setDetailFilter(event.target.value)}><option value="">{list.filter.allLabel}</option>{detailOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>}{refreshIntervalMs > 0 && <DataFreshness lastSuccessAt={lastSuccessAt} stale={stale} refreshing={refreshing} error={refreshError} />}<span className="toolbar__count">{filtered.length}{filtered.length !== data.length ? ` / ${data.length}` : ""} 条记录</span></div>
     <div className="table-surface">
-      {loading ? <TableSkeleton columns={columns.length + 2} /> : error ? <EmptyState title={`${title}加载失败`} description={error} action={<Button onClick={() => void reload()}>重新加载</Button>} /> : filtered.length === 0 ? <EmptyState title={data.length ? "没有符合搜索条件的记录" : `还没有${title}`} description={data.length ? "更换搜索词后重试。" : `创建第一条${title}记录开始管理。`} action={!data.length && <Button variant="primary" onClick={showCreate}><Plus size={16} />{createLabel}</Button>} /> : (
-        <div className="table-scroll resource-table-scroll"><table aria-label={`${title}列表`}><thead><tr>{columns.map((column) => <th className={column.className} key={column.label}>{column.label}</th>)}<th>状态</th><th className="col-actions">操作</th></tr></thead><tbody>{filtered.map((item) => {
+      {loading ? <TableSkeleton columns={columns.length + 2} /> : error ? <EmptyState title={`${title}加载失败`} description={error} action={<Button onClick={() => void reload()}>重新加载</Button>} /> : filtered.length === 0 ? <EmptyState title={data.length ? "没有符合搜索条件的记录" : `还没有${title}`} description={data.length ? "更换搜索词或调整筛选条件后重试。" : `创建第一条${title}记录开始管理。`} action={data.length && list ? <Button onClick={() => { setQuery(""); setStatusFilter("all"); setCategory("all"); setDetailFilter(""); }}>清除筛选</Button> : !data.length && <Button variant="primary" onClick={showCreate}><Plus size={16} />{createLabel}</Button>} /> : (
+        <div className="table-scroll resource-table-scroll"><table aria-label={`${title}列表`}>{list && <colgroup>{columns.map((column) => <col key={column.label} style={{ width: column.width }} />)}<col className="clear-status-col" /><col className="clear-actions-col" /></colgroup>}<thead><tr>{columns.map((column) => <th scope="col" className={column.className} key={column.label}>{column.label}</th>)}<th scope="col">状态</th><th scope="col" className="col-actions">操作</th></tr></thead><tbody>{filtered.map((item) => {
           const canCopy = !subscriptionActions || subscriptionAvailable(item);
           const protectedRow = protectedItem?.(item) ?? false;
-          return <tr key={item.id}>{columns.map((column) => <td className={column.className} data-label={column.label} key={column.label}>{column.render(item)}</td>)}<td data-label="状态"><StatusBadge status={item.status} /></td><td className="row-actions" data-label="操作">
+          return <tr key={item.id}>{columns.map((column, index) => <td className={column.className} data-label={column.label} key={column.label}>{list && index === 0 ? <button type="button" className="clear-resource-open" aria-label={`查看并编辑 ${resourceName(item)}`} onClick={() => showEdit(item)}>{column.render(item)}</button> : column.render(item)}</td>)}<td data-label="状态"><StatusBadge status={item.status} /></td><td className="row-actions" data-label="操作"><ResourceRowActions enabled={Boolean(list)}>
             {identifierAction && <button type="button" className="icon-button" aria-label={`复制 ${item.id} 的 ${identifierAction.label}`} title={`复制 ${identifierAction.label}`} disabled={copyingIdentifier === item.id} onClick={() => void copyIdentifier(item)}><Copy size={16} /></button>}
             {subscriptionActions && <button type="button" className="icon-button" aria-label={`复制 ${item.id} 的订阅链接`} title={canCopy ? "复制订阅链接" : "完整令牌尚未保存"} disabled={!canCopy || copying === item.id} onClick={() => void copySubscription(item)}><Link2 size={16} /></button>}
-			{portalActions && <button type="button" className="icon-button" aria-label={`进入 ${item.id} 的订阅页面`} title="进入订阅页面" disabled={openingPortal === item.id} onClick={() => void openPortal(item)}><SquareArrowOutUpRight size={16} /></button>}
-            {upgradeable && <button type="button" className={`icon-button ${agentUpgradeState(item) === "available" ? "icon-button--update" : ""}`} aria-label={`升级 ${resourceName(item)} 的 Agent`} title={upgradeStateLabel(item)} disabled={!canRequestUpgrade(item) || upgrading} onClick={() => setUpgradeTarget(item)}><RefreshCw size={16} /></button>}
-            <button type="button" className="icon-button" aria-label={`编辑 ${item.id}`} title="编辑" onClick={() => showEdit(item)}><Edit3 size={16} /></button>
-            <RowMenu label={`${item.id} 更多操作`}><button type="button" onClick={() => showEdit(item)}><Edit3 size={15} />编辑</button>{identifierAction && <button type="button" disabled={copyingIdentifier === item.id} onClick={() => void copyIdentifier(item)}><Copy size={15} />复制 {identifierAction.label}</button>}{subscriptionActions && <button type="button" disabled={!canCopy || copying === item.id} onClick={() => void copySubscription(item)}><Link2 size={15} />{canCopy ? "复制订阅链接" : "完整令牌未保存"}</button>}{portalActions && <button type="button" disabled={openingPortal === item.id} onClick={() => void openPortal(item)}><SquareArrowOutUpRight size={15} />进入订阅页面</button>}{installable && <button type="button" onClick={() => void loadInstallation(item)}><Terminal size={15} />一键安装 Agent</button>}{identityResettable && <button type="button" onClick={() => setIdentityResetTarget(item)}><KeyRound size={15} />重置 Agent 身份</button>}{!protectedRow && <button type="button" disabled={changingStatus === item.id} onClick={() => void toggleStatus(item)}><Power size={15} />{item.status === disabledStatus ? "恢复启用" : disabledStatus === "paused" ? "暂停" : "停用"}</button>}{deletable && !protectedRow && <button type="button" className="menu-action--danger" onClick={() => setDeleteTarget(item)}><Trash2 size={15} />删除</button>}</RowMenu>
-          </td></tr>;
+			{portalActions && !list && <button type="button" className="icon-button" aria-label={`进入 ${item.id} 的订阅页面`} title="进入订阅页面" disabled={openingPortal === item.id} onClick={() => void openPortal(item)}><SquareArrowOutUpRight size={16} /></button>}
+            {upgradeable && !list && <button type="button" className={`icon-button ${agentUpgradeState(item) === "available" ? "icon-button--update" : ""}`} aria-label={`升级 ${resourceName(item)} 的 Agent`} title={upgradeStateLabel(item)} disabled={!canRequestUpgrade(item) || upgrading} onClick={() => setUpgradeTarget(item)}><RefreshCw size={16} /></button>}
+            <button type="button" className={list ? "clear-row-edit" : "icon-button"} aria-label={`编辑 ${list ? resourceName(item) : item.id}`} title="编辑" onClick={() => showEdit(item)}>{list ? "编辑" : <Edit3 size={16} />}</button>
+            <RowMenu className={list ? "clear-resource-menu" : undefined} label={`${item.id} 更多操作`}>{upgradeable && list && <button type="button" disabled={!canRequestUpgrade(item) || upgrading} title={upgradeStateLabel(item)} onClick={() => setUpgradeTarget(item)}><RefreshCw size={15} />{upgradeStateLabel(item)}</button>}<button type="button" onClick={() => showEdit(item)}><Edit3 size={15} />编辑</button>{identifierAction && <button type="button" disabled={copyingIdentifier === item.id} onClick={() => void copyIdentifier(item)}><Copy size={15} />复制 {identifierAction.label}</button>}{subscriptionActions && <button type="button" disabled={!canCopy || copying === item.id} onClick={() => void copySubscription(item)}><Link2 size={15} />{canCopy ? "复制订阅链接" : "完整令牌未保存"}</button>}{portalActions && <button type="button" disabled={openingPortal === item.id} onClick={() => void openPortal(item)}><SquareArrowOutUpRight size={15} />进入订阅页面</button>}{installable && <button type="button" onClick={() => void loadInstallation(item)}><Terminal size={15} />一键安装 Agent</button>}{identityResettable && <button type="button" onClick={() => setIdentityResetTarget(item)}><KeyRound size={15} />重置 Agent 身份</button>}{!protectedRow && <button type="button" disabled={changingStatus === item.id} onClick={() => void toggleStatus(item)}><Power size={15} />{item.status === disabledStatus ? "恢复启用" : disabledStatus === "paused" ? "暂停" : "停用"}</button>}{deletable && !protectedRow && <button type="button" className="menu-action--danger" onClick={() => setDeleteTarget(item)}><Trash2 size={15} />删除</button>}</RowMenu>
+          </ResourceRowActions></td></tr>;
         })}</tbody></table></div>
       )}
     </div>
-      <Drawer wide={fields.some((field) => field.type === "route-rules" || field.type === "outbound-config")} open={open} title={editing ? `编辑${title}` : createLabel} description={editing ? `修改 ${editing.id} 的配置` : `创建新的${title}记录`} onClose={requestCloseEditor}><form className="drawer-form" onSubmit={submit} aria-busy={saving} noValidate>{formError && <div className="form-error" role="alert">{formError}</div>}{fields.filter((field) => !field.editOnly || editing).map((field) => <Field group={field.type === "node-picker" || field.type === "route-rules" || field.type === "outbound-config"} key={field.key} label={field.label} required={field.required} helper={field.helper} error={errors[field.key]}>{field.type === "textarea" || field.type === "json" ? <textarea disabled={field.disabled?.(editing) ?? false} className={field.type === "json" ? "code-editor code-editor--small" : ""} rows={field.type === "json" ? 9 : 4} value={values[field.key] ?? ""} placeholder={field.placeholder} onChange={(event) => updateValue(field.key, event.target.value)} /> : field.type === "select" ? <select disabled={Boolean((editing && field.lockedValue && values[field.key] === field.lockedValue) || field.disabled?.(editing))} value={values[field.key] ?? ""} onChange={(event) => updateValue(field.key, event.target.value)}>{field.options?.filter((option) => !option.exclusive || values[field.key] === option.value).map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select> : field.type === "node-picker" ? <NodeMultiSelect value={values[field.key] ?? ""} options={field.options ?? []} onChange={(value) => updateValue(field.key, value)} /> : field.type === "route-rules" ? <RouteRulesEditor value={values[field.key] ?? "[]"} outbounds={field.routeOutbounds ?? []} onChange={(value) => updateValue(field.key, value)} /> : field.type === "outbound-config" ? <OutboundConfigForm protocol={values.protocol ?? "socks"} settings={parseOutboundSettings(values.settings ?? "{}")} proxyTag={values.proxy_tag ?? ""} outbounds={field.routeOutbounds ?? []} currentID={editing?.id} onProtocolChange={(protocol, settings) => { setValues((current) => ({ ...current, protocol, settings: JSON.stringify(settings) })); setErrors((current) => ({ ...current, [field.key]: "" })); }} onSettingsChange={(settings) => updateValue("settings", JSON.stringify(settings))} onProxyTagChange={(value) => updateValue("proxy_tag", value)} /> : <input disabled={field.disabled?.(editing) ?? false} type={field.type ?? "text"} value={values[field.key] ?? ""} placeholder={field.placeholder} onChange={(event) => updateValue(field.key, event.target.value)} />}</Field>)}<footer className="drawer__actions"><Button type="button" variant="ghost" disabled={saving} onClick={requestCloseEditor}>取消</Button><Button type="button" variant="primary" loading={saving} onClick={() => void save()}>{saving ? editing ? "保存中…" : "创建中…" : editing ? "保存修改" : "创建"}</Button></footer></form></Drawer>
+    {list && !loading && !error && <ResourceListFooter visible={filtered.length} total={data.length} />}
+    </ResourceListSurface>
+    {list && <ResourceListNote>{list.note}</ResourceListNote>}
+      <Drawer className={list ? "clear-resource-editor" : undefined} wide={fields.some((field) => field.type === "route-rules" || field.type === "outbound-config")} open={open} title={editing ? `编辑${title}` : createLabel} description={editing ? `修改 ${editing.id} 的配置` : `创建新的${title}记录`} onClose={requestCloseEditor}><form className="drawer-form" onSubmit={submit} aria-busy={saving} noValidate>{formError && <div className="form-error" role="alert">{formError}</div>}{fields.filter((field) => !field.editOnly || editing).map((field) => <Field group={field.type === "node-picker" || field.type === "route-rules" || field.type === "outbound-config"} key={field.key} label={field.label} required={field.required} helper={field.helper} error={errors[field.key]}>{field.type === "textarea" || field.type === "json" ? <textarea disabled={field.disabled?.(editing) ?? false} className={field.type === "json" ? "code-editor code-editor--small" : ""} rows={field.type === "json" ? 9 : 4} value={values[field.key] ?? ""} placeholder={field.placeholder} onChange={(event) => updateValue(field.key, event.target.value)} /> : field.type === "select" ? <select disabled={Boolean((editing && field.lockedValue && values[field.key] === field.lockedValue) || field.disabled?.(editing))} value={values[field.key] ?? ""} onChange={(event) => updateValue(field.key, event.target.value)}>{field.options?.filter((option) => !option.exclusive || values[field.key] === option.value).map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select> : field.type === "node-picker" ? <NodeMultiSelect value={values[field.key] ?? ""} options={field.options ?? []} onChange={(value) => updateValue(field.key, value)} /> : field.type === "route-rules" ? <RouteRulesEditor value={values[field.key] ?? "[]"} outbounds={field.routeOutbounds ?? []} onChange={(value) => updateValue(field.key, value)} /> : field.type === "outbound-config" ? <OutboundConfigForm protocol={values.protocol ?? "socks"} settings={parseOutboundSettings(values.settings ?? "{}")} proxyTag={values.proxy_tag ?? ""} outbounds={field.routeOutbounds ?? []} currentID={editing?.id} onProtocolChange={(protocol, settings) => { setValues((current) => ({ ...current, protocol, settings: JSON.stringify(settings) })); setErrors((current) => ({ ...current, [field.key]: "" })); }} onSettingsChange={(settings) => updateValue("settings", JSON.stringify(settings))} onProxyTagChange={(value) => updateValue("proxy_tag", value)} /> : <input disabled={field.disabled?.(editing) ?? false} type={field.type ?? "text"} value={values[field.key] ?? ""} placeholder={field.placeholder} onChange={(event) => updateValue(field.key, event.target.value)} />}</Field>)}<footer className="drawer__actions"><Button type="button" variant="ghost" disabled={saving} onClick={requestCloseEditor}>取消</Button><Button type="button" variant="primary" loading={saving} onClick={() => void save()}>{saving ? editing ? "保存中…" : "创建中…" : editing ? "保存修改" : "创建"}</Button></footer></form></Drawer>
     <ConfirmDialog open={discardEditor} title="放弃未保存修改？" description="当前表单中的修改尚未保存，关闭后将丢失这些内容。" confirmLabel="放弃修改" loading={saving} onClose={() => setDiscardEditor(false)} onConfirm={() => { setDiscardEditor(false); setOpen(false); }} />
-    <Drawer open={Boolean(install)} title="一键安装 Corade Agent" description={install ? `目标服务器：${install.name}` : undefined} onClose={() => setInstall(null)}>{install && <div className="install-command"><p>在目标服务器的 root shell 中执行以下命令。</p><textarea className="code-editor" readOnly rows={7} value={install.command} /><footer><Button variant="primary" onClick={() => void writeClipboard(install.command).then(() => toast("安装命令已复制")).catch(() => toast("复制失败，请手动选择命令", "error"))}><Copy size={16} />复制命令</Button></footer></div>}</Drawer>
+    <Drawer className={list ? "clear-resource-editor" : undefined} open={Boolean(install)} title="一键安装 Corade Agent" description={install ? `目标服务器：${install.name}` : undefined} onClose={() => setInstall(null)}>{install && <div className="install-command"><p>在目标服务器的 root shell 中执行以下命令。</p><textarea className="code-editor" readOnly rows={7} value={install.command} /><footer><Button variant="primary" onClick={() => void writeClipboard(install.command).then(() => toast("安装命令已复制")).catch(() => toast("复制失败，请手动选择命令", "error"))}><Copy size={16} />复制命令</Button></footer></div>}</Drawer>
     <ConfirmDialog open={Boolean(deleteTarget)} title={`删除${subscriptionActions ? "这个账号" : `这条${title}记录`}？`} description={deleteTarget ? subscriptionActions ? `“${resourceName(deleteTarget)}”将从订阅账号列表中移除，现有订阅链接会立即失效。流量与审计历史仍会保留。` : `“${resourceName(deleteTarget)}”将从${title}列表中移除。存在关联资源时系统会阻止删除，审计历史仍会保留。` : ""} confirmLabel="确认删除" loading={deleting} onClose={() => setDeleteTarget(null)} onConfirm={() => void deleteResource()} />
     <ConfirmDialog open={Boolean(upgradeTarget)} title="升级 Agent" description={upgradeTarget ? `将在 ${resourceName(upgradeTarget)} 的下一次心跳中领取升级任务，并从 GitHub 更新至 ${latestAgentVersion(upgradeTarget)}。当前 Agent 会在独立任务中重启。` : ""} confirmLabel="下发升级任务" confirmVariant="primary" loading={upgrading} onClose={() => { if (!upgrading) setUpgradeTarget(null); }} onConfirm={() => void requestUpgrade()} />
     <ConfirmDialog open={Boolean(identityResetTarget)} title="重置 Agent 身份？" description={identityResetTarget ? `将清除 ${resourceName(identityResetTarget)} 当前绑定的 Agent 公钥和在线状态。仅在服务器重装系统或 Agent 身份文件丢失后使用；随后需要重新生成并执行一键安装命令。` : ""} confirmLabel="确认重置" loading={resettingIdentity} onClose={() => { if (!resettingIdentity) setIdentityResetTarget(null); }} onConfirm={() => void resetAgentIdentity()} />
@@ -384,6 +405,7 @@ export function MachinesPage() {
     title="服务器"
     description="管理安装 Corade Agent 的物理机或虚拟机"
     endpoint="/machines"
+    list={{ kind: "machines", searchPlaceholder: "搜索名称、IP 或域名", note: "资源数据随心跳更新。离线服务器保留最后上报信息，请留意采样时间。", filter: { label: "按区域筛选服务器", allLabel: "全部区域", value: (item) => item.region || "未设置" } }}
     createLabel="添加服务器"
     installable
     upgradeable
@@ -395,12 +417,11 @@ export function MachinesPage() {
     transform={(v) => ({ name: v.name, region: v.region, host: v.host, labels: JSON.parse(v.labels || "{}"), notes: v.notes })}
     toValues={(item) => ({ name: item.name, region: item.region, host: item.host, labels: JSON.stringify(item.labels ?? {}, null, 2), notes: item.notes ?? "" })}
     columns={[
-      { label: "服务器", render: (item) => primary(item.name, item.id, item.host || item.id) },
-      { label: "区域", render: (item) => item.region || "未设置" },
-      { label: "节点", render: (item) => <span className="mono">{item.node_count}</span> },
-      { label: "资源占用", render: (item) => <MachineMetrics machine={item} /> },
-      { label: "Agent", render: (item) => <><span className="cell-primary">{item.agent_version || "未接入"}</span><span className={`resource-id ${item.agent_protocol === "v2" ? "text-success" : ""}`}>{item.agent_protocol === "v2" ? "V2 加密" : "旧通讯"} · {agentUpgradeLabel(item)}</span></> },
-      { label: "最后心跳", render: (item) => formatPreciseDate(item.last_heartbeat_at) },
+      { label: "服务器", width: "25%", render: (item) => primary(item.name, item.id, item.host || item.id) },
+      { label: "区域 / 节点", width: "12%", render: (item) => <>{item.region || "未设置"}<span className="resource-id">{item.node_count} 个节点</span></> },
+      { label: "资源占用", width: "17%", render: (item) => <MachineMetrics machine={item} /> },
+      { label: "Agent", width: "18%", render: (item) => <><span className="cell-primary mono">{item.agent_version || "未接入"}</span><span className={`resource-id ${item.agent_protocol === "v2" ? "text-success" : ""}`}>{item.agent_protocol === "v2" ? "V2 加密" : "旧通讯"} · {agentUpgradeLabel(item)}</span></> },
+      { label: "最后心跳", render: (item) => <ResourceDate value={item.last_heartbeat_at} formatted={formatPreciseDate(item.last_heartbeat_at)} /> },
     ]}
   />;
 }
@@ -410,9 +431,7 @@ function MachineMetrics({ machine }: { machine: Machine }) {
   const disk = usagePercent(machine.metrics?.disk?.used, machine.metrics?.disk?.total);
   if (!machine.metrics_sampled_at) return <span className="history-muted">等待心跳</span>;
   return <div className="machine-metrics" title={`采样时间 ${formatPreciseDate(machine.metrics_sampled_at)}`}>
-    <span><b>CPU</b>{formatPercent(machine.metrics?.cpu)}</span>
-    <span><b>内存</b>{formatPercent(memory)}</span>
-    <span><b>磁盘</b>{formatPercent(disk)}</span>
+    {[["CPU", machine.metrics?.cpu], ["内存", memory], ["磁盘", disk]].map(([label, value]) => <span className="machine-metric" key={label}><b>{label}</b><i className="machine-metric__track" aria-hidden="true"><i style={{ width: `${typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0}%` }} /></i><span>{formatPercent(typeof value === "number" ? value : undefined)}</span></span>)}
   </div>;
 }
 
@@ -443,7 +462,7 @@ function agentUpgradeLabel(machine: Machine) {
 
 export function AccessGroupsPage() {
   const { data: nodes } = useResource<Node[]>("/nodes", []);
-  return <ResourcePage<AccessGroup> title="权限组" description="控制用户和朋友可以访问的节点范围" endpoint="/access-groups" createLabel="添加权限组" defaults={{ name: "", notes: "", node_ids: "" }} fields={[{ key: "name", label: "权限组名称", required: true, placeholder: "例如：标准线路" }, { key: "node_ids", label: "可访问节点", type: "node-picker", options: nodes.map((item) => ({ value: item.id, label: item.name, detail: `${item.protocol.toUpperCase()} · ${item.machine_name} · 端口 ${item.server_port}`, keywords: `${item.id} ${item.machine_name} ${item.protocol} ${item.server_port}` })) }, { key: "notes", label: "备注", type: "textarea", placeholder: "选填，仅管理员可见" }]} transform={(v) => ({ name: v.name, notes: v.notes, node_ids: v.node_ids.split(",").filter(Boolean) })} toValues={(item) => ({ name: item.name, notes: item.notes ?? "", node_ids: (item.node_ids ?? []).join(",") })} columns={[{ label: "权限组", render: (item) => primary(item.name, item.id, item.notes) }, { label: "节点数", render: (item) => <span className="mono">{item.node_count}</span> }, { label: "账号数", render: (item) => <span className="mono">{item.user_count}</span> }, { label: "更新时间", render: (item) => formatDate(item.updated_at) }]} />;
+  return <ResourcePage<AccessGroup> list={{ kind: "groups", searchPlaceholder: "搜索权限组名称或备注", note: "权限组定义节点访问范围，不是后台管理员角色。节点需处于已发布状态才可使用。" }} title="权限组" description="控制用户和朋友可以访问的节点范围" endpoint="/access-groups" createLabel="添加权限组" defaults={{ name: "", notes: "", node_ids: "" }} fields={[{ key: "name", label: "权限组名称", required: true, placeholder: "例如：标准线路" }, { key: "node_ids", label: "可访问节点", type: "node-picker", options: nodes.map((item) => ({ value: item.id, label: item.name, detail: `${item.protocol.toUpperCase()} · ${item.machine_name} · 端口 ${item.server_port}`, keywords: `${item.id} ${item.machine_name} ${item.protocol} ${item.server_port}` })) }, { key: "notes", label: "备注", type: "textarea", placeholder: "选填，仅管理员可见" }]} transform={(v) => ({ name: v.name, notes: v.notes, node_ids: v.node_ids.split(",").filter(Boolean) })} toValues={(item) => ({ name: item.name, notes: item.notes ?? "", node_ids: (item.node_ids ?? []).join(",") })} columns={[{ label: "权限组", width: "25%", render: (item) => primary(item.name, item.id, item.notes) }, { label: "可访问节点", width: "31%", render: (item) => <><span className="mono">{item.node_count} 个节点</span><div className="resource-node-chips">{(item.node_ids ?? []).slice(0, 3).map((id) => <span key={id}>{nodes.find((node) => node.id === id)?.name || id}</span>)}{(item.node_ids?.length ?? 0) > 3 && <span>+{item.node_ids.length - 3}</span>}</div></> }, { label: "账号数", width: "9%", render: (item) => <span className="mono">{item.user_count}</span> }, { label: "更新时间", render: (item) => <ResourceDate value={item.updated_at} formatted={formatDateWithYear(item.updated_at)} /> }]} />;
 }
 
 export function PlansPage() {
@@ -452,6 +471,7 @@ export function PlansPage() {
     title="套餐"
     description="定义流量、重置周期、速率、设备数和默认访问范围"
     endpoint="/plans"
+    list={{ kind: "plans", searchPlaceholder: "搜索套餐名称或权限组", note: "套餐由管理员手动分配。自然月按站点时区每月 1 日重置流量，不自动重置则持续累计。" }}
     createLabel="添加套餐"
     defaults={{ name: "", access_group_id: groups[0]?.id ?? "", traffic_gb: "500", speed_limit_mbps: "100", device_limit: "3", reset_strategy: "calendar_month", default_valid_days: "30", notes: "" }}
     fields={[
@@ -467,12 +487,12 @@ export function PlansPage() {
     transform={(v) => ({ name: v.name, access_group_id: v.access_group_id, traffic_limit_bytes: Number(v.traffic_gb) * 1024 ** 3, speed_limit_mbps: Number(v.speed_limit_mbps || 0), device_limit: Number(v.device_limit || 0), reset_strategy: v.reset_strategy, default_valid_days: Number(v.default_valid_days || 0), notes: v.notes })}
     toValues={(item) => ({ name: item.name, access_group_id: item.access_group_id, traffic_gb: String(item.traffic_limit_bytes / 1024 ** 3), speed_limit_mbps: String(item.speed_limit_mbps), device_limit: String(item.device_limit), reset_strategy: item.reset_strategy, default_valid_days: String(item.default_valid_days), notes: item.notes ?? "" })}
     columns={[
-      { label: "套餐", render: (item) => primary(item.name, item.id, item.access_group_name) },
-      { label: "流量", render: (item) => formatBytes(item.traffic_limit_bytes) },
-      { label: "速率", render: (item) => `${item.speed_limit_mbps || "不限"}${item.speed_limit_mbps ? " Mbps" : ""}` },
-      { label: "设备", render: (item) => item.device_limit || "不限" },
-      { label: "账号数", render: (item) => <span className="mono">{item.user_count}</span> },
-      { label: "重置", render: (item) => item.reset_strategy === "never" ? "不自动重置" : "自然月" },
+      { label: "套餐 / 权限组", width: "25%", render: (item) => primary(item.name, item.id, item.access_group_name) },
+      { label: "流量", width: "13%", className: "mono", render: (item) => formatBytes(item.traffic_limit_bytes) },
+      { label: "速率", width: "13%", className: "mono", render: (item) => `${item.speed_limit_mbps || "不限"}${item.speed_limit_mbps ? " Mbps" : ""}` },
+      { label: "设备", width: "8%", render: (item) => item.device_limit ? `${item.device_limit} 台` : "不限" },
+      { label: "账号数", width: "9%", render: (item) => <span className="mono">{item.user_count}</span> },
+      { label: "重置周期", render: (item) => <>{item.reset_strategy === "never" ? "不自动重置" : "自然月"}<span className="resource-id">{item.default_valid_days ? `${item.default_valid_days} 天有效期` : "不限制有效期"}</span></> },
     ]}
   />;
 }
@@ -480,9 +500,10 @@ export function PlansPage() {
 export function UsersPage() {
   const { data: plans } = useResource<Plan[]>("/plans", []);
   return <ResourcePage<User>
-    title="用户、朋友与管理员"
+    title="订阅账号"
     description="管理员可登录后台并使用订阅；用户与朋友仅能使用订阅"
     endpoint="/users"
+    list={{ kind: "users", searchPlaceholder: "搜索名称、邮箱或门户账号", note: "管理员可登录后台，用户与朋友使用订阅中心。管理员代入订阅中心时保持只读。", categories: [{ value: "user", label: "用户", matches: (item) => item.role === "user" }, { value: "friend", label: "朋友", matches: (item) => item.role === "friend" }, { value: "admin", label: "管理员", matches: (item) => item.role === "admin" }], filter: { label: "按套餐筛选订阅账号", allLabel: "全部套餐", value: (item) => item.plan_name || "未分配" } }}
     createLabel="添加用户或朋友"
     subscriptionActions
 	portalActions
@@ -509,12 +530,12 @@ export function UsersPage() {
     }}
     toValues={(item) => ({ role: item.role, uuid: item.uuid, name: item.name, email: item.email ?? "", plan_id: item.plan_id ?? "", expires_at: localDateTime(item.expires_at), notes: item.notes ?? "", portal_login: item.portal_login ?? "", portal_password: "" })}
     columns={[
-      { label: "账号", render: (item) => primary(item.name, item.id, item.email || item.id) },
-      { label: "分类", render: (item) => item.role === "admin" ? "管理员" : item.role === "friend" ? "朋友" : "用户" },
-      { label: "套餐", render: (item) => item.plan_name || "未分配" },
-      { label: "流量用量", render: (item) => <TrafficUsage used={item.traffic_used_bytes} limit={item.traffic_limit_bytes} /> },
-		{ label: "门户", render: (item) => item.role === "admin" ? "后台进入" : item.portal_enabled ? item.portal_login : "未启用" },
-      { label: "到期", render: (item) => item.expires_at ? formatDateWithYear(item.expires_at) : "长期" },
+      { label: "账号", width: "21%", render: (item) => primary(item.name, item.id, item.email || item.id) },
+      { label: "分类", width: "8%", render: (item) => <span className="resource-role">{item.role === "admin" && <KeyRound size={12} aria-hidden="true" />}{item.role === "admin" ? "管理员" : item.role === "friend" ? "朋友" : "用户"}</span> },
+      { label: "套餐", width: "11%", render: (item) => item.plan_name || "未分配" },
+      { label: "流量用量", width: "16%", render: (item) => <TrafficUsage used={item.traffic_used_bytes} limit={item.traffic_limit_bytes} /> },
+		{ label: "门户", width: "13%", render: (item) => item.role === "admin" ? <span>后台进入<span className="resource-id">管理员只读代入</span></span> : item.portal_enabled ? item.portal_login : "未启用" },
+      { label: "到期", render: (item) => item.expires_at ? <ResourceDate value={item.expires_at} formatted={formatDateWithYear(item.expires_at)} /> : "长期" },
     ]}
   />;
 }

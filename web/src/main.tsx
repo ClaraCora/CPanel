@@ -6,6 +6,7 @@ import "./styles.css";
 import "./theme-glass.css";
 import "./theme-modes.css";
 import "./apple-console.css";
+import "./resource-clear.css";
 import { initializeTheme } from "./theme";
 
 initializeTheme();

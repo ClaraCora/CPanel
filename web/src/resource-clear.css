@@ -1,0 +1,250 @@
+/* Chosen A: scoped to the five resource lists and their portaled editors/menus. */
+.clear-resources,
+.clear-resource-editor,
+.clear-resource-menu {
+  --surface: #10151f;
+  --panel: #171e2a;
+  --panel-strong: #1e2837;
+  --foreground: #edf2fa;
+  --text: #edf2fa;
+  --secondary: #a1afc2;
+  --border: #2c3749;
+  --border-strong: #49617f;
+  --primary: #3767d0;
+  --primary-hover: #315cbb;
+  --clear-accent: #82acff;
+  --clear-active: #263c60;
+  --clear-hover: #1c2a40;
+  --success: #83d9b1;
+  --warning: #f2c782;
+  --danger: #ffa4b0;
+  --focus: #82acff;
+  --clear-success-bg: #203b34;
+  --clear-warning-bg: #3c3222;
+  --clear-danger-bg: #412a32;
+  color: var(--foreground);
+  color-scheme: dark;
+}
+
+/* Preserve the existing appearance toggle with an equivalent light palette. */
+html[data-theme="light"] :is(.clear-resources, .clear-resource-editor, .clear-resource-menu) {
+  --surface: #f3f6fb;
+  --panel: #ffffff;
+  --panel-strong: #edf1f7;
+  --foreground: #243047;
+  --text: #243047;
+  --secondary: #586b83;
+  --border: #dce3ed;
+  --border-strong: #a6b7ce;
+  --clear-accent: #345fc5;
+  --clear-active: #edf2ff;
+  --clear-hover: #f2f6fd;
+  --success: #256448;
+  --warning: #845a1a;
+  --danger: #a43c4d;
+  --focus: #345fc5;
+  --clear-success-bg: #e8f4ee;
+  --clear-warning-bg: #fff3df;
+  --clear-danger-bg: #ffedf0;
+  color-scheme: light;
+}
+
+.app-shell .page.clear-resources {
+  min-width: 0;
+  min-height: 100dvh;
+  padding: 30px 28px 36px;
+  background: var(--surface);
+  color: var(--foreground);
+  animation: none;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.clear-resources ::selection,
+.clear-resource-editor ::selection { color: var(--foreground); background: var(--clear-active); }
+.clear-resources *, .clear-resource-editor *, .clear-resource-menu { scrollbar-color: var(--border-strong) var(--surface); }
+.app-shell .clear-resources .page-header { min-height: 0; align-items: flex-start; margin-bottom: 27px; gap: 20px; }
+.app-shell .clear-resources .page-header h1 { color: var(--foreground); font-size: 26px; font-weight: 650; letter-spacing: 0; line-height: 1.3; }
+.app-shell .clear-resources .page-header p { margin-top: 6px; color: var(--secondary); font-size: 13px; }
+.app-shell .clear-resources .page-header__actions { flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding-top: 3px; }
+
+.app-shell .clear-resources .button,
+.clear-resource-editor .button {
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--foreground);
+  background: var(--panel);
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: color 180ms ease, background-color 180ms ease;
+}
+.app-shell .clear-resources .button svg, .clear-resource-editor .button svg { width: 15px; height: 15px; }
+.app-shell .clear-resources .button:hover:not(:disabled), .clear-resource-editor .button:hover:not(:disabled) { background: var(--panel-strong); border-color: var(--border-strong); box-shadow: none; transform: none; }
+.app-shell .clear-resources .button--primary, .clear-resource-editor .button--primary { color: #fff; background: var(--primary); border-color: transparent; font-weight: 600; }
+.app-shell .clear-resources .button--primary:hover:not(:disabled), .clear-resource-editor .button--primary:hover:not(:disabled) { color: #fff; background: var(--primary-hover); border-color: transparent; filter: none; box-shadow: none; }
+.app-shell .clear-resources .button::before, .clear-resource-editor .button::before { display: none; }
+
+.clear-resources .clear-list { min-width: 0; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.resource-categories { display: flex; align-items: stretch; flex-wrap: wrap; gap: 0 25px; min-height: 52px; padding: 0 19px; border-bottom: 1px solid var(--border); }
+.resource-categories button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 13px 0; border: 0; border-bottom: 2px solid transparent; color: var(--secondary); background: transparent; font-size: 13px; font-weight: 500; white-space: nowrap; }
+.resource-categories button:hover { color: var(--foreground); }
+.resource-categories button.is-active { color: var(--clear-accent); border-bottom-color: var(--clear-accent); }
+.resource-categories button > span { padding: 0 6px; border-radius: 4px; color: var(--secondary); background: var(--panel-strong); font-size: 11px; font-variant-numeric: tabular-nums; }
+.app-shell .clear-resources .toolbar { min-height: 70px; flex-wrap: wrap; gap: 10px; padding: 16px 19px; border: 0; border-radius: 0; background: var(--panel); }
+.app-shell .clear-resources .search-box { width: auto; min-width: 170px; max-width: 350px; flex: 1 1 220px; }
+.app-shell .clear-resources .search-box svg { color: var(--secondary); width: 15px; height: 15px; }
+.app-shell .clear-resources .search-box input { min-height: 36px; padding: 7px 10px 7px 33px; color: var(--foreground); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; box-shadow: none; font-size: 12px; }
+.app-shell .page.clear-resources .search-box input { padding-inline: 33px 10px; }
+.app-shell .clear-resources .search-box input::placeholder { color: var(--secondary); opacity: 1; }
+.app-shell .clear-resources .toolbar__filters { gap: 7px; min-width: 0; }
+.app-shell .clear-resources .toolbar__filters > svg { display: none; }
+.app-shell .clear-resources .toolbar__filters select { min-width: 0; width: auto; max-width: 175px; min-height: 36px; padding: 6px 25px 6px 10px; color: var(--foreground); background-color: var(--surface); border: 1px solid var(--border); border-radius: 6px; font-size: 12px; box-shadow: none; }
+.app-shell .clear-resources select option { color: var(--foreground); background: var(--panel); }
+.app-shell .clear-resources .toolbar__count { flex: 0 0 auto; margin-left: auto; padding: 0; color: var(--secondary); font-size: 11px; }
+.clear-resources .data-freshness { font-size: 11px; color: var(--secondary); }
+
+.app-shell .clear-resources .table-surface { min-height: 0; border: 0; border-radius: 0; background: var(--panel); box-shadow: none; }
+.app-shell .clear-resources .table-scroll { scrollbar-gutter: auto; overflow-x: auto; }
+.app-shell .clear-resources table { width: 100%; min-width: 0; table-layout: fixed; border-collapse: collapse; font-size: 12px; }
+.app-shell .clear-resources th { height: 39px; padding: 8px 11px; color: var(--secondary); background: var(--surface); border: 0; font-size: 12px; font-weight: 500; white-space: normal; line-height: 1.5; }
+.app-shell .clear-resources td { display: table-cell; height: 76px; padding: 13px 11px; color: var(--foreground); border: 0; border-top: 1px solid var(--border); background: transparent; overflow-wrap: anywhere; white-space: normal; vertical-align: middle; line-height: 1.5; }
+.app-shell .clear-resources td:first-child, .app-shell .clear-resources th:first-child { padding-left: 19px; }
+.app-shell .clear-resources td:last-child, .app-shell .clear-resources th:last-child { padding-right: 19px; }
+.app-shell .clear-resources tbody tr:hover { background: var(--clear-hover); }
+.app-shell .clear-resources .clear-status-col { width: 82px; }
+.app-shell .clear-resources .clear-actions-col { width: 92px; }
+.app-shell .clear-resources--users .clear-status-col { width: 76px; }
+.app-shell .clear-resources--users .clear-actions-col { width: 120px; }
+.app-shell .clear-resources .col-actions { width: auto; text-align: right; }
+.app-shell .clear-resources .row-actions { min-width: 0; text-align: right; }
+.clear-resources .clear-row-actions { display: flex; min-width: 0; align-items: center; justify-content: flex-end; gap: 4px; }
+.clear-resources .clear-row-edit { display: inline-flex; min-height: 32px; align-items: center; justify-content: center; flex-shrink: 0; padding: 5px 4px; border: 0; color: var(--clear-accent); background: transparent; font-size: 12px; font-weight: 500; }
+.clear-resources .clear-row-edit:hover { color: var(--clear-accent); text-decoration: underline; text-underline-offset: 4px; }
+.app-shell .clear-resources .icon-button { display: inline-flex; width: 30px; height: 32px; min-width: 0; flex: 0 0 30px; padding: 5px; color: var(--secondary); background: transparent; border: 0; border-radius: 5px; box-shadow: none; }
+.app-shell .clear-resources .icon-button:hover:not(:disabled) { color: var(--foreground); background: var(--panel-strong); border-color: transparent; box-shadow: none; }
+.app-shell .clear-resources .icon-button svg { width: 15px; height: 15px; }
+.clear-resources .clear-resource-open { display: block; max-width: 100%; padding: 0; border: 0; color: inherit; background: transparent; text-align: left; overflow-wrap: anywhere; }
+.clear-resources .clear-resource-open:hover .cell-primary { color: var(--clear-accent); }
+.app-shell .clear-resources .cell-primary, .app-shell .clear-resources .resource-name { display: block; max-width: 100%; color: var(--foreground); font-size: 13px; font-weight: 600; line-height: 1.5; white-space: normal; overflow-wrap: anywhere; }
+.app-shell .clear-resources .resource-name:hover { color: var(--clear-accent); }
+.app-shell .clear-resources .resource-id { display: block; max-width: 100%; margin-top: 4px; color: var(--secondary); font-size: 11px; font-weight: 400; line-height: 1.5; white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+.app-shell .clear-resources .mono, .clear-resources time { font-family: "Cascadia Mono", Consolas, monospace; font-size: 12px; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.app-shell .clear-resources .resource-id.mono { font-size: 11px; }
+.app-shell .clear-resources .protocol-label { padding: 0; border: 0; border-radius: 0; color: var(--clear-accent); background: transparent; font-family: "Cascadia Mono", Consolas, monospace; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+.clear-resources .resource-role { display: inline-flex; align-items: center; gap: 4px; padding: 3px 6px; color: var(--foreground); background: var(--panel-strong); border-radius: 4px; font-size: 11px; white-space: nowrap; }
+.clear-resources .resource-node-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.clear-resources .resource-node-chips span { max-width: 100%; padding: 2px 6px; border-radius: 4px; color: var(--secondary); background: var(--panel-strong); font-size: 11px; overflow-wrap: anywhere; }
+.app-shell .clear-resources .status { min-height: 0; gap: 5px; padding: 3px 7px; border: 0; border-radius: 5px; color: var(--secondary); background: var(--panel-strong); font-size: 11px; font-weight: 500; white-space: nowrap; }
+.app-shell .clear-resources .status--success { color: var(--success); background: var(--clear-success-bg); }
+.app-shell .clear-resources .status--warning { color: var(--warning); background: var(--clear-warning-bg); }
+.app-shell .clear-resources .status--danger { color: var(--danger); background: var(--clear-danger-bg); }
+.app-shell .clear-resources .status--info { color: var(--clear-accent); background: var(--clear-active); }
+.clear-resources .status__dot { width: 5px; height: 5px; animation: none; box-shadow: none; }
+.clear-resources .cell-error { margin-top: 5px; color: var(--danger); font-size: 11px; overflow-wrap: anywhere; }
+
+.app-shell .clear-resources .machine-metrics { display: grid; grid-template-columns: 1fr; max-width: 170px; gap: 4px; }
+.app-shell .clear-resources .machine-metrics .machine-metric { display: grid; grid-template-columns: 27px minmax(12px, 1fr) 43px; min-height: 0; align-items: center; gap: 5px; padding: 0; background: transparent; border-radius: 0; font-size: 11px; }
+.app-shell .clear-resources .machine-metric b { color: var(--secondary); font-size: 11px; font-weight: 400; }
+.app-shell .clear-resources .machine-metric > span { display: inline; min-height: 0; padding: 0; color: var(--foreground); background: transparent; font-size: 11px; text-align: right; }
+.clear-resources .machine-metric__track { display: block; height: 3px; overflow: hidden; background: var(--border); border-radius: 3px; }
+.clear-resources .machine-metric__track i { display: block; height: 100%; background: var(--clear-accent); border-radius: inherit; }
+.app-shell .clear-resources .traffic-usage { min-width: 0; max-width: 145px; gap: 7px; }
+.app-shell .clear-resources .traffic-usage > span:first-child { flex-wrap: wrap; gap: 3px; white-space: normal; }
+.app-shell .clear-resources .traffic-usage strong { color: var(--foreground); font-size: 12px; font-weight: 500; }
+.app-shell .clear-resources .traffic-usage small { color: var(--secondary); font-size: 11px; }
+.clear-resources .traffic-usage__track { height: 3px; background: var(--border); }
+.clear-resources .traffic-usage__track i { background: var(--clear-accent); }
+.clear-resources .resource-list-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; min-height: 52px; padding: 13px 19px; border-top: 1px solid var(--border); color: var(--secondary); font-size: 11px; }
+.clear-resources .resource-list-note { display: flex; align-items: flex-start; gap: 8px; margin: 18px 1px 0; color: var(--secondary); font-size: 12px; line-height: 1.7; }
+.clear-resources .resource-list-note svg { flex-shrink: 0; margin-top: 3px; }
+.clear-resources .empty-state { min-height: 240px; }
+.clear-resources .empty-state strong { color: var(--foreground); font-size: 15px; }
+.clear-resources .empty-state p { color: var(--secondary); font-size: 12px; }
+.app-shell .clear-resources :is(button, a, input, select):focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; box-shadow: none; }
+.app-shell .clear-resources input:focus, .app-shell .clear-resources select:focus { border-color: var(--focus); box-shadow: none; }
+
+/* Local overlay styling preserves the shared focus trap and destructive confirmations. */
+.drawer-layer.clear-resource-editor { display: block; padding: 0; }
+.clear-resource-editor .drawer { position: absolute; inset: 0 0 0 auto; width: min(480px, 100%); height: 100dvh; max-height: none; max-width: 100%; margin: 0; color: var(--foreground); background: var(--panel); border: 0; border-left: 1px solid var(--border); border-radius: 0; box-shadow: -12px 0 40px #0003; animation: none; }
+.clear-resource-editor .drawer__header { min-height: 0; padding: 24px; background: var(--panel); border-bottom: 1px solid var(--border); }
+.clear-resource-editor .drawer__header h2 { color: var(--foreground); font-size: 20px; }
+.clear-resource-editor .drawer__header p { color: var(--secondary); font-size: 12px; }
+.clear-resource-editor .drawer__body { padding: 24px; }
+.clear-resource-editor .drawer-form { grid-template-columns: minmax(0, 1fr); }
+.clear-resource-editor .drawer-form > * { min-width: 0; }
+.clear-resource-editor .field__label { color: var(--foreground); font-size: 13px; font-weight: 500; }
+.clear-resource-editor :is(.field__helper, .install-command p) { color: var(--secondary); font-size: 12px; }
+.clear-resource-editor .field :is(input:not([type="checkbox"]), select, textarea) { min-height: 40px; padding: 9px 11px; color: var(--foreground); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; box-shadow: none; font-size: 13px; caret-color: var(--focus); }
+.clear-resource-editor :is(input, textarea)::placeholder { color: var(--secondary); }
+.clear-resource-editor :is(input, select, textarea):focus { border-color: var(--focus); box-shadow: none; }
+.clear-resource-editor .drawer__actions { padding: 16px 0 0; border-top: 1px solid var(--border); background: var(--panel); }
+.clear-resource-editor .icon-button { color: var(--secondary); background: transparent; border: 0; }
+.clear-resource-editor .form-error, .clear-resource-editor .field__error { color: var(--danger); }
+.clear-resource-menu.row-menu__panel { padding: 6px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 12px 24px #0003; }
+.clear-resource-menu.row-menu__panel :is(button, a) { color: var(--foreground); font-size: 12px; min-height: 36px; }
+.clear-resource-menu.row-menu__panel :is(button, a):hover { color: var(--foreground); background: var(--clear-hover); }
+.clear-resource-menu.row-menu__panel .menu-action--danger { color: var(--danger); }
+.clear-resource-menu.row-menu__panel :disabled { opacity: .5; }
+.clear-resource-menu :is(button, a):focus-visible, .clear-resource-editor :is(button, a, input, select, textarea):focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+@media (max-width: 1100px) {
+  .app-shell .page.clear-resources { padding-inline: 20px; }
+  .app-shell .clear-resources .page-header { flex-wrap: wrap; gap: 16px; }
+  .app-shell .clear-resources .page-header__actions { flex: 0 1 auto; }
+  .app-shell .clear-resources th, .app-shell .clear-resources td { padding-inline: 8px; }
+  .app-shell .clear-resources .clear-status-col { width: 72px; }
+  .app-shell .clear-resources .clear-actions-col { width: 87px; }
+  .app-shell .clear-resources--users .clear-actions-col { width: 116px; }
+  .app-shell .clear-resources .cell-primary, .app-shell .clear-resources .resource-name { font-size: 12px; }
+  .app-shell .clear-resources .machine-metrics .machine-metric { grid-template-columns: 25px minmax(5px, 1fr) 39px; gap: 3px; }
+  .app-shell .clear-resources .resource-id { font-size: 11px; }
+}
+
+@media (max-width: 700px) {
+  .app-shell .page.clear-resources { padding: 24px 16px; }
+  .app-shell .clear-resources .page-header { flex-direction: column; align-items: stretch; gap: 16px; margin-bottom: 20px; }
+  .app-shell .clear-resources .page-header h1 { font-size: 25px; }
+  .app-shell .clear-resources .page-header p { font-size: 12px; }
+  .app-shell .clear-resources .page-header__actions { width: auto; justify-content: flex-start; gap: 7px; padding: 0; }
+  .app-shell .clear-resources .page-header__actions .button { width: auto; min-height: 44px; padding-inline: 10px; font-size: 12px; }
+  .clear-resources .resource-categories { min-height: 52px; padding: 0 14px; gap: 0 17px; }
+  .clear-resources .resource-categories button { gap: 5px; font-size: 12px; }
+  .app-shell .clear-resources .toolbar { min-height: 0; padding: 13px; gap: 8px; }
+  .app-shell .clear-resources .search-box { order: -1; min-width: 0; max-width: none; width: 100%; flex-basis: 100%; }
+  .app-shell .clear-resources .search-box input { min-height: 44px; font-size: 13px; }
+  .app-shell .clear-resources .toolbar__filters { order: 0; width: auto; max-width: 100%; overflow: visible; }
+  .app-shell .clear-resources .toolbar__filters select { min-height: 44px; max-width: 210px; }
+  .app-shell .clear-resources .toolbar__count { order: 0; width: auto; margin-left: auto; }
+  .app-shell .clear-resources .table-scroll { overflow: visible; }
+  .app-shell .clear-resources table, .app-shell .clear-resources tbody { display: block; min-width: 0; border-spacing: 0; }
+  .clear-resources colgroup { display: none; }
+  .app-shell .clear-resources thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; clip-path: inset(50%); overflow: hidden; }
+  .app-shell .clear-resources tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px 12px; padding: 16px 14px; border: 0; border-top: 1px solid var(--border); border-radius: 0; background: transparent; }
+  .app-shell .clear-resources td { display: block; min-width: 0; min-height: 0; height: auto; padding: 0; border: 0; font-size: 13px; }
+  .app-shell .clear-resources td:first-child, .app-shell .clear-resources td:last-child { padding: 0; }
+  .app-shell .clear-resources td::before { content: attr(data-label); display: block; margin-bottom: 4px; color: var(--secondary); font-size: 11px; font-weight: 400; }
+  .app-shell .clear-resources td:first-child { grid-column: 1 / -1; }
+  .app-shell .clear-resources td:first-child::before, .app-shell .clear-resources td.row-actions::before { display: none; }
+  .app-shell .clear-resources td.row-actions { display: block; grid-column: 1 / -1; min-width: 0; padding-top: 8px; margin: 0; border-top: 1px solid var(--border); }
+  .clear-resources .clear-row-actions { justify-content: flex-start; gap: 12px; }
+  .clear-resources .clear-row-edit { min-height: 44px; padding-inline: 7px; font-size: 13px; }
+  .app-shell .clear-resources .icon-button { width: 44px; height: 44px; flex-basis: 44px; }
+  .app-shell .clear-resources .cell-primary, .app-shell .clear-resources .resource-name { font-size: 14px; }
+  .clear-resources .clear-resource-open, .clear-resources .resource-name { min-height: 36px; }
+  .app-shell .clear-resources .machine-metrics { max-width: 190px; }
+  .app-shell .clear-resources .machine-metrics .machine-metric { grid-template-columns: 27px minmax(5px, 1fr) 43px; }
+  .app-shell .clear-resources .traffic-usage { max-width: none; }
+  .app-shell .clear-resources .traffic-usage strong { font-size: 13px; }
+  .clear-resources .resource-list-footer { padding: 13px 14px; }
+  .clear-resources .resource-list-note { font-size: 11px; }
+  .clear-resource-editor .drawer__header, .clear-resource-editor .drawer__body { padding: 20px; }
+  .clear-resource-editor .button { min-height: 44px; }
+  .clear-resource-menu.row-menu__panel :is(button, a) { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .clear-resources *, .clear-resource-editor *, .clear-resource-menu * { animation: none !important; transition: none !important; }
+}

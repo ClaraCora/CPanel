@@ -1,0 +1,221 @@
+/* Approved Clear A extension: operations pages only; overview and shell are untouched. */
+.app-shell .page.clear-operations [hidden] { display: none !important; }
+.clear-operations .operation-stack { display: grid; gap: 24px; }
+.app-shell .page.clear-operations .settings-layout { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: 26px; align-items: start; }
+.app-shell .page.clear-operations .settings-nav { display: grid; gap: 4px; padding: 0; border: 0; background: none; box-shadow: none; }
+.app-shell .page.clear-operations .settings-nav button { display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 10px 12px; border: 0; border-radius: 6px; background: transparent; color: var(--secondary); text-align: left; box-shadow: none; }
+.app-shell .page.clear-operations .settings-nav button strong { font-size: 12px; font-weight: 500; }
+.app-shell .page.clear-operations .settings-nav button:hover { color: var(--foreground); background: var(--panel-strong); }
+.app-shell .page.clear-operations .settings-nav button.active { color: var(--clear-accent); background: var(--clear-active); }
+.clear-operations .settings-context { margin: 20px 10px 0; padding-top: 20px; border-top: 1px solid var(--border); color: var(--secondary); font-size: 11px; line-height: 1.8; }
+.clear-operations .settings-panels { min-width: 0; }
+.app-shell .page.clear-operations :is(.settings-content, .subscription-access) { min-width: 0; margin: 0; padding: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); box-shadow: none; backdrop-filter: none; }
+.app-shell .page.clear-operations :is(.settings-content, .subscription-access) > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 88px; padding: 21px 24px; border-bottom: 1px solid var(--border); background: transparent; }
+.app-shell .page.clear-operations :is(.settings-content, .subscription-access) > header h2 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: 0; color: var(--foreground); }
+.app-shell .page.clear-operations :is(.settings-content, .subscription-access) > header p { margin: 6px 0 0; font-size: 12px; color: var(--secondary); line-height: 1.6; }
+.app-shell .page.clear-operations :is(.security-note, .subscription-access__code) { color: var(--secondary); font-size: 11px; }
+.app-shell .page.clear-operations .settings-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 23px; padding: 24px; background: none; border: 0; border-radius: 0; box-shadow: none; }
+.clear-operations .setting-field { min-width: 0; }
+.clear-operations .setting-field--full { grid-column: 1 / -1; }
+.app-shell .page.clear-operations .field { display: flex; flex-direction: column; gap: 8px; min-width: 0; margin: 0; }
+.app-shell .page.clear-operations .field__label { color: var(--foreground); font-size: 12px; font-weight: 500; }
+.app-shell .page.clear-operations :is(.field__helper, .operation-hint) { color: var(--secondary); font-size: 11px; line-height: 1.8; }
+.app-shell .page.clear-operations :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]) { min-width: 0; width: 100%; min-height: 36px; padding: 8px 10px; color: var(--foreground); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; box-shadow: none; font-size: 12px; line-height: 1.6; }
+.app-shell .page.clear-operations .search-box input { padding-inline: 33px 10px !important; }
+.app-shell .page.clear-operations :is(input, select, textarea):focus { border-color: var(--clear-accent); outline: 2px solid var(--clear-active); outline-offset: 1px; }
+.app-shell .page.clear-operations :is(input, textarea)::placeholder { color: var(--secondary); opacity: 1; }
+.app-shell .page.clear-operations textarea { resize: vertical; min-height: 102px; }
+.app-shell .page.clear-operations :is(input[type="checkbox"], input[type="radio"]) { accent-color: var(--primary); }
+.app-shell .page.clear-operations .settings-toggle { display: flex; align-items: center; justify-content: flex-start; min-height: 36px; gap: 10px; color: var(--secondary); font-size: 12px; }
+.app-shell .page.clear-operations .settings-toggle input { width: 18px; height: 18px; margin: 0; }
+.app-shell .page.clear-operations .settings-form > footer { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 15px; flex-wrap: wrap; margin: 1px -24px -24px; padding: 16px 24px; border-top: 1px solid var(--border); background: var(--panel); }
+.app-shell .page.clear-operations .settings-form > footer > span { display: flex; align-items: center; gap: 7px; color: var(--secondary); font-size: 11px; }
+.app-shell .page.clear-operations .settings-form__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.app-shell .page.clear-operations .account-settings { display: block; padding: 0; }
+.app-shell .page.clear-operations .account-form { margin: 0; }
+.app-shell .page.clear-operations .account-form + .account-form { border-top: 1px solid var(--border); }
+.app-shell .page.clear-operations .account-form__heading { grid-column: 1 / -1; display: flex; align-items: flex-start; gap: 10px; padding: 0; margin-bottom: 0; }
+.app-shell .page.clear-operations .account-form__heading h3 { margin: 0; font-size: 14px; color: var(--foreground); }
+.app-shell .page.clear-operations .account-form__heading p { margin: 6px 0 0; font-size: 12px; color: var(--secondary); }
+.app-shell .page.clear-operations .account-password-toggle { margin-left: auto; }
+.app-shell .page.clear-operations .input-with-action { display: flex; align-items: start; gap: 8px; }
+.app-shell .page.clear-operations .input-with-action input { flex: 1; }
+.app-shell .page.clear-operations .input-with-action .button { flex-shrink: 0; }
+.app-shell .page.clear-operations .subscription-access__actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.app-shell .page.clear-operations .subscription-access__view-switch { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; padding: 3px; background: var(--surface); }
+.app-shell .page.clear-operations .subscription-access__view-switch button { padding: 5px 9px; min-height: 28px; border: 0; border-radius: 4px; color: var(--secondary); background: none; box-shadow: none; font-size: 11px; }
+.app-shell .page.clear-operations .subscription-access__view-switch button.active { color: var(--clear-accent); background: var(--clear-active); }
+.app-shell .page.clear-operations .subscription-access__table { margin: 0; }
+.app-shell .page.clear-operations .subscription-access__table code { display: block; overflow-wrap: anywhere; white-space: normal; color: var(--foreground); font-size: 11px; line-height: 1.7; }
+.app-shell .page.clear-operations .subscription-access__time { color: var(--foreground); }
+.app-shell .page.clear-operations .subscription-access__time > span { display: block; margin-top: 5px; color: var(--secondary); font-size: 10px; }
+.app-shell .page.clear-operations .subscription-access__count { padding: 0; background: none; color: var(--foreground); }
+.app-shell .page.clear-operations .history-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0 16px; margin: 0; padding: 0 20px; border-bottom: 1px solid var(--border); background: none; }
+.app-shell .page.clear-operations .history-tabs { display: flex; gap: 24px; padding: 0; border: 0; background: none; border-radius: 0; }
+.app-shell .page.clear-operations .history-tabs button { min-height: 52px; padding: 14px 0; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; color: var(--secondary); box-shadow: none; font-size: 12px; }
+.app-shell .page.clear-operations .history-tabs button.active { border-bottom-color: var(--clear-accent); color: var(--clear-accent); }
+.app-shell .page.clear-operations .retention-label { color: var(--secondary); font-size: 11px; }
+.clear-operations .history-summary { display: flex; flex-wrap: wrap; gap: 8px 25px; padding: 15px 20px; color: var(--secondary); border-bottom: 1px solid var(--border); font-size: 11px; }
+.clear-operations .history-summary strong { color: var(--foreground); margin-left: 5px; font-variant-numeric: tabular-nums; font-weight: 500; }
+.clear-operations .metric-summary { display: flex; gap: 5px 14px; flex-wrap: wrap; }
+.clear-operations .metric-summary span { color: var(--foreground); }
+.clear-operations .metric-summary b { margin-right: 6px; color: var(--secondary); font-weight: 400; }
+.app-shell .clear-operations .access-ip-table th:nth-child(1) { width: 17%; }
+.app-shell .clear-operations .access-ip-table th:nth-child(3) { width: 21%; }
+.app-shell .clear-operations .access-ip-table th:nth-child(4) { width: 9%; }
+.app-shell .clear-operations .col-access-ip-action { width: 78px; }
+.app-shell .page.clear-operations .access-ip-location { gap: 4px; }
+.app-shell .page.clear-operations .access-ip-address { font-size: 12px; color: var(--foreground); }
+.app-shell .page.clear-operations :is(.access-ip-location__lookup, .access-ip-location__refresh) { color: var(--clear-accent); background: none; border-color: transparent; }
+.app-shell .page.clear-operations .access-ip-location__text { color: var(--secondary); font-size: 11px; }
+.app-shell .page.clear-operations .access-ip-count { color: var(--foreground); background: none; padding: 0; border: 0; }
+.app-shell .page.clear-operations .access-ip-count small { color: var(--secondary); }
+/* Only these complex drawers gain the approved wider working area. */
+.clear-resource-editor.clear-operation-editor .drawer { width: min(720px, 100%); }
+.clear-operation-editor .drawer-form { gap: 22px; }
+.clear-operation-editor :is(.route-rule-card, .outbound-config-section, .outbound-protocol-option) { background: var(--surface); border-color: var(--border); box-shadow: none; }
+.clear-operation-editor :is(.route-rule-card h3, .outbound-config-section h3) { color: var(--foreground); }
+.clear-operation-editor .audit-detail h3 { margin: 25px 0 10px; color: var(--foreground); font-size: 14px; }
+.clear-operation-editor .operation-hint { margin: 0 0 12px; color: var(--secondary); font-size: 12px; }
+.operation-detail-list { margin: 0; }
+.operation-detail-list > div { display: grid; grid-template-columns: 100px minmax(0, 1fr); gap: 20px; padding: 14px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.operation-detail-list dt { color: var(--secondary); }
+.operation-detail-list dd { margin: 0; color: var(--foreground); overflow-wrap: anywhere; }
+.operation-detail-list dd small { display: block; margin-top: 5px; color: var(--secondary); }
+.audit-request { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
+.audit-request code { overflow-wrap: anywhere; min-width: 0; }
+.audit-json { padding: 17px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--foreground); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; font: 12px/1.9 Consolas, monospace; }
+.clear-ip-editor table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.clear-ip-editor th { color: var(--secondary); font-size: 11px; background: var(--surface); text-align: left; padding: 12px 8px; }
+.clear-ip-editor td { padding: 17px 8px; border-bottom: 1px solid var(--border); font-size: 11px; overflow-wrap: anywhere; white-space: normal; }
+.clear-ip-editor .access-ip-drawer__summary { padding: 0 0 20px; margin-bottom: 20px; border-bottom: 1px solid var(--border); color: var(--secondary); font-size: 12px; }
+.clear-ip-editor .access-ip-drawer__summary strong { color: var(--foreground); }
+.clear-ip-editor :is(.access-ip-address, .cell-primary) { color: var(--foreground); }
+.clear-ip-editor :is(.access-ip-location__lookup, .access-ip-location__refresh) { color: var(--clear-accent); }
+.clear-ip-editor .access-ip-location__text { color: var(--secondary); }
+/* Full node configuration retains every protocol branch. */
+.app-shell .page.clear-node-editor { max-width: none; }
+.app-shell .page.clear-node-editor .back-row { margin: 0 0 16px; }
+.app-shell .page.clear-node-editor .back-row a { color: var(--secondary); font-size: 12px; }
+.clear-node-editor .node-editor-layout { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 0 24px; align-items: start; }
+.app-shell .page.clear-node-editor .editor-section-nav { grid-column: 1; grid-row: 1 / 3; display: grid; position: sticky; top: 24px; gap: 5px; margin: 0; padding: 0; background: none; border: 0; border-radius: 0; }
+.app-shell .page.clear-node-editor .editor-section-nav a { padding: 11px 12px; color: var(--secondary); font-size: 12px; border-radius: 6px; background: none; white-space: nowrap; }
+.app-shell .page.clear-node-editor .editor-section-nav a:hover, .app-shell .page.clear-node-editor .editor-section-nav a:focus-visible { color: var(--clear-accent); background: var(--clear-active); text-decoration: none; }
+.app-shell .page.clear-node-editor .editor-form { grid-column: 2; display: grid; gap: 24px; min-width: 0; }
+.clear-node-editor .node-editor-layout > .form-alert { grid-column: 2; margin-bottom: 20px; }
+.app-shell .page.clear-node-editor .form-section { scroll-margin-top: 24px; min-width: 0; margin: 0; padding: 0; overflow: hidden; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; box-shadow: none; backdrop-filter: none; }
+.app-shell .page.clear-node-editor .form-section__heading { display: flex; align-items: start; gap: 16px; padding: 22px 24px; margin: 0; background: none; border-bottom: 1px solid var(--border); }
+.app-shell .page.clear-node-editor .form-section__heading h2 { color: var(--foreground); font-size: 17px; font-weight: 650; }
+.app-shell .page.clear-node-editor .form-section__heading p { margin-top: 6px; color: var(--secondary); font-size: 12px; line-height: 1.7; }
+.app-shell .page.clear-node-editor .form-section > .form-grid { padding: 24px; }
+.app-shell .page.clear-node-editor .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+.app-shell .page.clear-node-editor .form-grid--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.app-shell .page.clear-node-editor .inline-notice { margin: 0; padding: 16px 24px; color: var(--secondary); border: 0; border-top: 1px solid var(--border); background: transparent; border-radius: 0; font-size: 12px; }
+.app-shell .page.clear-node-editor .endpoint-empty { margin: 0; padding: 24px; border: 0; background: none; }
+.app-shell .page.clear-node-editor .endpoint-empty p { color: var(--secondary); }
+.app-shell .page.clear-node-editor .endpoint-table { padding: 0; margin: 0; overflow: visible; }
+.app-shell .page.clear-node-editor .endpoint-table :is(table, tbody) { display: block; }
+.app-shell .page.clear-node-editor .endpoint-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.app-shell .page.clear-node-editor .endpoint-table tbody tr { display: grid; grid-template-columns: 1fr 1.5fr .6fr; padding: 22px 24px; gap: 16px; border: 0; background: none; }
+.app-shell .page.clear-node-editor .endpoint-table tbody tr + tr { border-top: 1px solid var(--border); }
+.app-shell .page.clear-node-editor .endpoint-table td { display: block; height: auto; padding: 0; border: 0; min-width: 0; }
+.app-shell .page.clear-node-editor .endpoint-table td::before { content: attr(data-label); display: block; color: var(--secondary); font-size: 11px; margin-bottom: 7px; }
+.app-shell .page.clear-node-editor .endpoint-table .row-actions { align-self: end; text-align: right; }
+.app-shell .page.clear-node-editor .endpoint-table .row-actions::before { content: none; }
+.app-shell .page.clear-node-editor #node-protocol > .node-config-form { padding: 24px; }
+.app-shell .page.clear-node-editor :is(.node-protocol-card, .protocol-option, .config-section, .protocol-group) { background: var(--surface); border-color: var(--border); box-shadow: none; }
+.app-shell .page.clear-node-editor :is(.protocol-option.active, .node-protocol-card.active) { color: var(--clear-accent); border-color: var(--border-strong); background: var(--clear-active); }
+.app-shell .page.clear-node-editor .editor-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; position: sticky; bottom: 0; z-index: 5; padding: 16px 20px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; box-shadow: none; backdrop-filter: none; }
+.app-shell .page.clear-node-editor .editor-actions > div { display: flex; gap: 8px; }
+@media (max-width: 1100px) {
+  .app-shell .page.clear-operations .settings-layout { grid-template-columns: 145px minmax(0, 1fr); gap: 20px; }
+  .clear-node-editor .node-editor-layout { grid-template-columns: 125px minmax(0, 1fr); gap: 0 18px; }
+  .app-shell .page.clear-operations .security-note { max-width: 130px; }
+  .app-shell .page.clear-node-editor .form-section__heading { padding: 20px; }
+  .app-shell .page.clear-node-editor .form-section > .form-grid { padding: 20px; }
+}
+@media (max-width: 700px) {
+  .app-shell .page.clear-operations .settings-layout { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .app-shell .page.clear-operations .settings-nav { display: flex; max-width: 100%; overflow-x: auto; gap: 6px; padding-bottom: 6px; }
+  .app-shell .page.clear-operations .settings-nav button { flex-shrink: 0; min-height: 44px; white-space: nowrap; }
+  .clear-operations .settings-context { display: none; }
+  .app-shell .page.clear-operations :is(.settings-content, .subscription-access) > header { padding: 19px 17px; align-items: start; flex-wrap: wrap; min-height: 0; }
+  .app-shell .page.clear-operations .settings-form { grid-template-columns: minmax(0, 1fr); gap: 20px; padding: 20px 17px; }
+  .app-shell .page.clear-operations .settings-form > footer { margin: 0 -17px -20px; padding: 15px 17px; }
+  .app-shell .page.clear-operations .settings-form > footer > .button, .app-shell .page.clear-operations .settings-form__actions { margin-left: auto; }
+  .app-shell .page.clear-operations :is(input, select):not([type="checkbox"]):not([type="radio"]) { min-height: 44px; font-size: 13px; }
+  .app-shell .page.clear-operations .subscription-access__actions { width: 100%; justify-content: space-between; }
+  .app-shell .page.clear-operations .subscription-access__view-switch button { min-height: 38px; }
+  .app-shell .page.clear-operations .history-toolbar { padding: 0 16px 12px; }
+  .app-shell .page.clear-operations .history-tabs { overflow-x: auto; width: 100%; gap: 21px; }
+  .app-shell .page.clear-operations .history-tabs button { white-space: nowrap; flex-shrink: 0; font-size: 11px; }
+  .clear-operations .history-summary { padding: 14px 16px; gap: 10px 18px; }
+  .app-shell .page.clear-operations .clear-row-edit { min-height: 44px; }
+  .clear-operation-editor .operation-detail-list > div { grid-template-columns: 75px minmax(0, 1fr); gap: 12px; }
+  .clear-ip-editor :is(table, tbody) { display: block; }
+  .clear-ip-editor thead { position: absolute; width: 1px; height: 1px; clip-path: inset(50%); overflow: hidden; }
+  .clear-ip-editor tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 17px 12px; padding: 20px 0; border-bottom: 1px solid var(--border); }
+  .clear-ip-editor td { display: block; padding: 0; border: 0; }
+  .clear-ip-editor td::before { content: attr(data-label); display: block; margin-bottom: 5px; color: var(--secondary); font-size: 11px; }
+  .clear-ip-editor td:first-child { grid-column: 1 / -1; }
+  .clear-node-editor .node-editor-layout { display: block; }
+  .app-shell .page.clear-node-editor .editor-section-nav { position: static; display: flex; gap: 5px; overflow: auto; padding-bottom: 7px; margin-bottom: 17px; }
+  .app-shell .page.clear-node-editor .editor-section-nav a { min-height: 44px; flex-shrink: 0; font-size: 11px; }
+  .app-shell .page.clear-node-editor .form-section__heading { padding: 19px 17px; flex-wrap: wrap; }
+  .app-shell .page.clear-node-editor .form-grid, .app-shell .page.clear-node-editor .form-grid--three { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .app-shell .page.clear-node-editor .form-section > .form-grid { padding: 20px 17px; }
+  .app-shell .page.clear-node-editor .endpoint-table tbody tr { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 20px 17px; gap: 18px 12px; }
+  .app-shell .page.clear-node-editor .endpoint-table td { grid-column: auto; }
+  .app-shell .page.clear-node-editor .endpoint-table td:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+  .app-shell .page.clear-node-editor .endpoint-table .row-actions { grid-column: 1 / -1; padding-top: 6px; border-top: 1px solid var(--border); }
+  .app-shell .page.clear-node-editor #node-protocol > .node-config-form { padding: 20px 17px; }
+  .app-shell .page.clear-node-editor .editor-actions { padding: 12px; flex-wrap: wrap; }
+  .app-shell .page.clear-node-editor .editor-actions > div:last-child { margin-left: auto; }
+  .app-shell .page.clear-node-editor .editor-actions .button { padding-inline: 9px; font-size: 11px; }
+}
+/* The form fills its workspace; subscription policy and UA stay side by side. */
+.app-shell .page.clear-operations .settings-form { width: 100%; max-width: none; }
+.app-shell .page.clear-subscription .settings-form { grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: start; }
+.clear-subscription .setting-field:nth-child(1) { grid-column: 1 / 3; grid-row: 1; }
+.clear-subscription .setting-field:nth-child(2) { grid-column: 1; grid-row: 2; }
+.clear-subscription .setting-field:nth-child(3) { grid-column: 2; grid-row: 2; }
+.clear-subscription .setting-field:nth-child(4) { grid-column: 3 / 5; grid-row: 1; }
+.clear-subscription .setting-field:nth-child(5) { grid-column: 3 / 5; grid-row: 2; }
+.app-shell .page.clear-operations .subscription-access > header > div:first-child > svg { display: none; }
+.app-shell .page.clear-operations .subscription-access > header h3 { margin: 0; color: var(--foreground); font-size: 17px; font-weight: 650; }
+.app-shell .page.clear-operations .subscription-access__count--merged { border: 0; box-shadow: none; }
+.app-shell .page.clear-node-editor .config-group { padding: 23px 0; margin: 0; border: 0; border-top: 1px solid var(--border); background: none; box-shadow: none; border-radius: 0; }
+.app-shell .page.clear-node-editor .config-group__heading { margin-bottom: 18px; }
+.app-shell .page.clear-node-editor .config-group__heading h3 { color: var(--foreground); font-size: 14px; }
+.app-shell .page.clear-node-editor .config-group__heading p { margin-top: 6px; color: var(--secondary); font-size: 12px; }
+.app-shell .page.clear-node-editor .protocol-selector { margin: 0 0 23px; padding: 0; border: 0; background: none; box-shadow: none; border-radius: 0; }
+.app-shell .page.clear-node-editor .protocol-selector__summary { border: 1px solid var(--border); background: var(--surface); color: var(--foreground); box-shadow: none; }
+.app-shell .page.clear-node-editor .protocol-selector__icon { color: var(--clear-accent); background: none; }
+.app-shell .page.clear-node-editor .protocol-selector__copy small, .app-shell .page.clear-node-editor .protocol-selector__support { color: var(--secondary); }
+@media (max-width: 700px) {
+  .app-shell .page.clear-subscription .settings-form { grid-template-columns: minmax(0, 1fr); }
+  .clear-subscription .setting-field:nth-child(n) { grid-column: auto; grid-row: auto; }
+}
+/* Resolve inherited layout rules without changing the shared shell. */
+.app-shell .page.clear-operations .settings-layout { min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; backdrop-filter: none; }
+.app-shell .page.clear-operations .settings-nav button { flex-direction: row; width: 100%; align-items: center; }
+.app-shell .page.clear-operations .subscription-access__table { max-height: none; height: auto; border: 0; border-radius: 0; }
+.app-shell .page.clear-node-editor .editor-section-nav { box-shadow: none; backdrop-filter: none; }
+.app-shell .page.clear-node-editor .editor-section-nav a { min-height: 40px; line-height: 1.5; }
+.app-shell .page.clear-node-editor .config-group__heading { padding: 0; }
+.app-shell .page.clear-node-editor .config-fields { padding: 0; margin: 0; }
+.app-shell .page.clear-node-editor .segmented-control { display: flex; flex-wrap: wrap; width: max-content; max-width: 100%; margin: 0 0 20px; padding: 3px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; box-shadow: none; }
+.app-shell .page.clear-node-editor .segmented-control button { min-height: 34px; padding: 7px 15px; color: var(--secondary); background: none; box-shadow: none; border: 0; border-radius: 4px; font-size: 12px; }
+.app-shell .page.clear-node-editor .segmented-control button.active { color: var(--clear-accent); background: var(--clear-active); }
+.app-shell .page.clear-node-editor .option-toggles label { padding: 14px 0; background: none; border: 0; border-radius: 0; box-shadow: none; }
+.app-shell .page.clear-node-editor .option-toggles small { color: var(--secondary); }
+.app-shell .page.clear-node-editor .protocol-selector__summary { min-width: 0; flex-wrap: wrap; gap: 8px; }
+.app-shell .page.clear-node-editor .protocol-selector__copy { min-width: 0; }
+.app-shell .page.clear-node-editor .protocol-selector__support { white-space: normal; }
+@media (max-width: 700px) {
+  .app-shell .page.clear-operations .settings-nav button { width: auto; min-width: 0; }
+  .app-shell .page.clear-node-editor .editor-actions { flex-direction: row; }
+  .app-shell .page.clear-node-editor .editor-actions > div { width: auto; }
+  .app-shell .page.clear-node-editor .editor-actions .button { width: auto; }
+}
+.app-shell .page.clear-node-editor .editor-section-nav a[aria-current="location"] { color: var(--clear-accent); background: var(--clear-active); }

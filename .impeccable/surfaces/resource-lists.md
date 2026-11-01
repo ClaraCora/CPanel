@@ -2,7 +2,7 @@
 
 Mode: Operate. Approved on 2026-11-01 by the user's “选择清晰A”.
 
-Scope: `/machines`, `/nodes`, `/users`, `/plans`, `/access-groups`. Keep the overview, navigation shell, `/edu`, other resource pages, and full node editor unchanged. This is a code-led implementation of the user's selected HTML prototype, not a new direction round.
+Scope: `/machines`, `/nodes`, `/users`, `/plans`, `/access-groups`. This original five-page approval preserves the overview and navigation shell. The subsequent approved nine-surface extension is recorded in `remaining-operations.md`; its operation and portal changes do not replace this brief's five-page rules or 480px resource drawers. This is a code-led implementation of the user's selected HTML prototype, not a new direction round.
 
 ## Direction contract
 

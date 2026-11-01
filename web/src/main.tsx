@@ -7,6 +7,8 @@ import "./theme-glass.css";
 import "./theme-modes.css";
 import "./apple-console.css";
 import "./resource-clear.css";
+import "./operations-clear.css";
+import "./portal-clear.css";
 import { initializeTheme } from "./theme";
 
 initializeTheme();

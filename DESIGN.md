@@ -37,6 +37,19 @@ colors:
   clear-light-success-bg: "#e8f4ee"
   clear-light-warning-bg: "#fff3df"
   clear-light-danger-bg: "#ffedf0"
+  portal-light-canvas: "#f4f5f7"
+  portal-light-panel: "#ffffff"
+  portal-light-foreground: "#18181b"
+  portal-light-secondary: "#586579"
+  portal-light-border: "#dfe4ea"
+  portal-light-soft: "#f4f4f5"
+  portal-light-command: "#20252c"
+  portal-light-command-text: "#fff"
+  portal-light-success: "#198754"
+  portal-light-danger: "#d13239"
+  portal-focus: "#345fc5"
+  portal-dark-command-text: "#172030"
+  portal-dark-danger: "#ff7b94"
 typography:
   clear-title:
     fontSize: "26px"
@@ -51,6 +64,18 @@ typography:
     fontFamily: '"Cascadia Mono", Consolas, monospace'
     fontSize: "12px"
     letterSpacing: "0"
+  clear-section-title:
+    fontSize: "17px"
+    fontWeight: 650
+    letterSpacing: "0"
+  portal-title:
+    fontSize: "28px"
+    fontWeight: 650
+    letterSpacing: "0"
+  portal-link-data:
+    fontFamily: 'Consolas, monospace'
+    fontSize: "12px"
+    lineHeight: 1.7
 rounded:
   clear-chip: "4px"
   clear-status: "5px"
@@ -103,6 +128,30 @@ components:
     backgroundColor: "{colors.clear-dark-panel}"
     rounded: "{rounded.clear-menu}"
     padding: "6px"
+  clear-operation-editor:
+    backgroundColor: "{colors.clear-dark-panel}"
+    rounded: "{rounded.clear-editor}"
+    width: "min(720px, 100%)"
+    height: "100dvh"
+  portal-command:
+    backgroundColor: "{colors.portal-light-command}"
+    textColor: "{colors.portal-light-command-text}"
+    rounded: "{rounded.clear-input}"
+    padding: "8px 12px"
+  portal-command-dark:
+    backgroundColor: "{colors.clear-dark-foreground}"
+    textColor: "{colors.portal-dark-command-text}"
+    rounded: "{rounded.clear-input}"
+    padding: "8px 12px"
+  portal-panel:
+    backgroundColor: "{colors.portal-light-panel}"
+    rounded: "{rounded.clear-list}"
+  portal-link:
+    backgroundColor: "{colors.portal-light-soft}"
+    textColor: "{colors.portal-light-foreground}"
+    typography: "{typography.portal-link-data}"
+    rounded: "{rounded.clear-input}"
+    padding: "12px"
 ---
 
 # Design System: CPanel
@@ -117,14 +166,15 @@ The interface is dark because the administrator may keep it open beside terminal
 
 No topology, relationship, force, or connection diagrams are permitted. Lists and forms remain the only management surfaces.
 
-The user-selected **Clear A / 清晰表格** is a local exception for `/machines`, `/nodes`, `/users`, `/plans`, and `/access-groups`, and their explicitly marked local editor/menu overlays. Its solid blue-gray list treatment overrides the incumbent only within `.clear-resources`, `.clear-resource-editor`, and `.clear-resource-menu`. The frontmatter's `clear-*` tokens describe this exception. The overview, navigation shell, full node editor, other resource pages, and `/edu` retain their incumbent authority. See `.impeccable/surfaces/resource-lists.md` and `web/src/resource-clear.css`.
+The user-selected **Clear A / 清晰表格** covers the original `/machines`, `/nodes`, `/users`, `/plans`, and `/access-groups` lists and their marked local overlays. The approved nine-surface extension adds `/subscription`, `/access-ips`, `/routes`, `/outbounds`, `/history`, `/settings`, `/audit`, and full node create/edit/copy, with a separate account-center refinement at `/edu`. Administration tokens remain local to `.clear-resources`, `.clear-resource-editor`, and `.clear-resource-menu`; `.clear-operations`, `.clear-node-editor`, and `.clear-operation-editor` refine marked work areas within them. The overview and shared navigation shell retain their incumbent authority. The portal has its own `.edu-app.edu-clear` scope and `portal-*` tokens. See `.impeccable/surfaces/resource-lists.md`, `.impeccable/surfaces/remaining-operations.md`, and the three `web/src/*-clear.css` stylesheets.
 
 **Key Characteristics:**
 
 - Dense, familiar list-and-form operations.
-- Incumbent graphite glass outside the five selected resource lists.
-- Solid Clear A lists with explicit dark/light palettes and real counts.
+- Incumbent graphite glass in the overview and shared shell.
+- Solid Clear A lists and forms with explicit dark/light palettes and real counts.
 - Visible Chinese status labels, focus, and genuine operations.
+- An independent light-first portal with neutral commands and green traffic/node state.
 
 ## Colors
 
@@ -154,6 +204,14 @@ The explicit `clear-light-*` palette replaces the corresponding `clear-dark-*` r
 
 **The Local Override Rule.** Keep Clear A tokens on the three local scopes; never promote them to `:root` or recolor the shared shell.
 
+### Independent account-center palette
+
+The `portal-light-*` tokens describe the light-first account center: a quiet gray canvas, white panels, dark neutral commands, green traffic/online state, and explicit danger text. Its canvas, border, and secondary text come from `portal-clear.css`; panel, foreground, soft fill, success, and danger inherit from `portal.css`. `portal-focus` supplies the visible button/textarea focus outline.
+
+In portal dark mode, canvas/panel/soft/foreground/secondary/border/success use the corresponding `clear-dark-*` values; command background uses `clear-dark-foreground`, command text uses `portal-dark-command-text`, and danger uses `portal-dark-danger` from the incumbent dark portal rules. This mapping describes the portal role assignments, without applying administration classes to it. Existing login, boot, failure, dialog, and secondary-control treatments remain governed by their incumbent selectors.
+
+**The Independent Appearance Rule.** `/edu` and `/edu/` default to light and persist `cpanel.portal.theme`; administration defaults to dark and persists `cpanel.theme`. A portal appearance choice does not redefine the administration palette.
+
 ## Typography
 
 Use the native Chinese UI sans stack for all interface copy. Use the system monospace stack only for IDs, IP addresses, ports, revisions, traffic values, timestamps, hashes, and configuration snippets.
@@ -168,9 +226,11 @@ All letter spacing is `0`. Hierarchy comes from scale, weight, color, and spacin
 
 Clear A titles use `clear-title` (25px on phones). Resource names are 13px/600, compact names 12px, phone names 14px; supporting IDs are 11px on a separate wrapping line. Desktop table text and controls are 12px; metadata is 11px. Technical values use `clear-machine-data` and tabular numerals. Editor headings are 20px, labels/fields 13px, and helper/error context 12px.
 
+The operation and full-node section headings use `clear-section-title`. Operation fields and labels are 12px, helpers 11px, with fields increasing to 13px on phones. Portal headings use `portal-title` (26px on phones), section titles are 16px/650, record names 13px/600, and supporting text 11–12px. Subscription addresses use `portal-link-data`; the portal inherits the same native Chinese UI font stack. Prototype font choices and negative title tracking are not new system tokens.
+
 ## Layout
 
-The current application composition is canonical. Desktop uses a 216px navigation rail and a flexible content column. Tablet collapses the rail to 76px. Mobile uses a dismissible drawer. Resource pages open as lists with search, filters, stable table columns, and explicit actions. Complex node and route editors remain dedicated pages; shorter edits remain drawers.
+The shared application composition is canonical. Desktop uses a 216px navigation rail and a flexible content column. Tablet collapses the rail to 76px. Mobile uses a dismissible drawer. Resource pages open as lists with search, filters, stable table columns, and explicit actions. Full node configuration remains a dedicated page; route/outbound editing and IP/audit inspection use marked drawers.
 
 Spacing follows the existing 4px rhythm. Containers use 8-12px radii. Do not introduce decorative cards or cards inside cards.
 
@@ -180,7 +240,17 @@ The title and add action lead one connected panel: categories with real counts, 
 
 At **1100px and below**, page gutters reduce to 20px, headers wrap, cell side padding becomes 8px, and names, status/action columns, and meter grids tighten. At **700px and below**, page padding becomes 24px 16px and search spans the toolbar. Each record becomes two labeled columns with a 14px by 12px gap and 16px 14px padding; identity and actions span both columns. `data-label` supplies visible cell labels while the visually hidden table header remains available to assistive technology. Header commands, search, filters, row actions, and menu items use 44px minimum touch targets where implemented.
 
-Local editors are single-column right-side drawers: width `min(480px, 100%)`, height 100dvh, 24px header/body padding (20px on phones). Dedicated full node editors and unscoped drawers retain their existing layout.
+The original resource editors remain single-column right-side drawers: width `min(480px, 100%)`, height 100dvh, 24px header/body padding (20px on phones). The `clear-operation-editor` variant for route/outbound editing and IP/audit details uses `min(720px, 100%)`. Apply this width to the descendant `.drawer`, while its fixed `.drawer-layer` and backdrop continue to cover the entire viewport. Both variants become full width when the viewport is narrower than the drawer. Unscoped drawers retain their existing layout.
+
+### Clear A operation workspaces
+
+Settings use a 168px local directory and flexible form column with a 26px gap; below 1100px the directory/gap become 145px/20px. Forms use two equal columns, 23px gaps, and 24px padding. Subscription policy and UA fields share the available width in a four-track arrangement. Full node configuration uses a 150px chapter directory and flexible form, with a 24px gap (125px/18px below 1100px); its sections connect their heading and form with a divider. The save/publish row remains sticky at the bottom of the editor.
+
+At 700px and below, settings/chapter directories become horizontal scroll areas, forms stack, and panel insets tighten to 17–20px. History tabs remain horizontally scrollable and preserve the selected underline. Record fields retain visible labels. The IP detail table can scroll horizontally for its additional columns; page-width checks do not imply that every inner table fits without scrolling.
+
+### Independent account-center layout
+
+The portal has a 64px utility header and a centered workspace up to 1136px wide with 24px side gutters. Its wide subscription/node column and narrower traffic/account column use a 1.65:1 ratio, a 290px minimum side column, and a 26px gap. At 1100px and below these become 1.5:1, 280px, and 20px. At 700px and below, the header is 61px, gutters are 16px, the workspace stacks into one column, and the subscription address and copy command stack. Panel body padding is 24px on desktop and 20px 18px on phones. These are account-center rules, not shared-shell dimensions.
 
 ## Elevation & Depth
 
@@ -194,7 +264,7 @@ Clear A lists and controls are flat solid surfaces with one-pixel borders and no
 
 One slow ambient light sweep animates behind the application. Page headers enter with a short blur-to-focus transition; healthy status dots breathe; loading skeletons use a bounded shimmer. Hover and press transitions use exponential ease-out. All animation stops under `prefers-reduced-motion`.
 
-Clear A disables page/drawer entrance and status-dot animation. Motion is limited to hover/focus feedback; buttons transition color/background for 180ms with `ease`, without lift, glow, or sweep. Reduced-motion disables descendant animations and transitions in all three local scopes. Preserve operational loading behavior without adding decorative motion.
+Clear A disables page/drawer entrance and status-dot animation. Motion is limited to hover/focus feedback; buttons transition color/background for 180ms with `ease`, without lift, glow, or sweep. Reduced-motion disables descendant animations and transitions in all three local scopes. Preserve operational loading behavior without adding decorative motion. The refined portal's panels and node strips are flat; button/node hover does not lift them. Portal controls retain their existing short state transitions, and `.edu-app.edu-clear` disables descendant animation and transitions under reduced motion.
 
 ## Shapes
 
@@ -238,9 +308,19 @@ Search uses canvas inset, border, and a 6px radius. Preserve **33px inline-start
 
 The connected list reports actual visible/total records without invented pagination. Empty, loading, refresh/error, and filtered-empty states remain real. Explicitly scoped drawers and menus retain original focus trapping/restoration, Escape/menu keyboard handling, scroll locks, unsaved-change protection, destructive confirmations, administrator protection, installation/upgrade/reset operations, and delegated read-only subscription access. Shared confirmation dialogs retain incumbent treatment. Menu items are at least 36px high (44px on phones).
 
+### Clear A operation forms and details
+
+Settings panels use flat panel fill, a single border, a rounded outer edge, and explicit section-save commands. A category change hides mounted sections so their input state remains available. Subscription settings use a labeled expand/collapse command with `aria-expanded` and `aria-controls`; the mounted form starts collapsed on phones and retains its draft while hidden. This is independent of merged/raw access-log views.
+
+Operation fields use inset canvas fill, a 6px radius, visible labels, and accent border/focus outline. Route and outbound drawers initialize from the selected record and retain their complete specialized controls and validation. Detail drawers use aligned label/value rows, wrapping technical values, and a readable inset JSON block. Real server pagination remains on subscription, access-IP, history, and audit data; the unpaginated resource-list footer is not a replacement for it.
+
+The full node editor retains the entry, basic/routing, listener, and protocol chapters, all protocol/transport/security/certificate branches, and separate save-draft/save-and-publish commands. Its chapter links expose the current location; styling does not replace protocol validation or publication behavior.
+
 ### Portal quality bar
 
-The `/edu` portal is judged against a compact account-center reference, not the dark control desk. Its native devices are a 58px utility header, four compact summary cells, a subscription row with one copy action, one-click node rows, and a right-side traffic/security stack. Desktop preserves a wide left working column and narrow status column; phone restacks the same order without horizontal overflow. Form fields remain white inset controls with visible focus rings; password autofill must never switch to a dark surface. Delegated administrator mode is visibly read-only and exposes only copy actions.
+The `/edu` portal uses a subscription address with one adjacent copy command, divided one-click node rows, and a traffic/account stack. Online/all node counts come from the current data; the refined dashboard does not add a summary-cell grid. Commands use `portal-command` in light mode and `portal-command-dark` in dark mode; their hover retains the same colors with reduced opacity and no lift. Green remains a status/meter role rather than a primary command fill.
+
+Desktop preserves the wide left working column and narrow status column; phone restacks the same reading order. Subscription addresses wrap in a resizable inset field; node error text wraps. Password fields and autofill retain their incumbent explicit theme treatments. Visible focus and disabled/unavailable states remain. Main portal buttons become at least 44px high on phones. Delegated administrator mode has a visible read-only notice and copy actions; import, subscription reset, and password modification are hidden. The password confirmation dialog retains Escape, focus trapping/restoration, scroll locking, and real failure feedback.
 
 ## Do's and Don'ts
 
@@ -250,7 +330,8 @@ The `/edu` portal is judged against a compact account-center reference, not the 
 - Never nest cards or turn every form section into an isolated floating card.
 - Never use gradient text.
 - Never let glow replace legibility, labels, or focus indication.
-- Do keep Clear A scoped to the five selected lists and their marked local overlays, including the explicit light palette.
-- Do preserve the overview, shared navigation, full node editor, other resource pages, and `/edu`.
+- Do keep Clear A scoped to the approved resource and operation work areas and marked local overlays, including the explicit light palette.
+- Do preserve the overview and shared navigation authority, the original five resource-page workflows, and the independent portal appearance.
 - Do preserve 33px search text inset, labeled mobile records, real counts, and genuine accessible operations.
-- Don't introduce shipping raster assets or invented pagination for these lists.
+- Do keep the full viewport modal layer separate from the 480px resource or 720px operation drawer surface.
+- Don't introduce invented pagination, synthetic history curves, connectivity probes, or protocol shortcuts; retain existing API pagination where present.

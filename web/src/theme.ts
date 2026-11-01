@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 export type Theme = "dark" | "light";
 
-const storageKey = "cpanel.theme";
+const storageKey = window.location.pathname === "/edu" || window.location.pathname === "/edu/" ? "cpanel.portal.theme" : "cpanel.theme";
 const changeEvent = "cpanel:theme-change";
 
 function fallbackTheme(): Theme {

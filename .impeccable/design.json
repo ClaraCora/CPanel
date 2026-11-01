@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-01T11:11:57.623348Z",
+  "generatedAt": "2026-11-01T13:31:58.623449Z",
   "title": "Design System: CPanel",
   "extensions": {
     "colorMeta": {
@@ -528,12 +528,207 @@
           "oklch(87% 0.01989 5.98)",
           "oklch(95% 0.01989 5.98)"
         ]
+      },
+      "portal-light-canvas": {
+        "role": "neutral",
+        "displayName": "Portal Light Canvas",
+        "canonical": "#f4f5f7",
+        "tonalRamp": [
+          "oklch(15% 0.00287 264.54)",
+          "oklch(27% 0.00287 264.54)",
+          "oklch(39% 0.00287 264.54)",
+          "oklch(51% 0.00287 264.54)",
+          "oklch(63% 0.00287 264.54)",
+          "oklch(75% 0.00287 264.54)",
+          "oklch(87% 0.00287 264.54)",
+          "oklch(95% 0.00287 264.54)"
+        ]
+      },
+      "portal-light-panel": {
+        "role": "neutral",
+        "displayName": "Portal Light Panel",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "oklch(15% 0.00000 0.00)",
+          "oklch(27% 0.00000 0.00)",
+          "oklch(39% 0.00000 0.00)",
+          "oklch(51% 0.00000 0.00)",
+          "oklch(63% 0.00000 0.00)",
+          "oklch(75% 0.00000 0.00)",
+          "oklch(87% 0.00000 0.00)",
+          "oklch(95% 0.00000 0.00)"
+        ]
+      },
+      "portal-light-foreground": {
+        "role": "neutral",
+        "displayName": "Portal Light Foreground",
+        "canonical": "#18181b",
+        "tonalRamp": [
+          "oklch(15% 0.00586 285.89)",
+          "oklch(27% 0.00586 285.89)",
+          "oklch(39% 0.00586 285.89)",
+          "oklch(51% 0.00586 285.89)",
+          "oklch(63% 0.00586 285.89)",
+          "oklch(75% 0.00586 285.89)",
+          "oklch(87% 0.00586 285.89)",
+          "oklch(95% 0.00586 285.89)"
+        ]
+      },
+      "portal-light-secondary": {
+        "role": "neutral",
+        "displayName": "Portal Light Secondary",
+        "canonical": "#586579",
+        "tonalRamp": [
+          "oklch(15% 0.03576 258.92)",
+          "oklch(27% 0.03576 258.92)",
+          "oklch(39% 0.03576 258.92)",
+          "oklch(51% 0.03576 258.92)",
+          "oklch(63% 0.03576 258.92)",
+          "oklch(75% 0.03576 258.92)",
+          "oklch(87% 0.03576 258.92)",
+          "oklch(95% 0.03576 258.92)"
+        ]
+      },
+      "portal-light-border": {
+        "role": "neutral",
+        "displayName": "Portal Light Border",
+        "canonical": "#dfe4ea",
+        "tonalRamp": [
+          "oklch(15% 0.00978 252.82)",
+          "oklch(27% 0.00978 252.82)",
+          "oklch(39% 0.00978 252.82)",
+          "oklch(51% 0.00978 252.82)",
+          "oklch(63% 0.00978 252.82)",
+          "oklch(75% 0.00978 252.82)",
+          "oklch(87% 0.00978 252.82)",
+          "oklch(95% 0.00978 252.82)"
+        ]
+      },
+      "portal-light-soft": {
+        "role": "neutral",
+        "displayName": "Portal Light Soft",
+        "canonical": "#f4f4f5",
+        "tonalRamp": [
+          "oklch(15% 0.00133 286.38)",
+          "oklch(27% 0.00133 286.38)",
+          "oklch(39% 0.00133 286.38)",
+          "oklch(51% 0.00133 286.38)",
+          "oklch(63% 0.00133 286.38)",
+          "oklch(75% 0.00133 286.38)",
+          "oklch(87% 0.00133 286.38)",
+          "oklch(95% 0.00133 286.38)"
+        ]
+      },
+      "portal-light-command": {
+        "role": "primary",
+        "displayName": "Portal Light Command",
+        "canonical": "#20252c",
+        "tonalRamp": [
+          "oklch(15% 0.01502 256.80)",
+          "oklch(27% 0.01502 256.80)",
+          "oklch(39% 0.01502 256.80)",
+          "oklch(51% 0.01502 256.80)",
+          "oklch(63% 0.01502 256.80)",
+          "oklch(75% 0.01502 256.80)",
+          "oklch(87% 0.01502 256.80)",
+          "oklch(95% 0.01502 256.80)"
+        ]
+      },
+      "portal-light-command-text": {
+        "role": "neutral",
+        "displayName": "Portal Light Command Text",
+        "canonical": "#fff",
+        "tonalRamp": [
+          "oklch(15% 0.00000 0.00)",
+          "oklch(27% 0.00000 0.00)",
+          "oklch(39% 0.00000 0.00)",
+          "oklch(51% 0.00000 0.00)",
+          "oklch(63% 0.00000 0.00)",
+          "oklch(75% 0.00000 0.00)",
+          "oklch(87% 0.00000 0.00)",
+          "oklch(95% 0.00000 0.00)"
+        ]
+      },
+      "portal-light-success": {
+        "role": "secondary",
+        "displayName": "Portal Light Success",
+        "canonical": "#198754",
+        "tonalRamp": [
+          "oklch(15% 0.12340 157.01)",
+          "oklch(27% 0.12340 157.01)",
+          "oklch(39% 0.12340 157.01)",
+          "oklch(51% 0.12340 157.01)",
+          "oklch(63% 0.12340 157.01)",
+          "oklch(75% 0.12340 157.01)",
+          "oklch(87% 0.12340 157.01)",
+          "oklch(95% 0.12340 157.01)"
+        ]
+      },
+      "portal-light-danger": {
+        "role": "tertiary",
+        "displayName": "Portal Light Danger",
+        "canonical": "#d13239",
+        "tonalRamp": [
+          "oklch(15% 0.19493 23.97)",
+          "oklch(27% 0.19493 23.97)",
+          "oklch(39% 0.19493 23.97)",
+          "oklch(51% 0.19493 23.97)",
+          "oklch(63% 0.19493 23.97)",
+          "oklch(75% 0.19493 23.97)",
+          "oklch(87% 0.19493 23.97)",
+          "oklch(95% 0.19493 23.97)"
+        ]
+      },
+      "portal-focus": {
+        "role": "neutral",
+        "displayName": "Portal Focus",
+        "canonical": "#345fc5",
+        "tonalRamp": [
+          "oklch(15% 0.16663 264.16)",
+          "oklch(27% 0.16663 264.16)",
+          "oklch(39% 0.16663 264.16)",
+          "oklch(51% 0.16663 264.16)",
+          "oklch(63% 0.16663 264.16)",
+          "oklch(75% 0.16663 264.16)",
+          "oklch(87% 0.16663 264.16)",
+          "oklch(95% 0.16663 264.16)"
+        ]
+      },
+      "portal-dark-command-text": {
+        "role": "neutral",
+        "displayName": "Portal Dark Command Text",
+        "canonical": "#172030",
+        "tonalRamp": [
+          "oklch(15% 0.03347 261.57)",
+          "oklch(27% 0.03347 261.57)",
+          "oklch(39% 0.03347 261.57)",
+          "oklch(51% 0.03347 261.57)",
+          "oklch(63% 0.03347 261.57)",
+          "oklch(75% 0.03347 261.57)",
+          "oklch(87% 0.03347 261.57)",
+          "oklch(95% 0.03347 261.57)"
+        ]
+      },
+      "portal-dark-danger": {
+        "role": "tertiary",
+        "displayName": "Portal Dark Danger",
+        "canonical": "#ff7b94",
+        "tonalRamp": [
+          "oklch(15% 0.16167 9.99)",
+          "oklch(27% 0.16167 9.99)",
+          "oklch(39% 0.16167 9.99)",
+          "oklch(51% 0.16167 9.99)",
+          "oklch(63% 0.16167 9.99)",
+          "oklch(75% 0.16167 9.99)",
+          "oklch(87% 0.16167 9.99)",
+          "oklch(95% 0.16167 9.99)"
+        ]
       }
     },
     "typographyMeta": {
       "clear-title": {
         "displayName": "Clear A page title",
-        "purpose": "Selected resource lists; 25px on phones."
+        "purpose": "Approved resource lists, operation pages, and full node editor; 25px on phones."
       },
       "clear-body": {
         "displayName": "Clear A native UI body",
@@ -542,6 +737,18 @@
       "clear-machine-data": {
         "displayName": "Clear A machine data",
         "purpose": "Technical values with tabular numerals; IDs are 11px."
+      },
+      "clear-section-title": {
+        "displayName": "Clear A operation section title",
+        "purpose": "Settings, subscription and full-node section headings."
+      },
+      "portal-title": {
+        "displayName": "Account-center page title",
+        "purpose": "Independent portal heading; 26px on phones."
+      },
+      "portal-link-data": {
+        "displayName": "Portal subscription address",
+        "purpose": "Wrapping subscription address in its read-only inset textarea."
       }
     },
     "shadows": [
@@ -565,7 +772,12 @@
       {
         "name": "clear-reduced-motion",
         "value": "animation: none !important; transition: none !important",
-        "purpose": "All local descendants under prefers-reduced-motion: reduce."
+        "purpose": "All descendants in the three local administration scopes and the refined portal under prefers-reduced-motion: reduce."
+      },
+      {
+        "name": "portal-command-hover",
+        "value": "opacity: .85; transform: none",
+        "purpose": "Primary/dark account-center commands keep their theme colors and do not lift on hover."
       }
     ],
     "breakpoints": [
@@ -643,29 +855,52 @@
       "description": "Local row-menu appearance; application keyboard navigation and confirmations remain in place.",
       "html": "<div class=\"ds-clear-scope\"><div class=\"ds-clear-menu\" role=\"menu\" aria-label=\"资源更多操作\"><button type=\"button\" role=\"menuitem\">编辑</button><button type=\"button\" role=\"menuitem\" disabled>复制订阅链接</button><button type=\"button\" role=\"menuitem\" class=\"ds-clear-menu-danger\">删除</button></div></div>",
       "css": ".ds-clear-scope{--surface:#10151f;--panel:#171e2a;--panel-strong:#1e2837;--foreground:#edf2fa;--text:#edf2fa;--secondary:#a1afc2;--border:#2c3749;--border-strong:#49617f;--primary:#3767d0;--primary-hover:#315cbb;--clear-accent:#82acff;--clear-active:#263c60;--clear-hover:#1c2a40;--success:#83d9b1;--warning:#f2c782;--danger:#ffa4b0;--focus:#82acff;--clear-success-bg:#203b34;--clear-warning-bg:#3c3222;--clear-danger-bg:#412a32;font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"PingFang SC\", \"Microsoft YaHei UI\", system-ui, sans-serif;font-size:13px;line-height:1.5;color:var(--foreground);color-scheme:dark}.ds-clear-scope.ds-clear-light{--surface:#f3f6fb;--panel:#ffffff;--panel-strong:#edf1f7;--foreground:#243047;--text:#243047;--secondary:#586b83;--border:#dce3ed;--border-strong:#a6b7ce;--clear-accent:#345fc5;--clear-active:#edf2ff;--clear-hover:#f2f6fd;--success:#256448;--warning:#845a1a;--danger:#a43c4d;--focus:#345fc5;--clear-success-bg:#e8f4ee;--clear-warning-bg:#fff3df;--clear-danger-bg:#ffedf0;color-scheme:light}.ds-clear-menu{display:flex;min-width:190px;flex-direction:column;padding:6px;border:1px solid var(--border);border-radius:8px;background:var(--panel);box-shadow:0 12px 24px #0003}.ds-clear-menu button{display:flex;align-items:center;width:100%;min-height:36px;padding:0 9px;color:var(--foreground);background:transparent;border:0;border-radius:3px;font-family:inherit;font-size:12px;text-align:left;cursor:pointer}.ds-clear-menu button:hover:not(:disabled){color:var(--foreground);background:var(--clear-hover)}.ds-clear-menu .ds-clear-menu-danger{color:var(--danger)}.ds-clear-menu :disabled{opacity:.5;cursor:not-allowed}.ds-clear-menu button:focus-visible{outline-offset:2px}@media(max-width:700px){.ds-clear-menu button{min-height:44px}}.ds-clear-scope :is(button,a,input,select,textarea):focus-visible{outline:2px solid var(--focus);outline-offset:3px;box-shadow:none}@media(prefers-reduced-motion:reduce){.ds-clear-scope *{animation:none!important;transition:none!important}}"
+    },
+    {
+      "name": "Clear A operation drawer",
+      "kind": "custom",
+      "refersTo": "clear-operation-editor",
+      "description": "720px descendant drawer for route/outbound editing and IP/audit details; the application owns the full-viewport modal layer and behavior.",
+      "html": "<div class=\"ds-clear-scope\"><section class=\"ds-clear-editor\" aria-labelledby=\"ds-clear-operation-title\"><header class=\"ds-clear-editor-header\"><h2 id=\"ds-clear-operation-title\">编辑路由策略</h2></header><form class=\"ds-clear-editor-body\"><label class=\"ds-clear-field\"><span>策略名称</span><input name=\"name\" value=\"默认策略\"></label><footer class=\"ds-clear-editor-actions\"><button type=\"button\" class=\"ds-clear-button\">取消</button><button type=\"button\" class=\"ds-clear-button ds-clear-primary\">保存修改</button></footer></form></section></div>",
+      "css": ".ds-clear-scope{--surface:#10151f;--panel:#171e2a;--panel-strong:#1e2837;--foreground:#edf2fa;--text:#edf2fa;--secondary:#a1afc2;--border:#2c3749;--border-strong:#49617f;--primary:#3767d0;--primary-hover:#315cbb;--clear-accent:#82acff;--clear-active:#263c60;--clear-hover:#1c2a40;--success:#83d9b1;--warning:#f2c782;--danger:#ffa4b0;--focus:#82acff;--clear-success-bg:#203b34;--clear-warning-bg:#3c3222;--clear-danger-bg:#412a32;font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"PingFang SC\", \"Microsoft YaHei UI\", system-ui, sans-serif;font-size:13px;line-height:1.5;color:var(--foreground);color-scheme:dark}.ds-clear-scope.ds-clear-light{--surface:#f3f6fb;--panel:#ffffff;--panel-strong:#edf1f7;--foreground:#243047;--text:#243047;--secondary:#586b83;--border:#dce3ed;--border-strong:#a6b7ce;--clear-accent:#345fc5;--clear-active:#edf2ff;--clear-hover:#f2f6fd;--success:#256448;--warning:#845a1a;--danger:#a43c4d;--focus:#345fc5;--clear-success-bg:#e8f4ee;--clear-warning-bg:#fff3df;--clear-danger-bg:#ffedf0;color-scheme:light}.ds-clear-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:7px 12px;border:1px solid var(--border);border-radius:7px;color:var(--foreground);background:var(--panel);font-family:inherit;font-size:12px;font-weight:500;line-height:1;cursor:pointer;box-shadow:none;transition:color 180ms ease,background-color 180ms ease}.ds-clear-button:hover:not(:disabled){background:var(--panel-strong);border-color:var(--border-strong)}.ds-clear-button:disabled{opacity:.48;cursor:not-allowed}@media(max-width:700px){.ds-clear-button{min-height:44px}}.ds-clear-primary{color:#fff;background:var(--primary);border-color:transparent;font-weight:600}.ds-clear-primary:hover:not(:disabled){color:#fff;background:var(--primary-hover);border-color:transparent}.ds-clear-editor{width:min(720px,100%);height:100dvh;max-height:none;margin-left:auto;color:var(--foreground);background:var(--panel);border-left:1px solid var(--border);border-radius:0;box-shadow:-12px 0 40px #0003;animation:none}.ds-clear-editor-header{padding:24px;border-bottom:1px solid var(--border)}.ds-clear-editor-header h2{margin:0;color:var(--foreground);font-size:20px}.ds-clear-editor-body{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding:24px}.ds-clear-field{display:grid;gap:6px;min-width:0}.ds-clear-field span{font-size:13px;font-weight:500}.ds-clear-field input{min-height:40px;padding:9px 11px;border:1px solid var(--border);border-radius:6px;color:var(--foreground);background:var(--surface);font-family:inherit;font-size:13px;caret-color:var(--focus)}.ds-clear-field input:focus{border-color:var(--focus)}.ds-clear-editor-actions{display:flex;justify-content:flex-end;gap:8px;padding-top:16px;border-top:1px solid var(--border)}.ds-clear-editor :is(button,input):focus-visible{outline-offset:2px}@media(max-width:700px){.ds-clear-editor-header,.ds-clear-editor-body{padding:20px}}.ds-clear-scope :is(button,a,input,select,textarea):focus-visible{outline:2px solid var(--focus);outline-offset:3px;box-shadow:none}@media(prefers-reduced-motion:reduce){.ds-clear-scope *{animation:none!important;transition:none!important}}"
+    },
+    {
+      "name": "Independent portal subscription panel",
+      "kind": "card",
+      "refersTo": "portal-panel",
+      "description": "Light-first account-center panel with wrapping address and neutral command. Add ds-portal-dark to preview its independent dark palette; clipboard behavior belongs to the application.",
+      "html": "<section class=\"ds-portal\"><header><h2>我的订阅</h2><p>复制订阅地址或导入 Clash / Mihomo 客户端。</p></header><div class=\"ds-portal-body\"><label for=\"ds-portal-address\">订阅地址</label><div class=\"ds-portal-link\"><textarea id=\"ds-portal-address\" readonly rows=\"2\">https://cpanel.example/ca/x/example-token</textarea><button type=\"button\" class=\"ds-portal-command\">复制</button></div></div></section>",
+      "css": ".ds-portal{--edu-panel:#ffffff;--edu-text:#18181b;--edu-muted:#586579;--edu-border:#dfe4ea;--edu-soft:#f4f4f5;--edu-command:#20252c;--edu-command-text:#fff;color:var(--edu-text);background:var(--edu-panel);border:1px solid var(--edu-border);border-radius:10px;overflow:hidden;box-shadow:none;font-family:-apple-system,BlinkMacSystemFont,\"SF Pro Text\",\"PingFang SC\",\"Microsoft YaHei UI\",system-ui,sans-serif}.ds-portal.ds-portal-dark{--edu-panel:#171e2a;--edu-text:#edf2fa;--edu-muted:#a1afc2;--edu-border:#2c3749;--edu-soft:#1e2837;--edu-command:#edf2fa;--edu-command-text:#172030;color-scheme:dark}.ds-portal>header{padding:23px 24px;border-bottom:1px solid var(--edu-border)}.ds-portal h2{margin:0;font-size:16px;font-weight:650}.ds-portal p{margin:5px 0 0;color:var(--edu-muted);font-size:12px;line-height:1.6}.ds-portal-body{padding:24px}.ds-portal label{display:block;margin-bottom:10px;color:var(--edu-muted);font-size:12px}.ds-portal-link{display:flex;align-items:stretch;gap:9px}.ds-portal textarea{flex:1 1 auto;width:auto;min-width:0;min-height:66px;padding:12px;color:var(--edu-text);background:var(--edu-soft);border:1px solid var(--edu-border);border-radius:6px;font:12px/1.7 Consolas,monospace;overflow-wrap:anywhere;resize:vertical}.ds-portal-command{align-self:start;min-height:40px;padding:8px 12px;color:var(--edu-command-text);background:var(--edu-command);border:1px solid var(--edu-command);border-radius:6px;font-family:inherit;font-size:12px;font-weight:500;cursor:pointer;box-shadow:none;transition:background 160ms ease,border-color 160ms ease,color 160ms ease,transform 160ms ease}.ds-portal-command:hover:not(:disabled){opacity:.85;transform:none}.ds-portal-command:disabled{opacity:.55;cursor:not-allowed}.ds-portal :is(button,textarea):focus-visible{outline:2px solid #345fc5;outline-offset:3px}@media(max-width:700px){.ds-portal>header{padding:19px 18px}.ds-portal-body{padding:20px 18px}.ds-portal-link{flex-direction:column}.ds-portal textarea{flex:none;width:100%;box-sizing:border-box}.ds-portal-command{min-height:44px}}@media(prefers-reduced-motion:reduce){.ds-portal *{animation:none!important;transition:none!important}}"
     }
   ],
   "narrative": {
     "northStar": "The Illuminated Control Desk.",
-    "overview": "CPanel is an operations surface used by one administrator to monitor and configure Corade infrastructure. Its layout stays dense and familiar: grouped navigation, resource tables, full editors, drawers, forms, and explicit state. Its new identity comes from graphite glass, restrained spectral light, and crisp luminous status feedback.\n\nThe interface is dark because the administrator may keep it open beside terminals during long or low-light maintenance sessions. Cyan-blue light identifies commands, green confirms healthy runtime state, amber marks pending work, and rose marks failures. Glass is functional: it separates persistent navigation, working surfaces, and temporary overlays while preserving spatial context.\n\n`/edu` is intentionally a separate, light account-center surface for subscribers. It keeps the same compact operational hierarchy but does not inherit the dark administration shell: white panels, quiet neutral borders, black commands, and restrained green status feedback make subscription copying and single-node import immediately legible on both desktop and phone.\n\nNo topology, relationship, force, or connection diagrams are permitted. Lists and forms remain the only management surfaces.\n\nThe user-selected **Clear A / 清晰表格** is a local exception for `/machines`, `/nodes`, `/users`, `/plans`, and `/access-groups`, and their explicitly marked local editor/menu overlays. Its solid blue-gray list treatment overrides the incumbent only within `.clear-resources`, `.clear-resource-editor`, and `.clear-resource-menu`. The frontmatter's `clear-*` tokens describe this exception. The overview, navigation shell, full node editor, other resource pages, and `/edu` retain their incumbent authority. See `.impeccable/surfaces/resource-lists.md` and `web/src/resource-clear.css`.",
+    "overview": "CPanel is an operations surface used by one administrator to monitor and configure Corade infrastructure. Its layout stays dense and familiar: grouped navigation, resource tables, full editors, drawers, forms, and explicit state. Its new identity comes from graphite glass, restrained spectral light, and crisp luminous status feedback.\n\nThe interface is dark because the administrator may keep it open beside terminals during long or low-light maintenance sessions. Cyan-blue light identifies commands, green confirms healthy runtime state, amber marks pending work, and rose marks failures. Glass is functional: it separates persistent navigation, working surfaces, and temporary overlays while preserving spatial context.\n\n`/edu` is intentionally a separate, light account-center surface for subscribers. It keeps the same compact operational hierarchy but does not inherit the dark administration shell: white panels, quiet neutral borders, black commands, and restrained green status feedback make subscription copying and single-node import immediately legible on both desktop and phone.\n\nNo topology, relationship, force, or connection diagrams are permitted. Lists and forms remain the only management surfaces.\n\nThe user-selected **Clear A / 清晰表格** covers the original `/machines`, `/nodes`, `/users`, `/plans`, and `/access-groups` lists and their marked local overlays. The approved nine-surface extension adds `/subscription`, `/access-ips`, `/routes`, `/outbounds`, `/history`, `/settings`, `/audit`, and full node create/edit/copy, with a separate account-center refinement at `/edu`. Administration tokens remain local to `.clear-resources`, `.clear-resource-editor`, and `.clear-resource-menu`; `.clear-operations`, `.clear-node-editor`, and `.clear-operation-editor` refine marked work areas within them. The overview and shared navigation shell retain their incumbent authority. The portal has its own `.edu-app.edu-clear` scope and `portal-*` tokens. See `.impeccable/surfaces/resource-lists.md`, `.impeccable/surfaces/remaining-operations.md`, and the three `web/src/*-clear.css` stylesheets.",
     "keyCharacteristics": [
       "Dense, familiar list-and-form operations.",
-      "Incumbent graphite glass outside the five selected resource lists.",
-      "Solid Clear A lists with explicit dark/light palettes and real counts.",
-      "Visible Chinese status labels, focus, and genuine operations."
+      "Incumbent graphite glass in the overview and shared shell.",
+      "Solid Clear A lists and forms with explicit dark/light palettes and real counts.",
+      "Visible Chinese status labels, focus, and genuine operations.",
+      "An independent light-first portal with neutral commands and green traffic/node state."
     ],
     "rules": [
       {
         "name": "The Local Override Rule",
         "body": "Keep Clear A tokens on the three local scopes; never promote them to `:root` or recolor the shared shell.",
         "section": "colors"
+      },
+      {
+        "name": "The Independent Appearance Rule",
+        "body": "`/edu` and `/edu/` default to light and persist `cpanel.portal.theme`; administration defaults to dark and persists `cpanel.theme`. A portal appearance choice does not redefine the administration palette.",
+        "section": "colors"
       }
     ],
     "dos": [
       "Preserve all existing content, roles, workflows, and responsive composition.",
-      "Do keep Clear A scoped to the five selected lists and their marked local overlays, including the explicit light palette.",
-      "Do preserve the overview, shared navigation, full node editor, other resource pages, and `/edu`.",
-      "Do preserve 33px search text inset, labeled mobile records, real counts, and genuine accessible operations."
+      "Do keep Clear A scoped to the approved resource and operation work areas and marked local overlays, including the explicit light palette.",
+      "Do preserve the overview and shared navigation authority, the original five resource-page workflows, and the independent portal appearance.",
+      "Do preserve 33px search text inset, labeled mobile records, real counts, and genuine accessible operations.",
+      "Do keep the full viewport modal layer separate from the 480px resource or 720px operation drawer surface."
     ],
     "donts": [
       "Never add topology graphs, relationship maps, force diagrams, or decorative connection lines.",
@@ -673,7 +908,7 @@
       "Never nest cards or turn every form section into an isolated floating card.",
       "Never use gradient text.",
       "Never let glow replace legibility, labels, or focus indication.",
-      "Don't introduce shipping raster assets or invented pagination for these lists."
+      "Don't introduce invented pagination, synthetic history curves, connectivity probes, or protocol shortcuts; retain existing API pagination where present."
     ]
   }
 }

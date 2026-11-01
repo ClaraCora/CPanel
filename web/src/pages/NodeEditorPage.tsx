@@ -72,6 +72,7 @@ export function NodeEditorPage() {
   const { data: nodeDefaults } = useResource<Setting[]>("/settings/node_defaults", []);
   const defaultsApplied = useRef(false);
   const [form, setForm] = useState<NodeForm>(emptyForm);
+  const [activeSection, setActiveSection] = useState("node-endpoints");
   const [nodeLoading, setNodeLoading] = useState(editing || copying);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [requestError, setRequestError] = useState("");
@@ -189,13 +190,13 @@ export function NodeEditorPage() {
 
   if (nodeLoading || machinesLoading)
     return (
-      <div className="page">
+      <div className="page clear-resources clear-operations clear-node-editor">
          <PageHeader title={editing ? "编辑节点" : copying ? "复制节点" : "添加节点"} />
         <TableSkeleton columns={2} rows={7} />
       </div>
     );
   return (
-    <div className="page page--editor">
+    <div className="page page--editor clear-resources clear-operations clear-node-editor">
       <div className="back-row">
         <Link to="/nodes">
           <ArrowLeft size={16} />
@@ -212,11 +213,11 @@ export function NodeEditorPage() {
             : "创建节点配置并绑定到一台 Corade 服务器。"
         }
       />
-      <nav className="editor-section-nav" aria-label="节点编辑章节">
-        <a href="#node-endpoints">节点入口</a>
-        <a href="#node-basics">基础信息</a>
-        <a href="#node-listener">协议与监听</a>
-        <a href="#node-protocol">协议配置</a>
+      <div className="node-editor-layout"><nav className="editor-section-nav" aria-label="节点编辑章节">
+        <a href="#node-endpoints" aria-current={activeSection === "node-endpoints" ? "location" : undefined} onClick={() => setActiveSection("node-endpoints")}>节点入口</a>
+        <a href="#node-basics" aria-current={activeSection === "node-basics" ? "location" : undefined} onClick={() => setActiveSection("node-basics")}>基础信息</a>
+        <a href="#node-listener" aria-current={activeSection === "node-listener" ? "location" : undefined} onClick={() => setActiveSection("node-listener")}>协议与监听</a>
+        <a href="#node-protocol" aria-current={activeSection === "node-protocol" ? "location" : undefined} onClick={() => setActiveSection("node-protocol")}>协议配置</a>
       </nav>
       {requestError && (
         <div className="form-alert" role="alert">
@@ -235,7 +236,7 @@ export function NodeEditorPage() {
             </div>
             <Button type="button" onClick={() => update("endpoints", [...form.endpoints, { name: form.name || "新入口", host: selectedMachine?.host || "", port: Number(form.server_port) || 443, status: "active", access_scope: "default", sort_order: form.endpoints.length }])}><Plus size={15} />添加入口</Button>
           </div>
-          {form.endpoints.length === 0 ? <div className="endpoint-empty"><p>未配置入口时，订阅将使用服务器地址和节点监听端口（默认权限）。</p><Button type="button" onClick={() => update("endpoints", [{ name: form.name || "新入口", host: selectedMachine?.host || "", port: Number(form.server_port) || 443, status: "active", access_scope: "default", sort_order: 0 }])}><Plus size={15} />添加第一个入口</Button></div> : <div className="endpoint-table table-scroll"><table><thead><tr><th>入口名称</th><th>地址</th><th>端口</th><th>权限组</th><th>状态</th><th className="col-actions">操作</th></tr></thead><tbody>{form.endpoints.map((endpoint, index) => <tr key={endpoint.id ?? index}><td><input aria-label={`入口 ${index + 1} 名称`} value={endpoint.name} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} />{errors[`endpoint_${index}_name`] && <span className="field__error">{errors[`endpoint_${index}_name`]}</span>}</td><td><input aria-label={`入口 ${index + 1} 地址`} className="mono" value={endpoint.host} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, host: event.target.value } : item))} />{errors[`endpoint_${index}_host`] && <span className="field__error">{errors[`endpoint_${index}_host`]}</span>}</td><td><input aria-label={`入口 ${index + 1} 端口`} type="number" min="1" max="65535" value={endpoint.port} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, port: Number(event.target.value) } : item))} />{errors[`endpoint_${index}_port`] && <span className="field__error">{errors[`endpoint_${index}_port`]}</span>}</td><td><select aria-label={`入口 ${index + 1} 权限组`} value={endpoint.access_scope || "default"} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, access_scope: event.target.value as NodeEndpoint["access_scope"] } : item))}><option value="default">默认</option><option value="admin">仅管理员</option></select>{errors[`endpoint_${index}_access_scope`] && <span className="field__error">{errors[`endpoint_${index}_access_scope`]}</span>}</td><td><select aria-label={`入口 ${index + 1} 状态`} value={endpoint.status} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, status: event.target.value as NodeEndpoint["status"] } : item))}><option value="active">启用</option><option value="disabled">停用</option></select></td><td className="row-actions"><button type="button" className="icon-button" aria-label={`删除入口 ${endpoint.name}`} title="删除入口" onClick={() => update("endpoints", form.endpoints.filter((_, itemIndex) => itemIndex !== index))}><Trash2 size={16} /></button></td></tr>)}</tbody></table></div>}
+          {form.endpoints.length === 0 ? <div className="endpoint-empty"><p>未配置入口时，订阅将使用服务器地址和节点监听端口（默认权限）。</p><Button type="button" onClick={() => update("endpoints", [{ name: form.name || "新入口", host: selectedMachine?.host || "", port: Number(form.server_port) || 443, status: "active", access_scope: "default", sort_order: 0 }])}><Plus size={15} />添加第一个入口</Button></div> : <div className="endpoint-table table-scroll"><table><thead><tr><th>入口名称</th><th>地址</th><th>端口</th><th>权限组</th><th>状态</th><th className="col-actions">操作</th></tr></thead><tbody>{form.endpoints.map((endpoint, index) => <tr key={endpoint.id ?? index}><td data-label="入口名称"><input aria-label={`入口 ${index + 1} 名称`} value={endpoint.name} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} />{errors[`endpoint_${index}_name`] && <span className="field__error">{errors[`endpoint_${index}_name`]}</span>}</td><td data-label="地址"><input aria-label={`入口 ${index + 1} 地址`} className="mono" value={endpoint.host} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, host: event.target.value } : item))} />{errors[`endpoint_${index}_host`] && <span className="field__error">{errors[`endpoint_${index}_host`]}</span>}</td><td data-label="端口"><input aria-label={`入口 ${index + 1} 端口`} type="number" min="1" max="65535" value={endpoint.port} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, port: Number(event.target.value) } : item))} />{errors[`endpoint_${index}_port`] && <span className="field__error">{errors[`endpoint_${index}_port`]}</span>}</td><td data-label="权限范围"><select aria-label={`入口 ${index + 1} 权限组`} value={endpoint.access_scope || "default"} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, access_scope: event.target.value as NodeEndpoint["access_scope"] } : item))}><option value="default">默认</option><option value="admin">仅管理员</option></select>{errors[`endpoint_${index}_access_scope`] && <span className="field__error">{errors[`endpoint_${index}_access_scope`]}</span>}</td><td data-label="状态"><select aria-label={`入口 ${index + 1} 状态`} value={endpoint.status} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, status: event.target.value as NodeEndpoint["status"] } : item))}><option value="active">启用</option><option value="disabled">停用</option></select></td><td data-label="操作" className="row-actions"><button type="button" className="icon-button" aria-label={`删除入口 ${endpoint.name}`} title="删除入口" onClick={() => update("endpoints", form.endpoints.filter((_, itemIndex) => itemIndex !== index))}><Trash2 size={16} /></button></td></tr>)}</tbody></table></div>}
         </section>
         <section className="form-section" id="node-basics">
           <div className="form-section__heading">
@@ -394,7 +395,7 @@ export function NodeEditorPage() {
             </Button>
           </div>
         </footer>
-      </form>
+      </form></div>
     </div>
   );
 }

@@ -1,0 +1,14 @@
+{
+  "status": "passed",
+  "browser": "Microsoft Edge",
+  "checks": [
+    "dirty browser back and cancel",
+    "discard and query restoration",
+    "browser forward",
+    "native beforeunload",
+    "card and table address masking",
+    "settings sections preserve drafts",
+    "settings navigation guard"
+  ],
+  "page_errors": []
+}

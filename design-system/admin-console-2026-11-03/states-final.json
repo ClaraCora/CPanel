@@ -1,0 +1,30 @@
+[
+  {
+    "width": 1440,
+    "states": [
+      "real empty list",
+      "search no results",
+      "invalid ID",
+      "API load failure/retry"
+    ]
+  },
+  {
+    "width": 390,
+    "states": [
+      "real empty list",
+      "search no results",
+      "invalid ID",
+      "API load failure/retry"
+    ]
+  },
+  {
+    "width": 1440,
+    "editor_actions_visible": true,
+    "overflow": false
+  },
+  {
+    "width": 390,
+    "editor_actions_visible": true,
+    "overflow": false
+  }
+]

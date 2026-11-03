@@ -1,0 +1,396 @@
+{
+  "checks": [
+    {
+      "page": "machines",
+      "theme": "light",
+      "actions": [
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        }
+      ],
+      "overflow": false,
+      "filter": {
+        "x": 33,
+        "y": 387.4375,
+        "width": 324,
+        "height": 44
+      }
+    },
+    {
+      "page": "nodes",
+      "theme": "light",
+      "actions": [
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "page": "users",
+      "theme": "light",
+      "actions": [
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "page": "plans",
+      "theme": "light",
+      "actions": [
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "page": "access-groups",
+      "theme": "light",
+      "actions": [
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "page": "outbounds",
+      "theme": "light",
+      "actions": [
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "page": "routes",
+      "theme": "light",
+      "actions": [
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "page": "audit",
+      "theme": "light",
+      "actions": [
+        {
+          "text": "详情",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "text": "详情",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "text": "详情",
+          "width": 44,
+          "height": 44
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "page": "access-ips",
+      "theme": "light",
+      "actions": [
+        {
+          "text": "查看 IP",
+          "width": 56.96875,
+          "height": 44
+        },
+        {
+          "text": "查看 IP",
+          "width": 56.96875,
+          "height": 44
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "page": "machines",
+      "theme": "dark",
+      "actions": [
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        }
+      ],
+      "overflow": false,
+      "filter": {
+        "x": 33,
+        "y": 387.4375,
+        "width": 324,
+        "height": 44
+      }
+    },
+    {
+      "page": "nodes",
+      "theme": "dark",
+      "actions": [
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "page": "users",
+      "theme": "dark",
+      "actions": [
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "page": "plans",
+      "theme": "dark",
+      "actions": [
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "page": "access-groups",
+      "theme": "dark",
+      "actions": [
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "page": "outbounds",
+      "theme": "dark",
+      "actions": [
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "page": "routes",
+      "theme": "dark",
+      "actions": [
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "text": "编辑",
+          "width": 44,
+          "height": 44
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "page": "audit",
+      "theme": "dark",
+      "actions": [
+        {
+          "text": "详情",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "text": "详情",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "text": "详情",
+          "width": 44,
+          "height": 44
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "page": "access-ips",
+      "theme": "dark",
+      "actions": [
+        {
+          "text": "查看 IP",
+          "width": 56.96875,
+          "height": 44
+        },
+        {
+          "text": "查看 IP",
+          "width": 56.96875,
+          "height": 44
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "case": "endpoint",
+      "theme": "light",
+      "focused": "endpoint_0_host",
+      "input_preserved": "验收节点已编辑",
+      "overflow": false
+    },
+    {
+      "case": "protocol",
+      "theme": "light",
+      "focused": "node-config-error",
+      "input_preserved": "验收节点已编辑",
+      "overflow": false
+    },
+    {
+      "case": "server",
+      "theme": "light",
+      "focused": "server_port",
+      "input_preserved": "验收节点已编辑",
+      "overflow": false
+    },
+    {
+      "case": "endpoint",
+      "theme": "dark",
+      "focused": "endpoint_0_host",
+      "input_preserved": "验收节点已编辑",
+      "overflow": false
+    },
+    {
+      "case": "protocol",
+      "theme": "dark",
+      "focused": "node-config-error",
+      "input_preserved": "验收节点已编辑",
+      "overflow": false
+    },
+    {
+      "case": "server",
+      "theme": "dark",
+      "focused": "server_port",
+      "input_preserved": "验收节点已编辑",
+      "overflow": false
+    }
+  ],
+  "tests": "39/39 passed; typecheck and build passed",
+  "detector": "not repeated"
+}

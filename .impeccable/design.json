@@ -1,58 +1,328 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-01T13:31:58.623449Z",
-  "title": "Design System: CPanel",
+  "generatedAt": "2026-11-03",
+  "title": "CPanel Administrator Console",
   "extensions": {
     "colorMeta": {
-      "clear-primary": {
-        "role": "primary",
-        "displayName": "Clear Primary",
-        "canonical": "#3767d0",
-        "tonalRamp": [
-          "oklch(15% 0.17087 263.32)",
-          "oklch(27% 0.17087 263.32)",
-          "oklch(39% 0.17087 263.32)",
-          "oklch(51% 0.17087 263.32)",
-          "oklch(63% 0.17087 263.32)",
-          "oklch(75% 0.17087 263.32)",
-          "oklch(87% 0.17087 263.32)",
-          "oklch(95% 0.17087 263.32)"
-        ]
-      },
-      "clear-primary-hover": {
-        "role": "primary",
-        "displayName": "Clear Primary Hover",
-        "canonical": "#315cbb",
-        "tonalRamp": [
-          "oklch(15% 0.15757 263.44)",
-          "oklch(27% 0.15757 263.44)",
-          "oklch(39% 0.15757 263.44)",
-          "oklch(51% 0.15757 263.44)",
-          "oklch(63% 0.15757 263.44)",
-          "oklch(75% 0.15757 263.44)",
-          "oklch(87% 0.15757 263.44)",
-          "oklch(95% 0.15757 263.44)"
-        ]
-      },
-      "clear-command-text": {
+      "light-surface": {
         "role": "neutral",
-        "displayName": "Clear Command Text",
-        "canonical": "#ffffff",
+        "canonical": "#f5f7fa",
+        "displayName": "Light Surface",
         "tonalRamp": [
-          "oklch(15% 0.00000 0.00)",
-          "oklch(27% 0.00000 0.00)",
-          "oklch(39% 0.00000 0.00)",
-          "oklch(51% 0.00000 0.00)",
-          "oklch(63% 0.00000 0.00)",
-          "oklch(75% 0.00000 0.00)",
-          "oklch(87% 0.00000 0.00)",
-          "oklch(95% 0.00000 0.00)"
+          "oklch(15% 0.00453 258.32)",
+          "oklch(27% 0.00453 258.32)",
+          "oklch(39% 0.00453 258.32)",
+          "oklch(51% 0.00453 258.32)",
+          "oklch(63% 0.00453 258.32)",
+          "oklch(75% 0.00453 258.32)",
+          "oklch(87% 0.00453 258.32)",
+          "oklch(95% 0.00453 258.32)"
         ]
       },
-      "clear-dark-surface": {
+      "light-panel": {
         "role": "neutral",
-        "displayName": "Clear Dark Surface",
+        "canonical": "#fff",
+        "displayName": "Light Panel",
+        "tonalRamp": [
+          "oklch(15% 0.00000 89.88)",
+          "oklch(27% 0.00000 89.88)",
+          "oklch(39% 0.00000 89.88)",
+          "oklch(51% 0.00000 89.88)",
+          "oklch(63% 0.00000 89.88)",
+          "oklch(75% 0.00000 89.88)",
+          "oklch(87% 0.00000 89.88)",
+          "oklch(95% 0.00000 89.88)"
+        ]
+      },
+      "light-panel-strong": {
+        "role": "neutral",
+        "canonical": "#f1f5f9",
+        "displayName": "Light Panel Strong",
+        "tonalRamp": [
+          "oklch(15% 0.00685 247.90)",
+          "oklch(27% 0.00685 247.90)",
+          "oklch(39% 0.00685 247.90)",
+          "oklch(51% 0.00685 247.90)",
+          "oklch(63% 0.00685 247.90)",
+          "oklch(75% 0.00685 247.90)",
+          "oklch(87% 0.00685 247.90)",
+          "oklch(95% 0.00685 247.90)"
+        ]
+      },
+      "light-foreground": {
+        "role": "neutral",
+        "canonical": "#1f2937",
+        "displayName": "Light Foreground",
+        "tonalRamp": [
+          "oklch(15% 0.02960 256.85)",
+          "oklch(27% 0.02960 256.85)",
+          "oklch(39% 0.02960 256.85)",
+          "oklch(51% 0.02960 256.85)",
+          "oklch(63% 0.02960 256.85)",
+          "oklch(75% 0.02960 256.85)",
+          "oklch(87% 0.02960 256.85)",
+          "oklch(95% 0.02960 256.85)"
+        ]
+      },
+      "light-secondary": {
+        "role": "neutral",
+        "canonical": "#475569",
+        "displayName": "Light Secondary",
+        "tonalRamp": [
+          "oklch(15% 0.03745 257.28)",
+          "oklch(27% 0.03745 257.28)",
+          "oklch(39% 0.03745 257.28)",
+          "oklch(51% 0.03745 257.28)",
+          "oklch(63% 0.03745 257.28)",
+          "oklch(75% 0.03745 257.28)",
+          "oklch(87% 0.03745 257.28)",
+          "oklch(95% 0.03745 257.28)"
+        ]
+      },
+      "light-border": {
+        "role": "neutral",
+        "canonical": "#e2e8f0",
+        "displayName": "Light Border",
+        "tonalRamp": [
+          "oklch(15% 0.01262 255.51)",
+          "oklch(27% 0.01262 255.51)",
+          "oklch(39% 0.01262 255.51)",
+          "oklch(51% 0.01262 255.51)",
+          "oklch(63% 0.01262 255.51)",
+          "oklch(75% 0.01262 255.51)",
+          "oklch(87% 0.01262 255.51)",
+          "oklch(95% 0.01262 255.51)"
+        ]
+      },
+      "light-border-strong": {
+        "role": "neutral",
+        "canonical": "#94a3b8",
+        "displayName": "Light Border Strong",
+        "tonalRamp": [
+          "oklch(15% 0.03511 256.79)",
+          "oklch(27% 0.03511 256.79)",
+          "oklch(39% 0.03511 256.79)",
+          "oklch(51% 0.03511 256.79)",
+          "oklch(63% 0.03511 256.79)",
+          "oklch(75% 0.03511 256.79)",
+          "oklch(87% 0.03511 256.79)",
+          "oklch(95% 0.03511 256.79)"
+        ]
+      },
+      "light-primary": {
+        "role": "primary",
+        "canonical": "#2563eb",
+        "displayName": "Light Primary",
+        "tonalRamp": [
+          "oklch(15% 0.21521 262.88)",
+          "oklch(27% 0.21521 262.88)",
+          "oklch(39% 0.21521 262.88)",
+          "oklch(51% 0.21521 262.88)",
+          "oklch(63% 0.21521 262.88)",
+          "oklch(75% 0.21521 262.88)",
+          "oklch(87% 0.21521 262.88)",
+          "oklch(95% 0.21521 262.88)"
+        ]
+      },
+      "light-primary-hover": {
+        "role": "primary",
+        "canonical": "#1d4ed8",
+        "displayName": "Light Primary Hover",
+        "tonalRamp": [
+          "oklch(15% 0.21717 264.38)",
+          "oklch(27% 0.21717 264.38)",
+          "oklch(39% 0.21717 264.38)",
+          "oklch(51% 0.21717 264.38)",
+          "oklch(63% 0.21717 264.38)",
+          "oklch(75% 0.21717 264.38)",
+          "oklch(87% 0.21717 264.38)",
+          "oklch(95% 0.21717 264.38)"
+        ]
+      },
+      "light-accent": {
+        "role": "primary",
+        "canonical": "#1d4ed8",
+        "displayName": "Light Accent",
+        "tonalRamp": [
+          "oklch(15% 0.21717 264.38)",
+          "oklch(27% 0.21717 264.38)",
+          "oklch(39% 0.21717 264.38)",
+          "oklch(51% 0.21717 264.38)",
+          "oklch(63% 0.21717 264.38)",
+          "oklch(75% 0.21717 264.38)",
+          "oklch(87% 0.21717 264.38)",
+          "oklch(95% 0.21717 264.38)"
+        ]
+      },
+      "light-active": {
+        "role": "neutral",
+        "canonical": "#eff6ff",
+        "displayName": "Light Active",
+        "tonalRamp": [
+          "oklch(15% 0.01418 254.60)",
+          "oklch(27% 0.01418 254.60)",
+          "oklch(39% 0.01418 254.60)",
+          "oklch(51% 0.01418 254.60)",
+          "oklch(63% 0.01418 254.60)",
+          "oklch(75% 0.01418 254.60)",
+          "oklch(87% 0.01418 254.60)",
+          "oklch(95% 0.01418 254.60)"
+        ]
+      },
+      "light-hover": {
+        "role": "neutral",
+        "canonical": "#f8fafc",
+        "displayName": "Light Hover",
+        "tonalRamp": [
+          "oklch(15% 0.00341 247.86)",
+          "oklch(27% 0.00341 247.86)",
+          "oklch(39% 0.00341 247.86)",
+          "oklch(51% 0.00341 247.86)",
+          "oklch(63% 0.00341 247.86)",
+          "oklch(75% 0.00341 247.86)",
+          "oklch(87% 0.00341 247.86)",
+          "oklch(95% 0.00341 247.86)"
+        ]
+      },
+      "light-success": {
+        "role": "neutral",
+        "canonical": "#166534",
+        "displayName": "Light Success",
+        "tonalRamp": [
+          "oklch(15% 0.10832 151.33)",
+          "oklch(27% 0.10832 151.33)",
+          "oklch(39% 0.10832 151.33)",
+          "oklch(51% 0.10832 151.33)",
+          "oklch(63% 0.10832 151.33)",
+          "oklch(75% 0.10832 151.33)",
+          "oklch(87% 0.10832 151.33)",
+          "oklch(95% 0.10832 151.33)"
+        ]
+      },
+      "light-warning": {
+        "role": "neutral",
+        "canonical": "#92400e",
+        "displayName": "Light Warning",
+        "tonalRamp": [
+          "oklch(15% 0.12470 46.20)",
+          "oklch(27% 0.12470 46.20)",
+          "oklch(39% 0.12470 46.20)",
+          "oklch(51% 0.12470 46.20)",
+          "oklch(63% 0.12470 46.20)",
+          "oklch(75% 0.12470 46.20)",
+          "oklch(87% 0.12470 46.20)",
+          "oklch(95% 0.12470 46.20)"
+        ]
+      },
+      "light-danger": {
+        "role": "neutral",
+        "canonical": "#b91c1c",
+        "displayName": "Light Danger",
+        "tonalRamp": [
+          "oklch(15% 0.19049 27.52)",
+          "oklch(27% 0.19049 27.52)",
+          "oklch(39% 0.19049 27.52)",
+          "oklch(51% 0.19049 27.52)",
+          "oklch(63% 0.19049 27.52)",
+          "oklch(75% 0.19049 27.52)",
+          "oklch(87% 0.19049 27.52)",
+          "oklch(95% 0.19049 27.52)"
+        ]
+      },
+      "light-info": {
+        "role": "neutral",
+        "canonical": "#1d4ed8",
+        "displayName": "Light Info",
+        "tonalRamp": [
+          "oklch(15% 0.21717 264.38)",
+          "oklch(27% 0.21717 264.38)",
+          "oklch(39% 0.21717 264.38)",
+          "oklch(51% 0.21717 264.38)",
+          "oklch(63% 0.21717 264.38)",
+          "oklch(75% 0.21717 264.38)",
+          "oklch(87% 0.21717 264.38)",
+          "oklch(95% 0.21717 264.38)"
+        ]
+      },
+      "light-success-bg": {
+        "role": "neutral",
+        "canonical": "#ecfdf3",
+        "displayName": "Light Success Bg",
+        "tonalRamp": [
+          "oklch(15% 0.02214 160.24)",
+          "oklch(27% 0.02214 160.24)",
+          "oklch(39% 0.02214 160.24)",
+          "oklch(51% 0.02214 160.24)",
+          "oklch(63% 0.02214 160.24)",
+          "oklch(75% 0.02214 160.24)",
+          "oklch(87% 0.02214 160.24)",
+          "oklch(95% 0.02214 160.24)"
+        ]
+      },
+      "light-warning-bg": {
+        "role": "neutral",
+        "canonical": "#fffbeb",
+        "displayName": "Light Warning Bg",
+        "tonalRamp": [
+          "oklch(15% 0.02140 95.28)",
+          "oklch(27% 0.02140 95.28)",
+          "oklch(39% 0.02140 95.28)",
+          "oklch(51% 0.02140 95.28)",
+          "oklch(63% 0.02140 95.28)",
+          "oklch(75% 0.02140 95.28)",
+          "oklch(87% 0.02140 95.28)",
+          "oklch(95% 0.02140 95.28)"
+        ]
+      },
+      "light-danger-bg": {
+        "role": "neutral",
+        "canonical": "#fef2f2",
+        "displayName": "Light Danger Bg",
+        "tonalRamp": [
+          "oklch(15% 0.01295 17.38)",
+          "oklch(27% 0.01295 17.38)",
+          "oklch(39% 0.01295 17.38)",
+          "oklch(51% 0.01295 17.38)",
+          "oklch(63% 0.01295 17.38)",
+          "oklch(75% 0.01295 17.38)",
+          "oklch(87% 0.01295 17.38)",
+          "oklch(95% 0.01295 17.38)"
+        ]
+      },
+      "light-info-bg": {
+        "role": "neutral",
+        "canonical": "#eff6ff",
+        "displayName": "Light Info Bg",
+        "tonalRamp": [
+          "oklch(15% 0.01418 254.60)",
+          "oklch(27% 0.01418 254.60)",
+          "oklch(39% 0.01418 254.60)",
+          "oklch(51% 0.01418 254.60)",
+          "oklch(63% 0.01418 254.60)",
+          "oklch(75% 0.01418 254.60)",
+          "oklch(87% 0.01418 254.60)",
+          "oklch(95% 0.01418 254.60)"
+        ]
+      },
+      "light-focus": {
+        "role": "primary",
+        "canonical": "#2563eb",
+        "displayName": "Light Focus",
+        "tonalRamp": [
+          "oklch(15% 0.21521 262.88)",
+          "oklch(27% 0.21521 262.88)",
+          "oklch(39% 0.21521 262.88)",
+          "oklch(51% 0.21521 262.88)",
+          "oklch(63% 0.21521 262.88)",
+          "oklch(75% 0.21521 262.88)",
+          "oklch(87% 0.21521 262.88)",
+          "oklch(95% 0.21521 262.88)"
+        ]
+      },
+      "dark-surface": {
+        "role": "neutral",
         "canonical": "#10151f",
+        "displayName": "Dark Surface",
         "tonalRamp": [
           "oklch(15% 0.02175 263.87)",
           "oklch(27% 0.02175 263.87)",
@@ -64,851 +334,440 @@
           "oklch(95% 0.02175 263.87)"
         ]
       },
-      "clear-dark-panel": {
+      "dark-panel": {
         "role": "neutral",
-        "displayName": "Clear Dark Panel",
-        "canonical": "#171e2a",
+        "canonical": "#182130",
+        "displayName": "Dark Panel",
         "tonalRamp": [
-          "oklch(15% 0.02551 261.03)",
-          "oklch(27% 0.02551 261.03)",
-          "oklch(39% 0.02551 261.03)",
-          "oklch(51% 0.02551 261.03)",
-          "oklch(63% 0.02551 261.03)",
-          "oklch(75% 0.02551 261.03)",
-          "oklch(87% 0.02551 261.03)",
-          "oklch(95% 0.02551 261.03)"
+          "oklch(15% 0.03160 260.40)",
+          "oklch(27% 0.03160 260.40)",
+          "oklch(39% 0.03160 260.40)",
+          "oklch(51% 0.03160 260.40)",
+          "oklch(63% 0.03160 260.40)",
+          "oklch(75% 0.03160 260.40)",
+          "oklch(87% 0.03160 260.40)",
+          "oklch(95% 0.03160 260.40)"
         ]
       },
-      "clear-dark-panel-strong": {
+      "dark-panel-strong": {
         "role": "neutral",
-        "displayName": "Clear Dark Panel Strong",
-        "canonical": "#1e2837",
+        "canonical": "#202c3d",
+        "displayName": "Dark Panel Strong",
         "tonalRamp": [
-          "oklch(15% 0.03136 258.32)",
-          "oklch(27% 0.03136 258.32)",
-          "oklch(39% 0.03136 258.32)",
-          "oklch(51% 0.03136 258.32)",
-          "oklch(63% 0.03136 258.32)",
-          "oklch(75% 0.03136 258.32)",
-          "oklch(87% 0.03136 258.32)",
-          "oklch(95% 0.03136 258.32)"
+          "oklch(15% 0.03543 257.11)",
+          "oklch(27% 0.03543 257.11)",
+          "oklch(39% 0.03543 257.11)",
+          "oklch(51% 0.03543 257.11)",
+          "oklch(63% 0.03543 257.11)",
+          "oklch(75% 0.03543 257.11)",
+          "oklch(87% 0.03543 257.11)",
+          "oklch(95% 0.03543 257.11)"
         ]
       },
-      "clear-dark-foreground": {
+      "dark-foreground": {
         "role": "neutral",
-        "displayName": "Clear Dark Foreground",
-        "canonical": "#edf2fa",
+        "canonical": "#e5eaf2",
+        "displayName": "Dark Foreground",
         "tonalRamp": [
-          "oklch(15% 0.01199 259.82)",
-          "oklch(27% 0.01199 259.82)",
-          "oklch(39% 0.01199 259.82)",
-          "oklch(51% 0.01199 259.82)",
-          "oklch(63% 0.01199 259.82)",
-          "oklch(75% 0.01199 259.82)",
-          "oklch(87% 0.01199 259.82)",
-          "oklch(95% 0.01199 259.82)"
+          "oklch(15% 0.01207 259.82)",
+          "oklch(27% 0.01207 259.82)",
+          "oklch(39% 0.01207 259.82)",
+          "oklch(51% 0.01207 259.82)",
+          "oklch(63% 0.01207 259.82)",
+          "oklch(75% 0.01207 259.82)",
+          "oklch(87% 0.01207 259.82)",
+          "oklch(95% 0.01207 259.82)"
         ]
       },
-      "clear-dark-secondary": {
+      "dark-secondary": {
         "role": "neutral",
-        "displayName": "Clear Dark Secondary",
-        "canonical": "#a1afc2",
+        "canonical": "#a7b4c8",
+        "displayName": "Dark Secondary",
         "tonalRamp": [
-          "oklch(15% 0.03157 256.04)",
-          "oklch(27% 0.03157 256.04)",
-          "oklch(39% 0.03157 256.04)",
-          "oklch(51% 0.03157 256.04)",
-          "oklch(63% 0.03157 256.04)",
-          "oklch(75% 0.03157 256.04)",
-          "oklch(87% 0.03157 256.04)",
-          "oklch(95% 0.03157 256.04)"
+          "oklch(15% 0.03213 258.94)",
+          "oklch(27% 0.03213 258.94)",
+          "oklch(39% 0.03213 258.94)",
+          "oklch(51% 0.03213 258.94)",
+          "oklch(63% 0.03213 258.94)",
+          "oklch(75% 0.03213 258.94)",
+          "oklch(87% 0.03213 258.94)",
+          "oklch(95% 0.03213 258.94)"
         ]
       },
-      "clear-dark-border": {
+      "dark-border": {
         "role": "neutral",
-        "displayName": "Clear Dark Border",
-        "canonical": "#2c3749",
+        "canonical": "#303b4c",
+        "displayName": "Dark Border",
         "tonalRamp": [
-          "oklch(15% 0.03526 260.12)",
-          "oklch(27% 0.03526 260.12)",
-          "oklch(39% 0.03526 260.12)",
-          "oklch(51% 0.03526 260.12)",
-          "oklch(63% 0.03526 260.12)",
-          "oklch(75% 0.03526 260.12)",
-          "oklch(87% 0.03526 260.12)",
-          "oklch(95% 0.03526 260.12)"
+          "oklch(15% 0.03328 258.98)",
+          "oklch(27% 0.03328 258.98)",
+          "oklch(39% 0.03328 258.98)",
+          "oklch(51% 0.03328 258.98)",
+          "oklch(63% 0.03328 258.98)",
+          "oklch(75% 0.03328 258.98)",
+          "oklch(87% 0.03328 258.98)",
+          "oklch(95% 0.03328 258.98)"
         ]
       },
-      "clear-dark-border-strong": {
+      "dark-border-strong": {
         "role": "neutral",
-        "displayName": "Clear Dark Border Strong",
-        "canonical": "#49617f",
+        "canonical": "#64748b",
+        "displayName": "Dark Border Strong",
         "tonalRamp": [
-          "oklch(15% 0.05656 254.35)",
-          "oklch(27% 0.05656 254.35)",
-          "oklch(39% 0.05656 254.35)",
-          "oklch(51% 0.05656 254.35)",
-          "oklch(63% 0.05656 254.35)",
-          "oklch(75% 0.05656 254.35)",
-          "oklch(87% 0.05656 254.35)",
-          "oklch(95% 0.05656 254.35)"
+          "oklch(15% 0.04072 257.42)",
+          "oklch(27% 0.04072 257.42)",
+          "oklch(39% 0.04072 257.42)",
+          "oklch(51% 0.04072 257.42)",
+          "oklch(63% 0.04072 257.42)",
+          "oklch(75% 0.04072 257.42)",
+          "oklch(87% 0.04072 257.42)",
+          "oklch(95% 0.04072 257.42)"
         ]
       },
-      "clear-dark-accent": {
+      "dark-accent": {
         "role": "primary",
-        "displayName": "Clear Dark Accent",
-        "canonical": "#82acff",
+        "canonical": "#93c5fd",
+        "displayName": "Dark Accent",
         "tonalRamp": [
-          "oklch(15% 0.12896 263.16)",
-          "oklch(27% 0.12896 263.16)",
-          "oklch(39% 0.12896 263.16)",
-          "oklch(51% 0.12896 263.16)",
-          "oklch(63% 0.12896 263.16)",
-          "oklch(75% 0.12896 263.16)",
-          "oklch(87% 0.12896 263.16)",
-          "oklch(95% 0.12896 263.16)"
+          "oklch(15% 0.09560 251.81)",
+          "oklch(27% 0.09560 251.81)",
+          "oklch(39% 0.09560 251.81)",
+          "oklch(51% 0.09560 251.81)",
+          "oklch(63% 0.09560 251.81)",
+          "oklch(75% 0.09560 251.81)",
+          "oklch(87% 0.09560 251.81)",
+          "oklch(95% 0.09560 251.81)"
         ]
       },
-      "clear-dark-active": {
+      "dark-active": {
         "role": "neutral",
-        "displayName": "Clear Dark Active",
-        "canonical": "#263c60",
+        "canonical": "#20375a",
+        "displayName": "Dark Active",
         "tonalRamp": [
-          "oklch(15% 0.06888 259.83)",
-          "oklch(27% 0.06888 259.83)",
-          "oklch(39% 0.06888 259.83)",
-          "oklch(51% 0.06888 259.83)",
-          "oklch(63% 0.06888 259.83)",
-          "oklch(75% 0.06888 259.83)",
-          "oklch(87% 0.06888 259.83)",
-          "oklch(95% 0.06888 259.83)"
+          "oklch(15% 0.06857 258.55)",
+          "oklch(27% 0.06857 258.55)",
+          "oklch(39% 0.06857 258.55)",
+          "oklch(51% 0.06857 258.55)",
+          "oklch(63% 0.06857 258.55)",
+          "oklch(75% 0.06857 258.55)",
+          "oklch(87% 0.06857 258.55)",
+          "oklch(95% 0.06857 258.55)"
         ]
       },
-      "clear-dark-hover": {
+      "dark-hover": {
         "role": "neutral",
-        "displayName": "Clear Dark Hover",
-        "canonical": "#1c2a40",
+        "canonical": "#202c3d",
+        "displayName": "Dark Hover",
         "tonalRamp": [
-          "oklch(15% 0.04507 259.18)",
-          "oklch(27% 0.04507 259.18)",
-          "oklch(39% 0.04507 259.18)",
-          "oklch(51% 0.04507 259.18)",
-          "oklch(63% 0.04507 259.18)",
-          "oklch(75% 0.04507 259.18)",
-          "oklch(87% 0.04507 259.18)",
-          "oklch(95% 0.04507 259.18)"
+          "oklch(15% 0.03543 257.11)",
+          "oklch(27% 0.03543 257.11)",
+          "oklch(39% 0.03543 257.11)",
+          "oklch(51% 0.03543 257.11)",
+          "oklch(63% 0.03543 257.11)",
+          "oklch(75% 0.03543 257.11)",
+          "oklch(87% 0.03543 257.11)",
+          "oklch(95% 0.03543 257.11)"
         ]
       },
-      "clear-dark-success": {
-        "role": "secondary",
-        "displayName": "Clear Dark Success",
-        "canonical": "#83d9b1",
-        "tonalRamp": [
-          "oklch(15% 0.10186 162.93)",
-          "oklch(27% 0.10186 162.93)",
-          "oklch(39% 0.10186 162.93)",
-          "oklch(51% 0.10186 162.93)",
-          "oklch(63% 0.10186 162.93)",
-          "oklch(75% 0.10186 162.93)",
-          "oklch(87% 0.10186 162.93)",
-          "oklch(95% 0.10186 162.93)"
-        ]
-      },
-      "clear-dark-warning": {
-        "role": "secondary",
-        "displayName": "Clear Dark Warning",
-        "canonical": "#f2c782",
-        "tonalRamp": [
-          "oklch(15% 0.09961 78.64)",
-          "oklch(27% 0.09961 78.64)",
-          "oklch(39% 0.09961 78.64)",
-          "oklch(51% 0.09961 78.64)",
-          "oklch(63% 0.09961 78.64)",
-          "oklch(75% 0.09961 78.64)",
-          "oklch(87% 0.09961 78.64)",
-          "oklch(95% 0.09961 78.64)"
-        ]
-      },
-      "clear-dark-danger": {
-        "role": "secondary",
-        "displayName": "Clear Dark Danger",
-        "canonical": "#ffa4b0",
-        "tonalRamp": [
-          "oklch(15% 0.10853 11.17)",
-          "oklch(27% 0.10853 11.17)",
-          "oklch(39% 0.10853 11.17)",
-          "oklch(51% 0.10853 11.17)",
-          "oklch(63% 0.10853 11.17)",
-          "oklch(75% 0.10853 11.17)",
-          "oklch(87% 0.10853 11.17)",
-          "oklch(95% 0.10853 11.17)"
-        ]
-      },
-      "clear-dark-success-bg": {
-        "role": "secondary",
-        "displayName": "Clear Dark Success Bg",
-        "canonical": "#203b34",
-        "tonalRamp": [
-          "oklch(15% 0.03559 175.56)",
-          "oklch(27% 0.03559 175.56)",
-          "oklch(39% 0.03559 175.56)",
-          "oklch(51% 0.03559 175.56)",
-          "oklch(63% 0.03559 175.56)",
-          "oklch(75% 0.03559 175.56)",
-          "oklch(87% 0.03559 175.56)",
-          "oklch(95% 0.03559 175.56)"
-        ]
-      },
-      "clear-dark-warning-bg": {
-        "role": "secondary",
-        "displayName": "Clear Dark Warning Bg",
-        "canonical": "#3c3222",
-        "tonalRamp": [
-          "oklch(15% 0.03008 79.09)",
-          "oklch(27% 0.03008 79.09)",
-          "oklch(39% 0.03008 79.09)",
-          "oklch(51% 0.03008 79.09)",
-          "oklch(63% 0.03008 79.09)",
-          "oklch(75% 0.03008 79.09)",
-          "oklch(87% 0.03008 79.09)",
-          "oklch(95% 0.03008 79.09)"
-        ]
-      },
-      "clear-dark-danger-bg": {
-        "role": "secondary",
-        "displayName": "Clear Dark Danger Bg",
-        "canonical": "#412a32",
-        "tonalRamp": [
-          "oklch(15% 0.03639 356.85)",
-          "oklch(27% 0.03639 356.85)",
-          "oklch(39% 0.03639 356.85)",
-          "oklch(51% 0.03639 356.85)",
-          "oklch(63% 0.03639 356.85)",
-          "oklch(75% 0.03639 356.85)",
-          "oklch(87% 0.03639 356.85)",
-          "oklch(95% 0.03639 356.85)"
-        ]
-      },
-      "clear-light-surface": {
+      "dark-success": {
         "role": "neutral",
-        "displayName": "Clear Light Surface",
-        "canonical": "#f3f6fb",
+        "canonical": "#86efac",
+        "displayName": "Dark Success",
         "tonalRamp": [
-          "oklch(15% 0.00740 260.73)",
-          "oklch(27% 0.00740 260.73)",
-          "oklch(39% 0.00740 260.73)",
-          "oklch(51% 0.00740 260.73)",
-          "oklch(63% 0.00740 260.73)",
-          "oklch(75% 0.00740 260.73)",
-          "oklch(87% 0.00740 260.73)",
-          "oklch(95% 0.00740 260.73)"
+          "oklch(15% 0.13627 154.45)",
+          "oklch(27% 0.13627 154.45)",
+          "oklch(39% 0.13627 154.45)",
+          "oklch(51% 0.13627 154.45)",
+          "oklch(63% 0.13627 154.45)",
+          "oklch(75% 0.13627 154.45)",
+          "oklch(87% 0.13627 154.45)",
+          "oklch(95% 0.13627 154.45)"
         ]
       },
-      "clear-light-panel": {
+      "dark-warning": {
         "role": "neutral",
-        "displayName": "Clear Light Panel",
+        "canonical": "#fcd34d",
+        "displayName": "Dark Warning",
+        "tonalRamp": [
+          "oklch(15% 0.15342 91.61)",
+          "oklch(27% 0.15342 91.61)",
+          "oklch(39% 0.15342 91.61)",
+          "oklch(51% 0.15342 91.61)",
+          "oklch(63% 0.15342 91.61)",
+          "oklch(75% 0.15342 91.61)",
+          "oklch(87% 0.15342 91.61)",
+          "oklch(95% 0.15342 91.61)"
+        ]
+      },
+      "dark-danger": {
+        "role": "neutral",
+        "canonical": "#fca5a5",
+        "displayName": "Dark Danger",
+        "tonalRamp": [
+          "oklch(15% 0.10349 19.57)",
+          "oklch(27% 0.10349 19.57)",
+          "oklch(39% 0.10349 19.57)",
+          "oklch(51% 0.10349 19.57)",
+          "oklch(63% 0.10349 19.57)",
+          "oklch(75% 0.10349 19.57)",
+          "oklch(87% 0.10349 19.57)",
+          "oklch(95% 0.10349 19.57)"
+        ]
+      },
+      "dark-info": {
+        "role": "neutral",
+        "canonical": "#93c5fd",
+        "displayName": "Dark Info",
+        "tonalRamp": [
+          "oklch(15% 0.09560 251.81)",
+          "oklch(27% 0.09560 251.81)",
+          "oklch(39% 0.09560 251.81)",
+          "oklch(51% 0.09560 251.81)",
+          "oklch(63% 0.09560 251.81)",
+          "oklch(75% 0.09560 251.81)",
+          "oklch(87% 0.09560 251.81)",
+          "oklch(95% 0.09560 251.81)"
+        ]
+      },
+      "dark-success-bg": {
+        "role": "neutral",
+        "canonical": "#19372c",
+        "displayName": "Dark Success Bg",
+        "tonalRamp": [
+          "oklch(15% 0.04158 167.66)",
+          "oklch(27% 0.04158 167.66)",
+          "oklch(39% 0.04158 167.66)",
+          "oklch(51% 0.04158 167.66)",
+          "oklch(63% 0.04158 167.66)",
+          "oklch(75% 0.04158 167.66)",
+          "oklch(87% 0.04158 167.66)",
+          "oklch(95% 0.04158 167.66)"
+        ]
+      },
+      "dark-warning-bg": {
+        "role": "neutral",
+        "canonical": "#3e321c",
+        "displayName": "Dark Warning Bg",
+        "tonalRamp": [
+          "oklch(15% 0.03905 81.79)",
+          "oklch(27% 0.03905 81.79)",
+          "oklch(39% 0.03905 81.79)",
+          "oklch(51% 0.03905 81.79)",
+          "oklch(63% 0.03905 81.79)",
+          "oklch(75% 0.03905 81.79)",
+          "oklch(87% 0.03905 81.79)",
+          "oklch(95% 0.03905 81.79)"
+        ]
+      },
+      "dark-danger-bg": {
+        "role": "neutral",
+        "canonical": "#41282d",
+        "displayName": "Dark Danger Bg",
+        "tonalRamp": [
+          "oklch(15% 0.03826 6.46)",
+          "oklch(27% 0.03826 6.46)",
+          "oklch(39% 0.03826 6.46)",
+          "oklch(51% 0.03826 6.46)",
+          "oklch(63% 0.03826 6.46)",
+          "oklch(75% 0.03826 6.46)",
+          "oklch(87% 0.03826 6.46)",
+          "oklch(95% 0.03826 6.46)"
+        ]
+      },
+      "dark-info-bg": {
+        "role": "neutral",
+        "canonical": "#20375a",
+        "displayName": "Dark Info Bg",
+        "tonalRamp": [
+          "oklch(15% 0.06857 258.55)",
+          "oklch(27% 0.06857 258.55)",
+          "oklch(39% 0.06857 258.55)",
+          "oklch(51% 0.06857 258.55)",
+          "oklch(63% 0.06857 258.55)",
+          "oklch(75% 0.06857 258.55)",
+          "oklch(87% 0.06857 258.55)",
+          "oklch(95% 0.06857 258.55)"
+        ]
+      },
+      "dark-focus": {
+        "role": "primary",
+        "canonical": "#93c5fd",
+        "displayName": "Dark Focus",
+        "tonalRamp": [
+          "oklch(15% 0.09560 251.81)",
+          "oklch(27% 0.09560 251.81)",
+          "oklch(39% 0.09560 251.81)",
+          "oklch(51% 0.09560 251.81)",
+          "oklch(63% 0.09560 251.81)",
+          "oklch(75% 0.09560 251.81)",
+          "oklch(87% 0.09560 251.81)",
+          "oklch(95% 0.09560 251.81)"
+        ]
+      },
+      "command-text": {
+        "role": "neutral",
         "canonical": "#ffffff",
+        "displayName": "Command Text",
         "tonalRamp": [
-          "oklch(15% 0.00000 0.00)",
-          "oklch(27% 0.00000 0.00)",
-          "oklch(39% 0.00000 0.00)",
-          "oklch(51% 0.00000 0.00)",
-          "oklch(63% 0.00000 0.00)",
-          "oklch(75% 0.00000 0.00)",
-          "oklch(87% 0.00000 0.00)",
-          "oklch(95% 0.00000 0.00)"
+          "oklch(15% 0.00000 89.88)",
+          "oklch(27% 0.00000 89.88)",
+          "oklch(39% 0.00000 89.88)",
+          "oklch(51% 0.00000 89.88)",
+          "oklch(63% 0.00000 89.88)",
+          "oklch(75% 0.00000 89.88)",
+          "oklch(87% 0.00000 89.88)",
+          "oklch(95% 0.00000 89.88)"
         ]
-      },
-      "clear-light-panel-strong": {
-        "role": "neutral",
-        "displayName": "Clear Light Panel Strong",
-        "canonical": "#edf1f7",
-        "tonalRamp": [
-          "oklch(15% 0.00912 258.34)",
-          "oklch(27% 0.00912 258.34)",
-          "oklch(39% 0.00912 258.34)",
-          "oklch(51% 0.00912 258.34)",
-          "oklch(63% 0.00912 258.34)",
-          "oklch(75% 0.00912 258.34)",
-          "oklch(87% 0.00912 258.34)",
-          "oklch(95% 0.00912 258.34)"
-        ]
-      },
-      "clear-light-foreground": {
-        "role": "neutral",
-        "displayName": "Clear Light Foreground",
-        "canonical": "#243047",
-        "tonalRamp": [
-          "oklch(15% 0.04482 262.86)",
-          "oklch(27% 0.04482 262.86)",
-          "oklch(39% 0.04482 262.86)",
-          "oklch(51% 0.04482 262.86)",
-          "oklch(63% 0.04482 262.86)",
-          "oklch(75% 0.04482 262.86)",
-          "oklch(87% 0.04482 262.86)",
-          "oklch(95% 0.04482 262.86)"
-        ]
-      },
-      "clear-light-secondary": {
-        "role": "neutral",
-        "displayName": "Clear Light Secondary",
-        "canonical": "#586b83",
-        "tonalRamp": [
-          "oklch(15% 0.04446 254.46)",
-          "oklch(27% 0.04446 254.46)",
-          "oklch(39% 0.04446 254.46)",
-          "oklch(51% 0.04446 254.46)",
-          "oklch(63% 0.04446 254.46)",
-          "oklch(75% 0.04446 254.46)",
-          "oklch(87% 0.04446 254.46)",
-          "oklch(95% 0.04446 254.46)"
-        ]
-      },
-      "clear-light-border": {
-        "role": "neutral",
-        "displayName": "Clear Light Border",
-        "canonical": "#dce3ed",
-        "tonalRamp": [
-          "oklch(15% 0.01557 257.20)",
-          "oklch(27% 0.01557 257.20)",
-          "oklch(39% 0.01557 257.20)",
-          "oklch(51% 0.01557 257.20)",
-          "oklch(63% 0.01557 257.20)",
-          "oklch(75% 0.01557 257.20)",
-          "oklch(87% 0.01557 257.20)",
-          "oklch(95% 0.01557 257.20)"
-        ]
-      },
-      "clear-light-border-strong": {
-        "role": "neutral",
-        "displayName": "Clear Light Border Strong",
-        "canonical": "#a6b7ce",
-        "tonalRamp": [
-          "oklch(15% 0.03796 255.98)",
-          "oklch(27% 0.03796 255.98)",
-          "oklch(39% 0.03796 255.98)",
-          "oklch(51% 0.03796 255.98)",
-          "oklch(63% 0.03796 255.98)",
-          "oklch(75% 0.03796 255.98)",
-          "oklch(87% 0.03796 255.98)",
-          "oklch(95% 0.03796 255.98)"
-        ]
-      },
-      "clear-light-accent": {
-        "role": "primary",
-        "displayName": "Clear Light Accent",
-        "canonical": "#345fc5",
-        "tonalRamp": [
-          "oklch(15% 0.16663 264.16)",
-          "oklch(27% 0.16663 264.16)",
-          "oklch(39% 0.16663 264.16)",
-          "oklch(51% 0.16663 264.16)",
-          "oklch(63% 0.16663 264.16)",
-          "oklch(75% 0.16663 264.16)",
-          "oklch(87% 0.16663 264.16)",
-          "oklch(95% 0.16663 264.16)"
-        ]
-      },
-      "clear-light-active": {
-        "role": "neutral",
-        "displayName": "Clear Light Active",
-        "canonical": "#edf2ff",
-        "tonalRamp": [
-          "oklch(15% 0.01824 269.09)",
-          "oklch(27% 0.01824 269.09)",
-          "oklch(39% 0.01824 269.09)",
-          "oklch(51% 0.01824 269.09)",
-          "oklch(63% 0.01824 269.09)",
-          "oklch(75% 0.01824 269.09)",
-          "oklch(87% 0.01824 269.09)",
-          "oklch(95% 0.01824 269.09)"
-        ]
-      },
-      "clear-light-hover": {
-        "role": "neutral",
-        "displayName": "Clear Light Hover",
-        "canonical": "#f2f6fd",
-        "tonalRamp": [
-          "oklch(15% 0.01028 261.79)",
-          "oklch(27% 0.01028 261.79)",
-          "oklch(39% 0.01028 261.79)",
-          "oklch(51% 0.01028 261.79)",
-          "oklch(63% 0.01028 261.79)",
-          "oklch(75% 0.01028 261.79)",
-          "oklch(87% 0.01028 261.79)",
-          "oklch(95% 0.01028 261.79)"
-        ]
-      },
-      "clear-light-success": {
-        "role": "secondary",
-        "displayName": "Clear Light Success",
-        "canonical": "#256448",
-        "tonalRamp": [
-          "oklch(15% 0.07980 161.35)",
-          "oklch(27% 0.07980 161.35)",
-          "oklch(39% 0.07980 161.35)",
-          "oklch(51% 0.07980 161.35)",
-          "oklch(63% 0.07980 161.35)",
-          "oklch(75% 0.07980 161.35)",
-          "oklch(87% 0.07980 161.35)",
-          "oklch(95% 0.07980 161.35)"
-        ]
-      },
-      "clear-light-warning": {
-        "role": "secondary",
-        "displayName": "Clear Light Warning",
-        "canonical": "#845a1a",
-        "tonalRamp": [
-          "oklch(15% 0.09475 73.06)",
-          "oklch(27% 0.09475 73.06)",
-          "oklch(39% 0.09475 73.06)",
-          "oklch(51% 0.09475 73.06)",
-          "oklch(63% 0.09475 73.06)",
-          "oklch(75% 0.09475 73.06)",
-          "oklch(87% 0.09475 73.06)",
-          "oklch(95% 0.09475 73.06)"
-        ]
-      },
-      "clear-light-danger": {
-        "role": "secondary",
-        "displayName": "Clear Light Danger",
-        "canonical": "#a43c4d",
-        "tonalRamp": [
-          "oklch(15% 0.13742 13.69)",
-          "oklch(27% 0.13742 13.69)",
-          "oklch(39% 0.13742 13.69)",
-          "oklch(51% 0.13742 13.69)",
-          "oklch(63% 0.13742 13.69)",
-          "oklch(75% 0.13742 13.69)",
-          "oklch(87% 0.13742 13.69)",
-          "oklch(95% 0.13742 13.69)"
-        ]
-      },
-      "clear-light-success-bg": {
-        "role": "secondary",
-        "displayName": "Clear Light Success Bg",
-        "canonical": "#e8f4ee",
-        "tonalRamp": [
-          "oklch(15% 0.01496 164.73)",
-          "oklch(27% 0.01496 164.73)",
-          "oklch(39% 0.01496 164.73)",
-          "oklch(51% 0.01496 164.73)",
-          "oklch(63% 0.01496 164.73)",
-          "oklch(75% 0.01496 164.73)",
-          "oklch(87% 0.01496 164.73)",
-          "oklch(95% 0.01496 164.73)"
-        ]
-      },
-      "clear-light-warning-bg": {
-        "role": "secondary",
-        "displayName": "Clear Light Warning Bg",
-        "canonical": "#fff3df",
-        "tonalRamp": [
-          "oklch(15% 0.02931 80.66)",
-          "oklch(27% 0.02931 80.66)",
-          "oklch(39% 0.02931 80.66)",
-          "oklch(51% 0.02931 80.66)",
-          "oklch(63% 0.02931 80.66)",
-          "oklch(75% 0.02931 80.66)",
-          "oklch(87% 0.02931 80.66)",
-          "oklch(95% 0.02931 80.66)"
-        ]
-      },
-      "clear-light-danger-bg": {
-        "role": "secondary",
-        "displayName": "Clear Light Danger Bg",
-        "canonical": "#ffedf0",
-        "tonalRamp": [
-          "oklch(15% 0.01989 5.98)",
-          "oklch(27% 0.01989 5.98)",
-          "oklch(39% 0.01989 5.98)",
-          "oklch(51% 0.01989 5.98)",
-          "oklch(63% 0.01989 5.98)",
-          "oklch(75% 0.01989 5.98)",
-          "oklch(87% 0.01989 5.98)",
-          "oklch(95% 0.01989 5.98)"
-        ]
-      },
-      "portal-light-canvas": {
-        "role": "neutral",
-        "displayName": "Portal Light Canvas",
-        "canonical": "#f4f5f7",
-        "tonalRamp": [
-          "oklch(15% 0.00287 264.54)",
-          "oklch(27% 0.00287 264.54)",
-          "oklch(39% 0.00287 264.54)",
-          "oklch(51% 0.00287 264.54)",
-          "oklch(63% 0.00287 264.54)",
-          "oklch(75% 0.00287 264.54)",
-          "oklch(87% 0.00287 264.54)",
-          "oklch(95% 0.00287 264.54)"
-        ]
-      },
-      "portal-light-panel": {
-        "role": "neutral",
-        "displayName": "Portal Light Panel",
-        "canonical": "#ffffff",
-        "tonalRamp": [
-          "oklch(15% 0.00000 0.00)",
-          "oklch(27% 0.00000 0.00)",
-          "oklch(39% 0.00000 0.00)",
-          "oklch(51% 0.00000 0.00)",
-          "oklch(63% 0.00000 0.00)",
-          "oklch(75% 0.00000 0.00)",
-          "oklch(87% 0.00000 0.00)",
-          "oklch(95% 0.00000 0.00)"
-        ]
-      },
-      "portal-light-foreground": {
-        "role": "neutral",
-        "displayName": "Portal Light Foreground",
-        "canonical": "#18181b",
-        "tonalRamp": [
-          "oklch(15% 0.00586 285.89)",
-          "oklch(27% 0.00586 285.89)",
-          "oklch(39% 0.00586 285.89)",
-          "oklch(51% 0.00586 285.89)",
-          "oklch(63% 0.00586 285.89)",
-          "oklch(75% 0.00586 285.89)",
-          "oklch(87% 0.00586 285.89)",
-          "oklch(95% 0.00586 285.89)"
-        ]
-      },
-      "portal-light-secondary": {
-        "role": "neutral",
-        "displayName": "Portal Light Secondary",
-        "canonical": "#586579",
-        "tonalRamp": [
-          "oklch(15% 0.03576 258.92)",
-          "oklch(27% 0.03576 258.92)",
-          "oklch(39% 0.03576 258.92)",
-          "oklch(51% 0.03576 258.92)",
-          "oklch(63% 0.03576 258.92)",
-          "oklch(75% 0.03576 258.92)",
-          "oklch(87% 0.03576 258.92)",
-          "oklch(95% 0.03576 258.92)"
-        ]
-      },
-      "portal-light-border": {
-        "role": "neutral",
-        "displayName": "Portal Light Border",
-        "canonical": "#dfe4ea",
-        "tonalRamp": [
-          "oklch(15% 0.00978 252.82)",
-          "oklch(27% 0.00978 252.82)",
-          "oklch(39% 0.00978 252.82)",
-          "oklch(51% 0.00978 252.82)",
-          "oklch(63% 0.00978 252.82)",
-          "oklch(75% 0.00978 252.82)",
-          "oklch(87% 0.00978 252.82)",
-          "oklch(95% 0.00978 252.82)"
-        ]
-      },
-      "portal-light-soft": {
-        "role": "neutral",
-        "displayName": "Portal Light Soft",
-        "canonical": "#f4f4f5",
-        "tonalRamp": [
-          "oklch(15% 0.00133 286.38)",
-          "oklch(27% 0.00133 286.38)",
-          "oklch(39% 0.00133 286.38)",
-          "oklch(51% 0.00133 286.38)",
-          "oklch(63% 0.00133 286.38)",
-          "oklch(75% 0.00133 286.38)",
-          "oklch(87% 0.00133 286.38)",
-          "oklch(95% 0.00133 286.38)"
-        ]
-      },
-      "portal-light-command": {
-        "role": "primary",
-        "displayName": "Portal Light Command",
-        "canonical": "#20252c",
-        "tonalRamp": [
-          "oklch(15% 0.01502 256.80)",
-          "oklch(27% 0.01502 256.80)",
-          "oklch(39% 0.01502 256.80)",
-          "oklch(51% 0.01502 256.80)",
-          "oklch(63% 0.01502 256.80)",
-          "oklch(75% 0.01502 256.80)",
-          "oklch(87% 0.01502 256.80)",
-          "oklch(95% 0.01502 256.80)"
-        ]
-      },
-      "portal-light-command-text": {
-        "role": "neutral",
-        "displayName": "Portal Light Command Text",
-        "canonical": "#fff",
-        "tonalRamp": [
-          "oklch(15% 0.00000 0.00)",
-          "oklch(27% 0.00000 0.00)",
-          "oklch(39% 0.00000 0.00)",
-          "oklch(51% 0.00000 0.00)",
-          "oklch(63% 0.00000 0.00)",
-          "oklch(75% 0.00000 0.00)",
-          "oklch(87% 0.00000 0.00)",
-          "oklch(95% 0.00000 0.00)"
-        ]
-      },
-      "portal-light-success": {
-        "role": "secondary",
-        "displayName": "Portal Light Success",
-        "canonical": "#198754",
-        "tonalRamp": [
-          "oklch(15% 0.12340 157.01)",
-          "oklch(27% 0.12340 157.01)",
-          "oklch(39% 0.12340 157.01)",
-          "oklch(51% 0.12340 157.01)",
-          "oklch(63% 0.12340 157.01)",
-          "oklch(75% 0.12340 157.01)",
-          "oklch(87% 0.12340 157.01)",
-          "oklch(95% 0.12340 157.01)"
-        ]
-      },
-      "portal-light-danger": {
-        "role": "tertiary",
-        "displayName": "Portal Light Danger",
-        "canonical": "#d13239",
-        "tonalRamp": [
-          "oklch(15% 0.19493 23.97)",
-          "oklch(27% 0.19493 23.97)",
-          "oklch(39% 0.19493 23.97)",
-          "oklch(51% 0.19493 23.97)",
-          "oklch(63% 0.19493 23.97)",
-          "oklch(75% 0.19493 23.97)",
-          "oklch(87% 0.19493 23.97)",
-          "oklch(95% 0.19493 23.97)"
-        ]
-      },
-      "portal-focus": {
-        "role": "neutral",
-        "displayName": "Portal Focus",
-        "canonical": "#345fc5",
-        "tonalRamp": [
-          "oklch(15% 0.16663 264.16)",
-          "oklch(27% 0.16663 264.16)",
-          "oklch(39% 0.16663 264.16)",
-          "oklch(51% 0.16663 264.16)",
-          "oklch(63% 0.16663 264.16)",
-          "oklch(75% 0.16663 264.16)",
-          "oklch(87% 0.16663 264.16)",
-          "oklch(95% 0.16663 264.16)"
-        ]
-      },
-      "portal-dark-command-text": {
-        "role": "neutral",
-        "displayName": "Portal Dark Command Text",
-        "canonical": "#172030",
-        "tonalRamp": [
-          "oklch(15% 0.03347 261.57)",
-          "oklch(27% 0.03347 261.57)",
-          "oklch(39% 0.03347 261.57)",
-          "oklch(51% 0.03347 261.57)",
-          "oklch(63% 0.03347 261.57)",
-          "oklch(75% 0.03347 261.57)",
-          "oklch(87% 0.03347 261.57)",
-          "oklch(95% 0.03347 261.57)"
-        ]
-      },
-      "portal-dark-danger": {
-        "role": "tertiary",
-        "displayName": "Portal Dark Danger",
-        "canonical": "#ff7b94",
-        "tonalRamp": [
-          "oklch(15% 0.16167 9.99)",
-          "oklch(27% 0.16167 9.99)",
-          "oklch(39% 0.16167 9.99)",
-          "oklch(51% 0.16167 9.99)",
-          "oklch(63% 0.16167 9.99)",
-          "oklch(75% 0.16167 9.99)",
-          "oklch(87% 0.16167 9.99)",
-          "oklch(95% 0.16167 9.99)"
-        ]
-      }
-    },
-    "typographyMeta": {
-      "clear-title": {
-        "displayName": "Clear A page title",
-        "purpose": "Approved resource lists, operation pages, and full node editor; 25px on phones."
-      },
-      "clear-body": {
-        "displayName": "Clear A native UI body",
-        "purpose": "Native Chinese UI font stack in the local scope."
-      },
-      "clear-machine-data": {
-        "displayName": "Clear A machine data",
-        "purpose": "Technical values with tabular numerals; IDs are 11px."
-      },
-      "clear-section-title": {
-        "displayName": "Clear A operation section title",
-        "purpose": "Settings, subscription and full-node section headings."
-      },
-      "portal-title": {
-        "displayName": "Account-center page title",
-        "purpose": "Independent portal heading; 26px on phones."
-      },
-      "portal-link-data": {
-        "displayName": "Portal subscription address",
-        "purpose": "Wrapping subscription address in its read-only inset textarea."
       }
     },
     "shadows": [
       {
-        "name": "clear-editor",
-        "value": "-12px 0 40px #0003",
-        "purpose": "Local right-side editor only."
+        "name": "overlay",
+        "value": "0 16px 48px rgb(15 23 42 / 18%)",
+        "purpose": "overlay"
       },
       {
-        "name": "clear-menu",
-        "value": "0 12px 24px #0003",
-        "purpose": "Local resource menu only."
+        "name": "mobileNavigation",
+        "value": "0 16px 32px rgb(15 23 42 / 12%)",
+        "purpose": "mobileNavigation"
       }
     ],
     "motion": [
       {
-        "name": "clear-button-feedback",
-        "value": "color 180ms ease, background-color 180ms ease",
-        "purpose": "Local hover/focus state feedback; no lift, sweep, entrance, or status-dot animation."
+        "name": "control",
+        "value": "background-color 140ms ease, border-color 140ms ease",
+        "purpose": "control"
       },
       {
-        "name": "clear-reduced-motion",
-        "value": "animation: none !important; transition: none !important",
-        "purpose": "All descendants in the three local administration scopes and the refined portal under prefers-reduced-motion: reduce."
+        "name": "sectionNavigation",
+        "value": "smooth unless prefers-reduced-motion: reduce",
+        "purpose": "sectionNavigation"
       },
       {
-        "name": "portal-command-hover",
-        "value": "opacity: .85; transform: none",
-        "purpose": "Primary/dark account-center commands keep their theme colors and do not lift on hover."
+        "name": "reducedMotion",
+        "value": "disable CSS animations/transitions; instant section positioning",
+        "purpose": "reducedMotion"
       }
     ],
     "breakpoints": [
       {
-        "name": "clear-compact",
-        "value": "1100px"
+        "name": "serverCardsThreeColumns",
+        "value": "min-width:1200px",
+        "purpose": "serverCardsThreeColumns"
       },
       {
-        "name": "clear-mobile",
-        "value": "700px"
+        "name": "serverCardsTwoColumns",
+        "value": "768px–1199px",
+        "purpose": "serverCardsTwoColumns"
+      },
+      {
+        "name": "serverCardsOneColumn",
+        "value": "max-width:767px",
+        "purpose": "serverCardsOneColumn"
+      },
+      {
+        "name": "mobileNavigation",
+        "value": "max-width:1023px",
+        "purpose": "mobileNavigation"
+      },
+      {
+        "name": "sectionNavigationSidebar",
+        "value": "min-width:1200px",
+        "purpose": "sectionNavigationSidebar"
+      },
+      {
+        "name": "twoColumnForm",
+        "value": "min-width:1024px",
+        "purpose": "twoColumnForm"
+      },
+      {
+        "name": "fullscreenDetails",
+        "value": "max-width:767px",
+        "purpose": "fullscreenDetails"
       }
-    ]
+    ],
+    "scope": {
+      "authority": "DESIGN.md frontmatter owns primitives; this sidecar extends it",
+      "administration": "html[data-admin-theme], .admin-console; #admin-overlays for portals",
+      "public": "Login and /edu retain public-surfaces.css; no admin palette inheritance",
+      "sources": [
+        "web/src/admin-console.css",
+        "web/src/public-surfaces.css",
+        "web/src/components/AdminTheme.tsx",
+        "web/src/components/AdminNavigation.tsx",
+        "web/src/components/AppShell.tsx",
+        "web/src/components/ui.tsx",
+        "web/src/portal.css"
+      ]
+    },
+    "verification": {
+      "implementation": [
+        "e0d2ef7",
+        "3741c05",
+        "cbf5224"
+      ],
+      "frontendTests": "39/39",
+      "review": "scoped ship for F1–F3; see design-system/admin-console-2026-11-03/finish-verdict.md",
+      "assets": "No shipping raster assets"
+    }
   },
   "components": [
     {
-      "name": "Clear A primary command",
+      "name": "Admin primary command",
       "kind": "button",
-      "refersTo": "clear-button-primary",
-      "description": "Local solid command; add ds-clear-light to the wrapper for the light variant.",
-      "html": "<div class=\"ds-clear-scope\"><button type=\"button\" class=\"ds-clear-button ds-clear-primary\">添加服务器</button></div>",
-      "css": ".ds-clear-scope{--surface:#10151f;--panel:#171e2a;--panel-strong:#1e2837;--foreground:#edf2fa;--text:#edf2fa;--secondary:#a1afc2;--border:#2c3749;--border-strong:#49617f;--primary:#3767d0;--primary-hover:#315cbb;--clear-accent:#82acff;--clear-active:#263c60;--clear-hover:#1c2a40;--success:#83d9b1;--warning:#f2c782;--danger:#ffa4b0;--focus:#82acff;--clear-success-bg:#203b34;--clear-warning-bg:#3c3222;--clear-danger-bg:#412a32;font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"PingFang SC\", \"Microsoft YaHei UI\", system-ui, sans-serif;font-size:13px;line-height:1.5;color:var(--foreground);color-scheme:dark}.ds-clear-scope.ds-clear-light{--surface:#f3f6fb;--panel:#ffffff;--panel-strong:#edf1f7;--foreground:#243047;--text:#243047;--secondary:#586b83;--border:#dce3ed;--border-strong:#a6b7ce;--clear-accent:#345fc5;--clear-active:#edf2ff;--clear-hover:#f2f6fd;--success:#256448;--warning:#845a1a;--danger:#a43c4d;--focus:#345fc5;--clear-success-bg:#e8f4ee;--clear-warning-bg:#fff3df;--clear-danger-bg:#ffedf0;color-scheme:light}.ds-clear-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:7px 12px;border:1px solid var(--border);border-radius:7px;color:var(--foreground);background:var(--panel);font-family:inherit;font-size:12px;font-weight:500;line-height:1;cursor:pointer;box-shadow:none;transition:color 180ms ease,background-color 180ms ease}.ds-clear-button:hover:not(:disabled){background:var(--panel-strong);border-color:var(--border-strong)}.ds-clear-button:disabled{opacity:.48;cursor:not-allowed}@media(max-width:700px){.ds-clear-button{min-height:44px}}.ds-clear-primary{color:#fff;background:var(--primary);border-color:transparent;font-weight:600}.ds-clear-primary:hover:not(:disabled){color:#fff;background:var(--primary-hover);border-color:transparent}.ds-clear-scope :is(button,a,input,select,textarea):focus-visible{outline:2px solid var(--focus);outline-offset:3px;box-shadow:none}@media(prefers-reduced-motion:reduce){.ds-clear-scope *{animation:none!important;transition:none!important}}"
+      "refersTo": "button-primary",
+      "description": "Blue command in light and dark; responsive minimum target.",
+      "html": "<div class=\"ds-sample\"><button type=\"button\">添加服务器</button></div><div class=\"ds-sample ds-dark\"><button type=\"button\">保存修改</button></div>",
+      "css": ".ds-sample{font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",\"PingFang SC\",\"Microsoft YaHei UI\",sans-serif;font-size:14px;line-height:1.6;padding:24px;background:#f5f7fa;color:#1f2937}.ds-sample.ds-dark{background:#10151f;color:#e5eaf2}.ds-sample :is(button,input):focus-visible{outline:2px solid #2563eb;outline-offset:3px}.ds-sample.ds-dark :is(button,input):focus-visible{outline-color:#93c5fd}.ds-sample button{font:inherit;display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:9px 15px;border:1px solid #2563eb;border-radius:8px;color:#fff;background:#2563eb;cursor:pointer;transition:background-color 140ms ease,border-color 140ms ease}.ds-sample button:hover{background:#1d4ed8;border-color:#1d4ed8}.ds-sample button:disabled{opacity:.55;cursor:not-allowed}@media(max-width:767px){.ds-sample button{min-width:44px;min-height:44px;padding:10px 13px}}@media(prefers-reduced-motion:reduce){.ds-sample button{transition:none}}"
     },
     {
-      "name": "Clear A secondary command",
-      "kind": "button",
-      "refersTo": "clear-button-secondary",
-      "description": "Local quiet bordered command without lift or glow.",
-      "html": "<div class=\"ds-clear-scope\"><button type=\"button\" class=\"ds-clear-button\">刷新</button></div>",
-      "css": ".ds-clear-scope{--surface:#10151f;--panel:#171e2a;--panel-strong:#1e2837;--foreground:#edf2fa;--text:#edf2fa;--secondary:#a1afc2;--border:#2c3749;--border-strong:#49617f;--primary:#3767d0;--primary-hover:#315cbb;--clear-accent:#82acff;--clear-active:#263c60;--clear-hover:#1c2a40;--success:#83d9b1;--warning:#f2c782;--danger:#ffa4b0;--focus:#82acff;--clear-success-bg:#203b34;--clear-warning-bg:#3c3222;--clear-danger-bg:#412a32;font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"PingFang SC\", \"Microsoft YaHei UI\", system-ui, sans-serif;font-size:13px;line-height:1.5;color:var(--foreground);color-scheme:dark}.ds-clear-scope.ds-clear-light{--surface:#f3f6fb;--panel:#ffffff;--panel-strong:#edf1f7;--foreground:#243047;--text:#243047;--secondary:#586b83;--border:#dce3ed;--border-strong:#a6b7ce;--clear-accent:#345fc5;--clear-active:#edf2ff;--clear-hover:#f2f6fd;--success:#256448;--warning:#845a1a;--danger:#a43c4d;--focus:#345fc5;--clear-success-bg:#e8f4ee;--clear-warning-bg:#fff3df;--clear-danger-bg:#ffedf0;color-scheme:light}.ds-clear-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:7px 12px;border:1px solid var(--border);border-radius:7px;color:var(--foreground);background:var(--panel);font-family:inherit;font-size:12px;font-weight:500;line-height:1;cursor:pointer;box-shadow:none;transition:color 180ms ease,background-color 180ms ease}.ds-clear-button:hover:not(:disabled){background:var(--panel-strong);border-color:var(--border-strong)}.ds-clear-button:disabled{opacity:.48;cursor:not-allowed}@media(max-width:700px){.ds-clear-button{min-height:44px}}.ds-clear-scope :is(button,a,input,select,textarea):focus-visible{outline:2px solid var(--focus);outline-offset:3px;box-shadow:none}@media(prefers-reduced-motion:reduce){.ds-clear-scope *{animation:none!important;transition:none!important}}"
-    },
-    {
-      "name": "Clear A search",
+      "name": "Admin field",
       "kind": "input",
-      "refersTo": "clear-search",
-      "description": "Search text retains the resolved 33px inline-start inset.",
-      "html": "<div class=\"ds-clear-scope\"><label class=\"ds-clear-search\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"8\"></circle><path d=\"m21 21-4.35-4.35\"></path></svg><input type=\"search\" aria-label=\"搜索服务器\" placeholder=\"搜索服务器名称或地址\"></label></div>",
-      "css": ".ds-clear-scope{--surface:#10151f;--panel:#171e2a;--panel-strong:#1e2837;--foreground:#edf2fa;--text:#edf2fa;--secondary:#a1afc2;--border:#2c3749;--border-strong:#49617f;--primary:#3767d0;--primary-hover:#315cbb;--clear-accent:#82acff;--clear-active:#263c60;--clear-hover:#1c2a40;--success:#83d9b1;--warning:#f2c782;--danger:#ffa4b0;--focus:#82acff;--clear-success-bg:#203b34;--clear-warning-bg:#3c3222;--clear-danger-bg:#412a32;font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"PingFang SC\", \"Microsoft YaHei UI\", system-ui, sans-serif;font-size:13px;line-height:1.5;color:var(--foreground);color-scheme:dark}.ds-clear-scope.ds-clear-light{--surface:#f3f6fb;--panel:#ffffff;--panel-strong:#edf1f7;--foreground:#243047;--text:#243047;--secondary:#586b83;--border:#dce3ed;--border-strong:#a6b7ce;--clear-accent:#345fc5;--clear-active:#edf2ff;--clear-hover:#f2f6fd;--success:#256448;--warning:#845a1a;--danger:#a43c4d;--focus:#345fc5;--clear-success-bg:#e8f4ee;--clear-warning-bg:#fff3df;--clear-danger-bg:#ffedf0;color-scheme:light}.ds-clear-search{position:relative;display:block;max-width:350px}.ds-clear-search>svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--secondary);pointer-events:none}.ds-clear-search input{min-height:36px;width:100%;padding:7px 10px 7px 33px;padding-inline:33px 10px;color:var(--foreground);background:var(--surface);border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;transition:border-color 150ms ease}.ds-clear-search input::placeholder{color:var(--secondary);opacity:1}.ds-clear-search input:focus{border-color:var(--focus)}@media(max-width:700px){.ds-clear-search{max-width:none}.ds-clear-search input{min-height:44px;font-size:13px}}.ds-clear-scope :is(button,a,input,select,textarea):focus-visible{outline:2px solid var(--focus);outline-offset:3px;box-shadow:none}@media(prefers-reduced-motion:reduce){.ds-clear-scope *{animation:none!important;transition:none!important}}"
+      "description": "Explicit label and associated help in each theme.",
+      "html": "<div class=\"ds-sample\"><label>服务器名称<input aria-describedby=\"sample-help-light\" value=\"香港边缘 01\"/><small id=\"sample-help-light\">用于在后台识别服务器</small></label></div><div class=\"ds-sample ds-dark\"><label>服务器名称<input aria-describedby=\"sample-help-dark\" value=\"香港边缘 01\"/><small id=\"sample-help-dark\">用于在后台识别服务器</small></label></div>",
+      "css": ".ds-sample{font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",\"PingFang SC\",\"Microsoft YaHei UI\",sans-serif;font-size:14px;line-height:1.6;padding:24px;background:#f5f7fa;color:#1f2937}.ds-sample.ds-dark{background:#10151f;color:#e5eaf2}.ds-sample :is(button,input):focus-visible{outline:2px solid #2563eb;outline-offset:3px}.ds-sample.ds-dark :is(button,input):focus-visible{outline-color:#93c5fd}.ds-sample label{display:grid;gap:8px}.ds-sample input{font:inherit;width:100%;min-width:0;height:40px;padding:0 12px;border:1px solid #94a3b8;border-radius:8px;background:#fff;color:#1f2937}.ds-sample.ds-dark input{background:#182130;color:#e5eaf2;border-color:#64748b}.ds-sample small{color:#475569}.ds-sample.ds-dark small{color:#a7b4c8}@media(max-width:767px){.ds-sample input{min-height:44px;font-size:16px}}"
     },
     {
-      "name": "Clear A classification",
+      "name": "Admin navigation",
       "kind": "nav",
-      "refersTo": "clear-category-selected",
-      "description": "Labeled pressed-state category controls; displayed zeroes illustrate an empty data set.",
-      "html": "<div class=\"ds-clear-scope\"><div class=\"ds-clear-categories\" role=\"group\" aria-label=\"服务器分类筛选\"><button type=\"button\" class=\"ds-clear-category ds-clear-selected\" aria-pressed=\"true\">全部<span>0</span></button><button type=\"button\" class=\"ds-clear-category\" aria-pressed=\"false\">在线<span>0</span></button></div></div>",
-      "css": ".ds-clear-scope{--surface:#10151f;--panel:#171e2a;--panel-strong:#1e2837;--foreground:#edf2fa;--text:#edf2fa;--secondary:#a1afc2;--border:#2c3749;--border-strong:#49617f;--primary:#3767d0;--primary-hover:#315cbb;--clear-accent:#82acff;--clear-active:#263c60;--clear-hover:#1c2a40;--success:#83d9b1;--warning:#f2c782;--danger:#ffa4b0;--focus:#82acff;--clear-success-bg:#203b34;--clear-warning-bg:#3c3222;--clear-danger-bg:#412a32;font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"PingFang SC\", \"Microsoft YaHei UI\", system-ui, sans-serif;font-size:13px;line-height:1.5;color:var(--foreground);color-scheme:dark}.ds-clear-scope.ds-clear-light{--surface:#f3f6fb;--panel:#ffffff;--panel-strong:#edf1f7;--foreground:#243047;--text:#243047;--secondary:#586b83;--border:#dce3ed;--border-strong:#a6b7ce;--clear-accent:#345fc5;--clear-active:#edf2ff;--clear-hover:#f2f6fd;--success:#256448;--warning:#845a1a;--danger:#a43c4d;--focus:#345fc5;--clear-success-bg:#e8f4ee;--clear-warning-bg:#fff3df;--clear-danger-bg:#ffedf0;color-scheme:light}.ds-clear-categories{display:flex;flex-wrap:wrap;align-items:stretch;gap:0 25px;min-height:52px;padding:0 19px;border-bottom:1px solid var(--border);background:var(--panel)}.ds-clear-category{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:13px 0;border:0;border-bottom:2px solid transparent;color:var(--secondary);background:transparent;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer}.ds-clear-category:hover{color:var(--foreground)}.ds-clear-category.ds-clear-selected{color:var(--clear-accent);border-bottom-color:var(--clear-accent)}.ds-clear-category>span{padding:0 6px;border-radius:4px;color:var(--secondary);background:var(--panel-strong);font-size:11px;font-variant-numeric:tabular-nums}@media(max-width:700px){.ds-clear-categories{padding:0 14px;gap:0 17px}.ds-clear-category{font-size:12px;gap:5px}}.ds-clear-scope :is(button,a,input,select,textarea):focus-visible{outline:2px solid var(--focus);outline-offset:3px;box-shadow:none}@media(prefers-reduced-motion:reduce){.ds-clear-scope *{animation:none!important;transition:none!important}}"
+      "description": "64px horizontal resource navigation with blue active state.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"主导航\"><a href=\"#overview\">总览</a><a href=\"#machines\" aria-current=\"page\">服务器</a><a href=\"#nodes\">节点</a></nav>",
+      "css": ".ds-nav{display:flex;gap:24px;height:64px;background:#fff;font-family:\"Microsoft YaHei UI\",sans-serif}.ds-nav a{display:inline-flex;align-items:center;color:#475569;font-size:13px;text-decoration:none;border-bottom:2px solid transparent}.ds-nav a:hover{color:#1d4ed8}.ds-nav a[aria-current]{color:#1d4ed8;border-bottom-color:#2563eb}.ds-nav a:focus-visible{outline:2px solid #2563eb;outline-offset:3px}"
     },
     {
-      "name": "Clear A status",
+      "name": "Operational status",
       "kind": "chip",
-      "refersTo": "clear-status-success",
-      "description": "Chinese text and static dot convey state together.",
-      "html": "<div class=\"ds-clear-scope\"><span class=\"ds-clear-status\"><span class=\"ds-clear-dot\" aria-hidden=\"true\"></span>在线</span></div>",
-      "css": ".ds-clear-scope{--surface:#10151f;--panel:#171e2a;--panel-strong:#1e2837;--foreground:#edf2fa;--text:#edf2fa;--secondary:#a1afc2;--border:#2c3749;--border-strong:#49617f;--primary:#3767d0;--primary-hover:#315cbb;--clear-accent:#82acff;--clear-active:#263c60;--clear-hover:#1c2a40;--success:#83d9b1;--warning:#f2c782;--danger:#ffa4b0;--focus:#82acff;--clear-success-bg:#203b34;--clear-warning-bg:#3c3222;--clear-danger-bg:#412a32;font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"PingFang SC\", \"Microsoft YaHei UI\", system-ui, sans-serif;font-size:13px;line-height:1.5;color:var(--foreground);color-scheme:dark}.ds-clear-scope.ds-clear-light{--surface:#f3f6fb;--panel:#ffffff;--panel-strong:#edf1f7;--foreground:#243047;--text:#243047;--secondary:#586b83;--border:#dce3ed;--border-strong:#a6b7ce;--clear-accent:#345fc5;--clear-active:#edf2ff;--clear-hover:#f2f6fd;--success:#256448;--warning:#845a1a;--danger:#a43c4d;--focus:#345fc5;--clear-success-bg:#e8f4ee;--clear-warning-bg:#fff3df;--clear-danger-bg:#ffedf0;color-scheme:light}.ds-clear-status{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;border:0;border-radius:5px;color:var(--success);background:var(--clear-success-bg);font-size:11px;font-weight:500;white-space:nowrap}.ds-clear-dot{width:5px;height:5px;border-radius:50%;background:currentColor;animation:none;box-shadow:none}.ds-clear-scope :is(button,a,input,select,textarea):focus-visible{outline:2px solid var(--focus);outline-offset:3px;box-shadow:none}@media(prefers-reduced-motion:reduce){.ds-clear-scope *{animation:none!important;transition:none!important}}"
+      "description": "Text and color communicate the same state.",
+      "html": "<span class=\"ds-status\">在线</span>",
+      "css": ".ds-status{display:inline-flex;align-items:center;padding:3px 8px;border-radius:5px;color:#166534;background:#ecfdf3;font:12px/1.5 \"Microsoft YaHei UI\",sans-serif}"
     },
     {
-      "name": "Clear A connected list",
+      "name": "Server panel",
       "kind": "card",
-      "refersTo": "clear-list",
-      "description": "One panel with a real-count footer; the preview shows an empty data set.",
-      "html": "<div class=\"ds-clear-scope\"><section class=\"ds-clear-list\"><div class=\"ds-clear-empty\"><strong>暂无服务器</strong><p>添加服务器后会显示在这里</p></div><footer class=\"ds-clear-footer\"><span>显示 0 条，共 0 条</span><span>已显示全部记录</span></footer></section></div>",
-      "css": ".ds-clear-scope{--surface:#10151f;--panel:#171e2a;--panel-strong:#1e2837;--foreground:#edf2fa;--text:#edf2fa;--secondary:#a1afc2;--border:#2c3749;--border-strong:#49617f;--primary:#3767d0;--primary-hover:#315cbb;--clear-accent:#82acff;--clear-active:#263c60;--clear-hover:#1c2a40;--success:#83d9b1;--warning:#f2c782;--danger:#ffa4b0;--focus:#82acff;--clear-success-bg:#203b34;--clear-warning-bg:#3c3222;--clear-danger-bg:#412a32;font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"PingFang SC\", \"Microsoft YaHei UI\", system-ui, sans-serif;font-size:13px;line-height:1.5;color:var(--foreground);color-scheme:dark}.ds-clear-scope.ds-clear-light{--surface:#f3f6fb;--panel:#ffffff;--panel-strong:#edf1f7;--foreground:#243047;--text:#243047;--secondary:#586b83;--border:#dce3ed;--border-strong:#a6b7ce;--clear-accent:#345fc5;--clear-active:#edf2ff;--clear-hover:#f2f6fd;--success:#256448;--warning:#845a1a;--danger:#a43c4d;--focus:#345fc5;--clear-success-bg:#e8f4ee;--clear-warning-bg:#fff3df;--clear-danger-bg:#ffedf0;color-scheme:light}.ds-clear-list{min-width:0;background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden}.ds-clear-empty{display:flex;min-height:240px;align-items:center;justify-content:center;flex-direction:column;gap:8px}.ds-clear-empty strong{color:var(--foreground);font-size:15px}.ds-clear-empty p{margin:0;color:var(--secondary);font-size:12px}.ds-clear-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;min-height:52px;padding:13px 19px;border-top:1px solid var(--border);color:var(--secondary);font-size:11px}@media(max-width:700px){.ds-clear-footer{padding:13px 14px}}.ds-clear-scope :is(button,a,input,select,textarea):focus-visible{outline:2px solid var(--focus);outline-offset:3px;box-shadow:none}@media(prefers-reduced-motion:reduce){.ds-clear-scope *{animation:none!important;transition:none!important}}"
-    },
-    {
-      "name": "Clear A local editor",
-      "kind": "custom",
-      "refersTo": "clear-editor",
-      "description": "Single-column 480px local drawer appearance; the application owns modal behavior.",
-      "html": "<div class=\"ds-clear-scope\"><section class=\"ds-clear-editor\" aria-labelledby=\"ds-clear-editor-title\"><header class=\"ds-clear-editor-header\"><h2 id=\"ds-clear-editor-title\">编辑权限组</h2></header><form class=\"ds-clear-editor-body\"><label class=\"ds-clear-field\"><span>权限组名称</span><input name=\"name\" value=\"标准线路\"></label><footer class=\"ds-clear-editor-actions\"><button type=\"button\" class=\"ds-clear-button\">取消</button><button type=\"button\" class=\"ds-clear-button ds-clear-primary\">保存修改</button></footer></form></section></div>",
-      "css": ".ds-clear-scope{--surface:#10151f;--panel:#171e2a;--panel-strong:#1e2837;--foreground:#edf2fa;--text:#edf2fa;--secondary:#a1afc2;--border:#2c3749;--border-strong:#49617f;--primary:#3767d0;--primary-hover:#315cbb;--clear-accent:#82acff;--clear-active:#263c60;--clear-hover:#1c2a40;--success:#83d9b1;--warning:#f2c782;--danger:#ffa4b0;--focus:#82acff;--clear-success-bg:#203b34;--clear-warning-bg:#3c3222;--clear-danger-bg:#412a32;font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"PingFang SC\", \"Microsoft YaHei UI\", system-ui, sans-serif;font-size:13px;line-height:1.5;color:var(--foreground);color-scheme:dark}.ds-clear-scope.ds-clear-light{--surface:#f3f6fb;--panel:#ffffff;--panel-strong:#edf1f7;--foreground:#243047;--text:#243047;--secondary:#586b83;--border:#dce3ed;--border-strong:#a6b7ce;--clear-accent:#345fc5;--clear-active:#edf2ff;--clear-hover:#f2f6fd;--success:#256448;--warning:#845a1a;--danger:#a43c4d;--focus:#345fc5;--clear-success-bg:#e8f4ee;--clear-warning-bg:#fff3df;--clear-danger-bg:#ffedf0;color-scheme:light}.ds-clear-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:7px 12px;border:1px solid var(--border);border-radius:7px;color:var(--foreground);background:var(--panel);font-family:inherit;font-size:12px;font-weight:500;line-height:1;cursor:pointer;box-shadow:none;transition:color 180ms ease,background-color 180ms ease}.ds-clear-button:hover:not(:disabled){background:var(--panel-strong);border-color:var(--border-strong)}.ds-clear-button:disabled{opacity:.48;cursor:not-allowed}@media(max-width:700px){.ds-clear-button{min-height:44px}}.ds-clear-primary{color:#fff;background:var(--primary);border-color:transparent;font-weight:600}.ds-clear-primary:hover:not(:disabled){color:#fff;background:var(--primary-hover);border-color:transparent}.ds-clear-editor{width:min(480px,100%);height:100dvh;max-height:none;margin-left:auto;color:var(--foreground);background:var(--panel);border-left:1px solid var(--border);border-radius:0;box-shadow:-12px 0 40px #0003;animation:none}.ds-clear-editor-header{padding:24px;border-bottom:1px solid var(--border)}.ds-clear-editor-header h2{margin:0;color:var(--foreground);font-size:20px}.ds-clear-editor-body{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding:24px}.ds-clear-field{display:grid;gap:6px;min-width:0}.ds-clear-field span{font-size:13px;font-weight:500}.ds-clear-field input{min-height:40px;padding:9px 11px;border:1px solid var(--border);border-radius:6px;color:var(--foreground);background:var(--surface);font-family:inherit;font-size:13px;caret-color:var(--focus)}.ds-clear-field input:focus{border-color:var(--focus)}.ds-clear-editor-actions{display:flex;justify-content:flex-end;gap:8px;padding-top:16px;border-top:1px solid var(--border)}.ds-clear-editor :is(button,input):focus-visible{outline-offset:2px}@media(max-width:700px){.ds-clear-editor-header,.ds-clear-editor-body{padding:20px}}.ds-clear-scope :is(button,a,input,select,textarea):focus-visible{outline:2px solid var(--focus);outline-offset:3px;box-shadow:none}@media(prefers-reduced-motion:reduce){.ds-clear-scope *{animation:none!important;transition:none!important}}"
-    },
-    {
-      "name": "Clear A local menu",
-      "kind": "custom",
-      "refersTo": "clear-menu",
-      "description": "Local row-menu appearance; application keyboard navigation and confirmations remain in place.",
-      "html": "<div class=\"ds-clear-scope\"><div class=\"ds-clear-menu\" role=\"menu\" aria-label=\"资源更多操作\"><button type=\"button\" role=\"menuitem\">编辑</button><button type=\"button\" role=\"menuitem\" disabled>复制订阅链接</button><button type=\"button\" role=\"menuitem\" class=\"ds-clear-menu-danger\">删除</button></div></div>",
-      "css": ".ds-clear-scope{--surface:#10151f;--panel:#171e2a;--panel-strong:#1e2837;--foreground:#edf2fa;--text:#edf2fa;--secondary:#a1afc2;--border:#2c3749;--border-strong:#49617f;--primary:#3767d0;--primary-hover:#315cbb;--clear-accent:#82acff;--clear-active:#263c60;--clear-hover:#1c2a40;--success:#83d9b1;--warning:#f2c782;--danger:#ffa4b0;--focus:#82acff;--clear-success-bg:#203b34;--clear-warning-bg:#3c3222;--clear-danger-bg:#412a32;font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"PingFang SC\", \"Microsoft YaHei UI\", system-ui, sans-serif;font-size:13px;line-height:1.5;color:var(--foreground);color-scheme:dark}.ds-clear-scope.ds-clear-light{--surface:#f3f6fb;--panel:#ffffff;--panel-strong:#edf1f7;--foreground:#243047;--text:#243047;--secondary:#586b83;--border:#dce3ed;--border-strong:#a6b7ce;--clear-accent:#345fc5;--clear-active:#edf2ff;--clear-hover:#f2f6fd;--success:#256448;--warning:#845a1a;--danger:#a43c4d;--focus:#345fc5;--clear-success-bg:#e8f4ee;--clear-warning-bg:#fff3df;--clear-danger-bg:#ffedf0;color-scheme:light}.ds-clear-menu{display:flex;min-width:190px;flex-direction:column;padding:6px;border:1px solid var(--border);border-radius:8px;background:var(--panel);box-shadow:0 12px 24px #0003}.ds-clear-menu button{display:flex;align-items:center;width:100%;min-height:36px;padding:0 9px;color:var(--foreground);background:transparent;border:0;border-radius:3px;font-family:inherit;font-size:12px;text-align:left;cursor:pointer}.ds-clear-menu button:hover:not(:disabled){color:var(--foreground);background:var(--clear-hover)}.ds-clear-menu .ds-clear-menu-danger{color:var(--danger)}.ds-clear-menu :disabled{opacity:.5;cursor:not-allowed}.ds-clear-menu button:focus-visible{outline-offset:2px}@media(max-width:700px){.ds-clear-menu button{min-height:44px}}.ds-clear-scope :is(button,a,input,select,textarea):focus-visible{outline:2px solid var(--focus);outline-offset:3px;box-shadow:none}@media(prefers-reduced-motion:reduce){.ds-clear-scope *{animation:none!important;transition:none!important}}"
-    },
-    {
-      "name": "Clear A operation drawer",
-      "kind": "custom",
-      "refersTo": "clear-operation-editor",
-      "description": "720px descendant drawer for route/outbound editing and IP/audit details; the application owns the full-viewport modal layer and behavior.",
-      "html": "<div class=\"ds-clear-scope\"><section class=\"ds-clear-editor\" aria-labelledby=\"ds-clear-operation-title\"><header class=\"ds-clear-editor-header\"><h2 id=\"ds-clear-operation-title\">编辑路由策略</h2></header><form class=\"ds-clear-editor-body\"><label class=\"ds-clear-field\"><span>策略名称</span><input name=\"name\" value=\"默认策略\"></label><footer class=\"ds-clear-editor-actions\"><button type=\"button\" class=\"ds-clear-button\">取消</button><button type=\"button\" class=\"ds-clear-button ds-clear-primary\">保存修改</button></footer></form></section></div>",
-      "css": ".ds-clear-scope{--surface:#10151f;--panel:#171e2a;--panel-strong:#1e2837;--foreground:#edf2fa;--text:#edf2fa;--secondary:#a1afc2;--border:#2c3749;--border-strong:#49617f;--primary:#3767d0;--primary-hover:#315cbb;--clear-accent:#82acff;--clear-active:#263c60;--clear-hover:#1c2a40;--success:#83d9b1;--warning:#f2c782;--danger:#ffa4b0;--focus:#82acff;--clear-success-bg:#203b34;--clear-warning-bg:#3c3222;--clear-danger-bg:#412a32;font-family:-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"PingFang SC\", \"Microsoft YaHei UI\", system-ui, sans-serif;font-size:13px;line-height:1.5;color:var(--foreground);color-scheme:dark}.ds-clear-scope.ds-clear-light{--surface:#f3f6fb;--panel:#ffffff;--panel-strong:#edf1f7;--foreground:#243047;--text:#243047;--secondary:#586b83;--border:#dce3ed;--border-strong:#a6b7ce;--clear-accent:#345fc5;--clear-active:#edf2ff;--clear-hover:#f2f6fd;--success:#256448;--warning:#845a1a;--danger:#a43c4d;--focus:#345fc5;--clear-success-bg:#e8f4ee;--clear-warning-bg:#fff3df;--clear-danger-bg:#ffedf0;color-scheme:light}.ds-clear-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:7px 12px;border:1px solid var(--border);border-radius:7px;color:var(--foreground);background:var(--panel);font-family:inherit;font-size:12px;font-weight:500;line-height:1;cursor:pointer;box-shadow:none;transition:color 180ms ease,background-color 180ms ease}.ds-clear-button:hover:not(:disabled){background:var(--panel-strong);border-color:var(--border-strong)}.ds-clear-button:disabled{opacity:.48;cursor:not-allowed}@media(max-width:700px){.ds-clear-button{min-height:44px}}.ds-clear-primary{color:#fff;background:var(--primary);border-color:transparent;font-weight:600}.ds-clear-primary:hover:not(:disabled){color:#fff;background:var(--primary-hover);border-color:transparent}.ds-clear-editor{width:min(720px,100%);height:100dvh;max-height:none;margin-left:auto;color:var(--foreground);background:var(--panel);border-left:1px solid var(--border);border-radius:0;box-shadow:-12px 0 40px #0003;animation:none}.ds-clear-editor-header{padding:24px;border-bottom:1px solid var(--border)}.ds-clear-editor-header h2{margin:0;color:var(--foreground);font-size:20px}.ds-clear-editor-body{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding:24px}.ds-clear-field{display:grid;gap:6px;min-width:0}.ds-clear-field span{font-size:13px;font-weight:500}.ds-clear-field input{min-height:40px;padding:9px 11px;border:1px solid var(--border);border-radius:6px;color:var(--foreground);background:var(--surface);font-family:inherit;font-size:13px;caret-color:var(--focus)}.ds-clear-field input:focus{border-color:var(--focus)}.ds-clear-editor-actions{display:flex;justify-content:flex-end;gap:8px;padding-top:16px;border-top:1px solid var(--border)}.ds-clear-editor :is(button,input):focus-visible{outline-offset:2px}@media(max-width:700px){.ds-clear-editor-header,.ds-clear-editor-body{padding:20px}}.ds-clear-scope :is(button,a,input,select,textarea):focus-visible{outline:2px solid var(--focus);outline-offset:3px;box-shadow:none}@media(prefers-reduced-motion:reduce){.ds-clear-scope *{animation:none!important;transition:none!important}}"
-    },
-    {
-      "name": "Independent portal subscription panel",
-      "kind": "card",
-      "refersTo": "portal-panel",
-      "description": "Light-first account-center panel with wrapping address and neutral command. Add ds-portal-dark to preview its independent dark palette; clipboard behavior belongs to the application.",
-      "html": "<section class=\"ds-portal\"><header><h2>我的订阅</h2><p>复制订阅地址或导入 Clash / Mihomo 客户端。</p></header><div class=\"ds-portal-body\"><label for=\"ds-portal-address\">订阅地址</label><div class=\"ds-portal-link\"><textarea id=\"ds-portal-address\" readonly rows=\"2\">https://cpanel.example/ca/x/example-token</textarea><button type=\"button\" class=\"ds-portal-command\">复制</button></div></div></section>",
-      "css": ".ds-portal{--edu-panel:#ffffff;--edu-text:#18181b;--edu-muted:#586579;--edu-border:#dfe4ea;--edu-soft:#f4f4f5;--edu-command:#20252c;--edu-command-text:#fff;color:var(--edu-text);background:var(--edu-panel);border:1px solid var(--edu-border);border-radius:10px;overflow:hidden;box-shadow:none;font-family:-apple-system,BlinkMacSystemFont,\"SF Pro Text\",\"PingFang SC\",\"Microsoft YaHei UI\",system-ui,sans-serif}.ds-portal.ds-portal-dark{--edu-panel:#171e2a;--edu-text:#edf2fa;--edu-muted:#a1afc2;--edu-border:#2c3749;--edu-soft:#1e2837;--edu-command:#edf2fa;--edu-command-text:#172030;color-scheme:dark}.ds-portal>header{padding:23px 24px;border-bottom:1px solid var(--edu-border)}.ds-portal h2{margin:0;font-size:16px;font-weight:650}.ds-portal p{margin:5px 0 0;color:var(--edu-muted);font-size:12px;line-height:1.6}.ds-portal-body{padding:24px}.ds-portal label{display:block;margin-bottom:10px;color:var(--edu-muted);font-size:12px}.ds-portal-link{display:flex;align-items:stretch;gap:9px}.ds-portal textarea{flex:1 1 auto;width:auto;min-width:0;min-height:66px;padding:12px;color:var(--edu-text);background:var(--edu-soft);border:1px solid var(--edu-border);border-radius:6px;font:12px/1.7 Consolas,monospace;overflow-wrap:anywhere;resize:vertical}.ds-portal-command{align-self:start;min-height:40px;padding:8px 12px;color:var(--edu-command-text);background:var(--edu-command);border:1px solid var(--edu-command);border-radius:6px;font-family:inherit;font-size:12px;font-weight:500;cursor:pointer;box-shadow:none;transition:background 160ms ease,border-color 160ms ease,color 160ms ease,transform 160ms ease}.ds-portal-command:hover:not(:disabled){opacity:.85;transform:none}.ds-portal-command:disabled{opacity:.55;cursor:not-allowed}.ds-portal :is(button,textarea):focus-visible{outline:2px solid #345fc5;outline-offset:3px}@media(max-width:700px){.ds-portal>header{padding:19px 18px}.ds-portal-body{padding:20px 18px}.ds-portal-link{flex-direction:column}.ds-portal textarea{flex:none;width:100%;box-sizing:border-box}.ds-portal-command{min-height:44px}}@media(prefers-reduced-motion:reduce){.ds-portal *{animation:none!important;transition:none!important}}"
+      "description": "Flat bordered operational container; example content is illustrative.",
+      "html": "<article class=\"ds-server\"><h3>香港边缘 01</h3><p>hk01.example.net</p><a href=\"#edit\">编辑</a></article>",
+      "css": ".ds-server{padding:24px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;color:#1f2937;font:14px/1.6 \"Microsoft YaHei UI\",sans-serif}.ds-server h3{margin:0;font-size:16px;font-weight:600}.ds-server p{color:#475569;font:13px/1.6 Consolas,monospace}.ds-server a{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;color:#1d4ed8;text-decoration:none}.ds-server a:hover{text-decoration:underline}.ds-server a:focus-visible{outline:2px solid #2563eb;outline-offset:3px}"
     }
   ],
   "narrative": {
-    "northStar": "The Illuminated Control Desk.",
-    "overview": "CPanel is an operations surface used by one administrator to monitor and configure Corade infrastructure. Its layout stays dense and familiar: grouped navigation, resource tables, full editors, drawers, forms, and explicit state. Its new identity comes from graphite glass, restrained spectral light, and crisp luminous status feedback.\n\nThe interface is dark because the administrator may keep it open beside terminals during long or low-light maintenance sessions. Cyan-blue light identifies commands, green confirms healthy runtime state, amber marks pending work, and rose marks failures. Glass is functional: it separates persistent navigation, working surfaces, and temporary overlays while preserving spatial context.\n\n`/edu` is intentionally a separate, light account-center surface for subscribers. It keeps the same compact operational hierarchy but does not inherit the dark administration shell: white panels, quiet neutral borders, black commands, and restrained green status feedback make subscription copying and single-node import immediately legible on both desktop and phone.\n\nNo topology, relationship, force, or connection diagrams are permitted. Lists and forms remain the only management surfaces.\n\nThe user-selected **Clear A / 清晰表格** covers the original `/machines`, `/nodes`, `/users`, `/plans`, and `/access-groups` lists and their marked local overlays. The approved nine-surface extension adds `/subscription`, `/access-ips`, `/routes`, `/outbounds`, `/history`, `/settings`, `/audit`, and full node create/edit/copy, with a separate account-center refinement at `/edu`. Administration tokens remain local to `.clear-resources`, `.clear-resource-editor`, and `.clear-resource-menu`; `.clear-operations`, `.clear-node-editor`, and `.clear-operation-editor` refine marked work areas within them. The overview and shared navigation shell retain their incumbent authority. The portal has its own `.edu-app.edu-clear` scope and `portal-*` tokens. See `.impeccable/surfaces/resource-lists.md`, `.impeccable/surfaces/remaining-operations.md`, and the three `web/src/*-clear.css` stylesheets.",
+    "northStar": "Readable operations, complete editing.",
+    "overview": "本文件记录 2026-11-03 已实施的管理员后台设计。权威为用户的《CPanel界面重构实施方案.MD》和 `.impeccable/surfaces/admin-console.md`；旧的后台玻璃、侧栏及编辑抽屉规则已被替代。正文及示例描述现有实现，不添加业务能力。\n\n后台使用顶部导航、浅色默认、蓝色主操作、完整深色主题和独立编辑页面。登录页及 `/edu` 保留既有外观和行为；公共页面保留 `web/src/portal.css` 基础，并由 `web/src/public-surfaces.css` 维护合并规则，不继承本轮后台色板。现有图表、协议、权限及请求契约以业务代码为准。",
     "keyCharacteristics": [
-      "Dense, familiar list-and-form operations.",
-      "Incumbent graphite glass in the overview and shared shell.",
-      "Solid Clear A lists and forms with explicit dark/light palettes and real counts.",
-      "Visible Chinese status labels, focus, and genuine operations.",
-      "An independent light-first portal with neutral commands and green traffic/node state."
+      "64px 顶部导航与浅色默认。",
+      "七类资源独立编辑页面。",
+      "完整深色主题与移动记录布局。",
+      "真实运行状态与可恢复的表单上下文。"
     ],
-    "rules": [
-      {
-        "name": "The Local Override Rule",
-        "body": "Keep Clear A tokens on the three local scopes; never promote them to `:root` or recolor the shared shell.",
-        "section": "colors"
-      },
-      {
-        "name": "The Independent Appearance Rule",
-        "body": "`/edu` and `/edu/` default to light and persist `cpanel.portal.theme`; administration defaults to dark and persists `cpanel.theme`. A portal appearance choice does not redefine the administration palette.",
-        "section": "colors"
-      }
-    ],
+    "rules": [],
     "dos": [
-      "Preserve all existing content, roles, workflows, and responsive composition.",
-      "Do keep Clear A scoped to the approved resource and operation work areas and marked local overlays, including the explicit light palette.",
-      "Do preserve the overview and shared navigation authority, the original five resource-page workflows, and the independent portal appearance.",
-      "Do preserve 33px search text inset, labeled mobile records, real counts, and genuine accessible operations.",
-      "Do keep the full viewport modal layer separate from the 480px resource or 720px operation drawer surface."
+      "Do 使用真实字段、明确状态文字、稳定操作位置、完整编辑路由和可恢复的输入。",
+      "Do 把现有协议表单、权限保护、敏感值掩码、CSRF/Cookie 与受保护分块视为兼容边界。",
+      "Do 在 1440/1024/390px、明暗主题和空态/错误态检验任务流程。"
     ],
     "donts": [
-      "Never add topology graphs, relationship maps, force diagrams, or decorative connection lines.",
-      "Never copy Xboard styling or navigation structure.",
-      "Never nest cards or turn every form section into an isolated floating card.",
-      "Never use gradient text.",
-      "Never let glow replace legibility, labels, or focus indication.",
-      "Don't introduce invented pagination, synthetic history curves, connectivity probes, or protocol shortcuts; retain existing API pagination where present."
+      "Don't 恢复右侧编辑抽屉、旧侧栏或后台玻璃层；不要持续堆叠历史 CSS 覆盖。",
+      "Don't 新增探测、历史曲线、支付或后台 RBAC，也不要混淆权限组与管理员权限。",
+      "Don't 持久化表单密码/令牌/证书、制造零值/总数，或把已提交配置标成 Agent 已应用。"
     ]
   }
 }

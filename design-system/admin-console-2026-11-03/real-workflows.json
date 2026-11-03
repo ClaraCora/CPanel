@@ -1,0 +1,33 @@
+{
+  "status": "passed",
+  "checks": [
+    "real HttpOnly session login",
+    "machine create via full page",
+    "node create via full page",
+    "group create via full page",
+    "plan create via full page",
+    "user create via full page",
+    "outbound create via full page",
+    "route create via full page",
+    "machine direct route / refresh / real PATCH / persisted values",
+    "node direct route / refresh / real PATCH / persisted values",
+    "group direct route / refresh / real PATCH / persisted values",
+    "plan direct route / refresh / real PATCH / persisted values",
+    "user direct route / refresh / real PATCH / persisted values",
+    "outbound direct route / refresh / real PATCH / persisted values",
+    "route direct route / refresh / real PATCH / persisted values",
+    "invalid ID stays missing, never create",
+    "logout clears protected console",
+    "protected direct editor requires session"
+  ],
+  "ids": {
+    "machine": "mch_5hzrnhpajwb0hgkgjwqqv7q4f8",
+    "node": "nod_mrsc6xyjfeq663hv3arr9230z4",
+    "group": "grp_adx09yg2eg4gnn0aaf51wvfqwr",
+    "plan": "pln_ahnnd39pbcemdbynnqha04fbjm",
+    "user": "usr_8ccspx0tapaqas4r2yb2w9mj7m",
+    "outbound": "out_q03ac5rq7120dqb2jcjdf33tmm",
+    "route": "rte_f2rt6esk5xza60cagftd28qntw"
+  },
+  "page_errors": []
+}

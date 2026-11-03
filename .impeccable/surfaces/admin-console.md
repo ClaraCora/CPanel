@@ -19,3 +19,12 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 ## Boundaries
 
 13 administration routes and seven resource editors. Preserve existing API mappings, types, security and Agent contracts. No new connectivity probes, metric history, payment or RBAC capability. All illustrative data stays in existing demo mode. No shipping raster assets.
+
+
+## Finished implementation
+
+Implemented in `e0d2ef7`, tested in `3741c05` and corrected in `cbf5224`. Root `DESIGN.md` and `.impeccable/design.json` now describe the replacement system. Old resource/operations briefs explicitly defer here for administration and preserve only valid public portal guidance.
+
+Primary source is `web/src/admin-console.css`; public style consolidation is `public-surfaces.css`. Seven old overlay stylesheets and all administration Drawer references were removed. `ResourceEditorPage` and `NodeEditorPage` implement complete editing routes. Current mobile filters have independent rows, actual primary text controls are at least 44×44px, and node client/server errors restore focus to described targets or a focusable summary.
+
+Evidence: `design-system/admin-console-migration.md` and `design-system/admin-console-2026-11-03/`. Frontend typecheck/build and 39 tests passed; Go HTTP/web regressions passed with isolated PostgreSQL Agent enrollment coverage. Final reviewer disposition is scoped ship for F1–F3 resolved, not an exhaustive live-protocol/production security audit. No new shipping raster assets.

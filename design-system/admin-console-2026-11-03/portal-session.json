@@ -1,0 +1,7 @@
+{
+  "status": "passed",
+  "checks": [
+    "real delegated portal opens",
+    "copy-only delegated UI; password and reset absent"
+  ]
+}

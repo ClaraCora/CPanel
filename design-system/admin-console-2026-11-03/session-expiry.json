@@ -1,0 +1,7 @@
+{
+  "status": "passed",
+  "checks": [
+    "real server invalidates session while console mounted",
+    "next protected request returns login"
+  ]
+}

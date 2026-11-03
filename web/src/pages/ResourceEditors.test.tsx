@@ -96,4 +96,38 @@ describe("standalone resource editors", () => {
     expect(patch).not.toHaveBeenCalled();
     expect(location.pathname).toBe("/nodes/created-node/edit");
   });
+
+  it("focuses and describes the invalid node endpoint without dropping other input", async () => {
+    open(NodeEditorPage, "/nodes", "/new");
+    const form = await screen.findByRole("form", { name: "添加节点" });
+    fireEvent.change(within(form).getByLabelText(/节点名称/), { target: { value: "保留的节点名称" } });
+    fireEvent.click(within(form).getByRole("button", { name: "添加第一个入口" }));
+    fireEvent.change(screen.getByLabelText("入口 1 地址"), { target: { value: "" } });
+    fireEvent.submit(form);
+    const field = screen.getByLabelText("入口 1 地址");
+    await waitFor(() => expect(document.activeElement).toBe(field));
+    expect(field.getAttribute("aria-invalid")).toBe("true");
+    expect(document.getElementById(field.getAttribute("aria-describedby")!)?.textContent).toBe("请填写入口地址");
+    expect((screen.getByRole("textbox", { name: /^节点名称/ }) as HTMLInputElement).value).toBe("保留的节点名称");
+  });
+
+  it("focuses the protocol error summary for invalid certificate configuration", async () => {
+    open(NodeEditorPage, "/nodes", "/new");
+    const form = await screen.findByRole("form", { name: "添加节点" });
+    fireEvent.change(within(form).getByLabelText(/节点名称/), { target: { value: "证书测试节点" } });
+    fireEvent.change(within(form).getByLabelText(/证书方式/), { target: { value: "file" } });
+    fireEvent.submit(form);
+    await waitFor(() => expect(document.activeElement?.id).toBe("node-config-error"));
+    expect(document.activeElement?.textContent).toContain("证书文件");
+  });
+
+  it("focuses server-reported node field errors and keeps the form", async () => {
+    vi.spyOn(api, "patch").mockRejectedValue(new ApiError(422, { code: "VALIDATION_ERROR", message: "端口被占用", fields: { server_port: "请使用其他端口" } }));
+    open(NodeEditorPage, "/nodes", `/${demoNodes[0].id}/edit`);
+    const form = await screen.findByRole("form", { name: "编辑节点" });
+    fireEvent.submit(form);
+    await screen.findByText("端口被占用");
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("spinbutton", { name: /^端口/ })));
+    expect(screen.getByRole("form", { name: "编辑节点" })).toBeTruthy();
+  });
 });

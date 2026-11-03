@@ -221,6 +221,7 @@ export function NodeConfigForm({
   kernel,
   settings,
   error,
+  errorID,
   onProtocolChange,
   onSettingsChange,
 }: {
@@ -228,6 +229,7 @@ export function NodeConfigForm({
   kernel: string;
   settings: NodeSettings;
   error?: string;
+  errorID?: string;
   onProtocolChange: (value: string) => void;
   onSettingsChange: (value: NodeSettings) => void;
 }) {
@@ -332,7 +334,7 @@ export function NodeConfigForm({
           <span className="protocol-selector__support">{currentProtocolSupported ? `支持 ${currentProtocol.kernels.map((item) => item === "xray" ? "Xray" : "sing-box").join("、")}` : "不支持当前内核"}</span>
         </div>
       </div>
-      {error && <div className="config-error" role="alert">{error}</div>}
+      {error && <div id={errorID} className="config-error" role="alert" tabIndex={-1}>{error}</div>}
 
       {transportProtocols.has(protocol) && (
         <div className="config-group">

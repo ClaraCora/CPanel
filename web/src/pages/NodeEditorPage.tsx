@@ -146,6 +146,21 @@ function NodeEditor() {
     setErrors((current) => ({ ...current, [key]: "" }));
   }
 
+  function normalizeErrors(fields: Record<string, string>) {
+    return Object.fromEntries(Object.entries(fields).map(([key, message]) => [
+      key.startsWith("config.") ? "config" : key.replace(/^endpoints[.\[](\d+)\]?\.([a-z_]+)$/, "endpoint_$1_$2"), message,
+    ]));
+  }
+
+  function focusError(next: Record<string, string>) {
+    requestAnimationFrame(() => {
+      const key = Object.keys(next)[0];
+      const target = document.getElementById(key === "config" ? "node-config-error" : key)
+        ?? document.getElementById("node-request-error");
+      target?.focus();
+    });
+  }
+
   function validate() {
     const next: Record<string, string> = {};
     if (!form.name.trim()) next.name = "请填写节点名称";
@@ -161,8 +176,7 @@ function NodeEditor() {
       if (!Number.isInteger(Number(endpoint.port)) || Number(endpoint.port) < 1 || Number(endpoint.port) > 65535) next[`endpoint_${index}_port`] = "端口必须是 1 到 65535 之间的整数";
     });
     setErrors(next);
-    if (Object.keys(next).length)
-      document.getElementById(Object.keys(next)[0])?.focus();
+    if (Object.keys(next).length) focusError(next);
     return Object.keys(next).length === 0;
   }
 
@@ -209,7 +223,9 @@ function NodeEditor() {
         }
       } else {
         setRequestError(requestErrorMessage(reason, "保存失败，请检查连接后重试"));
-        if (reason instanceof ApiError) setErrors(reason.fields);
+        const next = reason instanceof ApiError ? normalizeErrors(reason.fields) : {};
+        setErrors(next);
+        focusError(next);
       }
     } finally {
       savingRef.current = false; setSaving("");
@@ -256,7 +272,7 @@ function NodeEditor() {
         noValidate
         onSubmit={(event) => void submit(event, false)}
       >
-        {requestError && <div className="form-alert" role="alert">{requestError}</div>}
+        {requestError && <div id="node-request-error" className="form-alert" role="alert" tabIndex={-1}>{requestError}</div>}
         <fieldset disabled={Boolean(saving)} className="editor-fields">
         <section className="form-section" id="node-endpoints">
           <div className="form-section__heading">
@@ -266,7 +282,7 @@ function NodeEditor() {
             </div>
             <Button type="button" onClick={() => update("endpoints", [...form.endpoints, { name: form.name || "新入口", host: selectedMachine?.host || "", port: Number(form.server_port) || 443, status: "active", access_scope: "default", sort_order: form.endpoints.length }])}><Plus size={15} />添加入口</Button>
           </div>
-          {form.endpoints.length === 0 ? <div className="endpoint-empty"><p>未配置入口时，订阅将使用服务器地址和节点监听端口（默认权限）。</p><Button type="button" onClick={() => update("endpoints", [{ name: form.name || "新入口", host: selectedMachine?.host || "", port: Number(form.server_port) || 443, status: "active", access_scope: "default", sort_order: 0 }])}><Plus size={15} />添加第一个入口</Button></div> : <div className="endpoint-table table-scroll"><table><thead><tr><th>入口名称</th><th>地址</th><th>端口</th><th>权限组</th><th>状态</th><th className="col-actions">操作</th></tr></thead><tbody>{form.endpoints.map((endpoint, index) => <tr key={endpoint.id ?? index}><td data-label="入口名称"><input aria-label={`入口 ${index + 1} 名称`} value={endpoint.name} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} />{errors[`endpoint_${index}_name`] && <span className="field__error">{errors[`endpoint_${index}_name`]}</span>}</td><td data-label="地址"><input aria-label={`入口 ${index + 1} 地址`} className="mono" value={endpoint.host} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, host: event.target.value } : item))} />{errors[`endpoint_${index}_host`] && <span className="field__error">{errors[`endpoint_${index}_host`]}</span>}</td><td data-label="端口"><input aria-label={`入口 ${index + 1} 端口`} type="number" min="1" max="65535" value={endpoint.port} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, port: Number(event.target.value) } : item))} />{errors[`endpoint_${index}_port`] && <span className="field__error">{errors[`endpoint_${index}_port`]}</span>}</td><td data-label="权限范围"><select aria-label={`入口 ${index + 1} 权限组`} value={endpoint.access_scope || "default"} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, access_scope: event.target.value as NodeEndpoint["access_scope"] } : item))}><option value="default">默认</option><option value="admin">仅管理员</option></select>{errors[`endpoint_${index}_access_scope`] && <span className="field__error">{errors[`endpoint_${index}_access_scope`]}</span>}</td><td data-label="状态"><select aria-label={`入口 ${index + 1} 状态`} value={endpoint.status} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, status: event.target.value as NodeEndpoint["status"] } : item))}><option value="active">启用</option><option value="disabled">停用</option></select></td><td data-label="操作" className="row-actions"><button type="button" className="icon-button" aria-label={`删除入口 ${endpoint.name}`} title="删除入口" onClick={() => update("endpoints", form.endpoints.filter((_, itemIndex) => itemIndex !== index))}><Trash2 size={16} /></button></td></tr>)}</tbody></table></div>}
+          {form.endpoints.length === 0 ? <div className="endpoint-empty"><p>未配置入口时，订阅将使用服务器地址和节点监听端口（默认权限）。</p><Button type="button" onClick={() => update("endpoints", [{ name: form.name || "新入口", host: selectedMachine?.host || "", port: Number(form.server_port) || 443, status: "active", access_scope: "default", sort_order: 0 }])}><Plus size={15} />添加第一个入口</Button></div> : <div className="endpoint-table table-scroll"><table><thead><tr><th>入口名称</th><th>地址</th><th>端口</th><th>权限组</th><th>状态</th><th className="col-actions">操作</th></tr></thead><tbody>{form.endpoints.map((endpoint, index) => <tr key={endpoint.id ?? index}><td data-label="入口名称"><input id={`endpoint_${index}_name`} aria-invalid={Boolean(errors[`endpoint_${index}_name`])} aria-describedby={errors[`endpoint_${index}_name`] ? `endpoint_${index}_name-error` : undefined} aria-label={`入口 ${index + 1} 名称`} value={endpoint.name} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} />{errors[`endpoint_${index}_name`] && <span id={`endpoint_${index}_name-error`} className="field__error">{errors[`endpoint_${index}_name`]}</span>}</td><td data-label="地址"><input id={`endpoint_${index}_host`} aria-invalid={Boolean(errors[`endpoint_${index}_host`])} aria-describedby={errors[`endpoint_${index}_host`] ? `endpoint_${index}_host-error` : undefined} aria-label={`入口 ${index + 1} 地址`} className="mono" value={endpoint.host} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, host: event.target.value } : item))} />{errors[`endpoint_${index}_host`] && <span id={`endpoint_${index}_host-error`} className="field__error">{errors[`endpoint_${index}_host`]}</span>}</td><td data-label="端口"><input id={`endpoint_${index}_port`} aria-invalid={Boolean(errors[`endpoint_${index}_port`])} aria-describedby={errors[`endpoint_${index}_port`] ? `endpoint_${index}_port-error` : undefined} aria-label={`入口 ${index + 1} 端口`} type="number" min="1" max="65535" value={endpoint.port} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, port: Number(event.target.value) } : item))} />{errors[`endpoint_${index}_port`] && <span id={`endpoint_${index}_port-error`} className="field__error">{errors[`endpoint_${index}_port`]}</span>}</td><td data-label="权限范围"><select id={`endpoint_${index}_access_scope`} aria-invalid={Boolean(errors[`endpoint_${index}_access_scope`])} aria-describedby={errors[`endpoint_${index}_access_scope`] ? `endpoint_${index}_access_scope-error` : undefined} aria-label={`入口 ${index + 1} 权限组`} value={endpoint.access_scope || "default"} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, access_scope: event.target.value as NodeEndpoint["access_scope"] } : item))}><option value="default">默认</option><option value="admin">仅管理员</option></select>{errors[`endpoint_${index}_access_scope`] && <span id={`endpoint_${index}_access_scope-error`} className="field__error">{errors[`endpoint_${index}_access_scope`]}</span>}</td><td data-label="状态"><select aria-label={`入口 ${index + 1} 状态`} value={endpoint.status} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, status: event.target.value as NodeEndpoint["status"] } : item))}><option value="active">启用</option><option value="disabled">停用</option></select></td><td data-label="操作" className="row-actions"><button type="button" className="icon-button" aria-label={`删除入口 ${endpoint.name}`} title="删除入口" onClick={() => update("endpoints", form.endpoints.filter((_, itemIndex) => itemIndex !== index))}><Trash2 size={16} /></button></td></tr>)}</tbody></table></div>}
         </section>
         <section className="form-section" id="node-basics">
           <div className="form-section__heading">
@@ -312,8 +328,9 @@ function NodeEditor() {
                 ))}
               </select>
             </Field>
-            <Field label="路由策略" helper="留空时使用系统默认直连策略">
+            <Field label="路由策略" error={errors.route_policy_id} helper="留空时使用系统默认直连策略">
               <select
+                id="route_policy_id"
                 value={form.route_policy_id}
                 onChange={(event) =>
                   update("route_policy_id", event.target.value)
@@ -328,15 +345,15 @@ function NodeEditor() {
                 ))}
               </select>
             </Field>
-            <Field label="管理员策略" helper="admin 订阅账号使用；留空回退默认策略">
-              <select value={form.admin_route_policy_id} onChange={(event) => update("admin_route_policy_id", event.target.value)}>
+            <Field label="管理员策略" error={errors.admin_route_policy_id} helper="admin 订阅账号使用；留空回退默认策略">
+              <select id="admin_route_policy_id" value={form.admin_route_policy_id} onChange={(event) => update("admin_route_policy_id", event.target.value)}>
                 <option value="">跟随默认策略</option>
                 {form.admin_route_policy_id && !routes.some((item) => item.id === form.admin_route_policy_id) && <option value={form.admin_route_policy_id}>未找到原绑定策略（{form.admin_route_policy_id}）</option>}
                 {routes.filter((route) => route.scope === "admin").map((route) => <option value={route.id} key={route.id}>{route.name} · rev {route.current_revision}</option>)}
               </select>
             </Field>
-            <Field label="用户/朋友策略" helper="user 与 friend 共用；留空回退默认策略">
-              <select value={form.member_route_policy_id} onChange={(event) => update("member_route_policy_id", event.target.value)}>
+            <Field label="用户/朋友策略" error={errors.member_route_policy_id} helper="user 与 friend 共用；留空回退默认策略">
+              <select id="member_route_policy_id" value={form.member_route_policy_id} onChange={(event) => update("member_route_policy_id", event.target.value)}>
                 <option value="">跟随默认策略</option>
                 {form.member_route_policy_id && !routes.some((item) => item.id === form.member_route_policy_id) && <option value={form.member_route_policy_id}>未找到原绑定策略（{form.member_route_policy_id}）</option>}
                 {routes.filter((route) => route.scope === "member").map((route) => <option value={route.id} key={route.id}>{route.name} · rev {route.current_revision}</option>)}
@@ -352,8 +369,9 @@ function NodeEditor() {
             </div>
           </div>
           <div className="form-grid form-grid--three">
-            <Field label="内核" required>
+            <Field label="内核" required error={errors.kernel_type}>
               <select
+                id="kernel_type"
                 value={form.kernel_type}
                 onChange={(event) => update("kernel_type", event.target.value)}
               >
@@ -361,8 +379,9 @@ function NodeEditor() {
                 <option value="singbox">sing-box</option>
               </select>
             </Field>
-            <Field label="监听地址" required>
+            <Field label="监听地址" required error={errors.listen_ip}>
               <input
+                id="listen_ip"
                 value={form.listen_ip}
                 onChange={(event) => update("listen_ip", event.target.value)}
                 className="mono"
@@ -401,6 +420,7 @@ function NodeEditor() {
             kernel={form.kernel_type}
             settings={form.config}
             error={errors.config}
+            errorID="node-config-error"
             onProtocolChange={(value) => update("protocol", value)}
             onSettingsChange={(value) => update("config", value)}
           />

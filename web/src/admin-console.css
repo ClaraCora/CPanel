@@ -68,6 +68,7 @@ html[data-admin-theme] body { margin: 0; min-width: 320px; background: var(--sur
 .admin-console :is(button, input, select, textarea) { font: inherit; letter-spacing: 0; }
 .admin-console button { cursor: pointer; }
 .admin-console :is(button, a, input, select, textarea):focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.admin-console :is(.config-error, .form-alert):focus { outline: 2px solid var(--focus); outline-offset: 3px; }
 .admin-console :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]) { width: 100%; min-width: 0; border: 1px solid var(--border-strong); border-radius: 8px; color: var(--foreground); background: var(--panel); box-shadow: none; font-size: 14px; }
 .admin-console :is(input, select):not([type="checkbox"]):not([type="radio"]) { height: 40px; padding: 0 12px; }
 .admin-console textarea { min-height: 112px; padding: 10px 12px; line-height: 1.7; resize: vertical; }
@@ -475,8 +476,9 @@ html[data-admin-theme] body { margin: 0; min-width: 320px; background: var(--sur
   .admin-console .resource-categories { gap: 20px; padding: 0 16px; }
   .admin-console .toolbar { padding: 16px; gap: 10px; }
   .admin-console .search-box { width: 100%; }
-  .admin-console .toolbar__filters { min-width: 0; flex: 1; }
-  .admin-console .toolbar__filters select { min-width: 0; max-width: none; }
+  .admin-console .toolbar__filters { min-width: 0; flex: 1 0 100%; }
+  .admin-console .toolbar__filters select { min-width: 0; max-width: none; flex: 1; }
+  .admin-console .toolbar > .data-freshness { flex: 1 0 100%; min-width: 0; overflow-wrap: anywhere; }
   .admin-console .toolbar__count { font-size: 11px; }
   .admin-console .resource-list-footer { font-size: 11px; padding: 14px 16px; }
   .admin-console .resource-list-footer span:last-child { display: none; }
@@ -507,6 +509,8 @@ html[data-admin-theme] body { margin: 0; min-width: 320px; background: var(--sur
   .admin-console .operation-detail-list dd { margin-bottom: 12px; }
   .admin-console .button { min-height: 44px; padding: 10px 13px; }
   .admin-console .icon-button { width: 44px; height: 44px; }
+  .admin-console .clear-row-edit { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 8px; }
+  .admin-console :is(.clear-resource-open, .machine-card__name) { min-height: 44px; min-width: 44px; }
   .admin-console :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]) { font-size: 16px; min-height: 44px; }
   .admin-console .confirm-layer { padding: 16px; }
   .admin-console .confirm-dialog { padding: 24px; }

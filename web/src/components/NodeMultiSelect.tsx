@@ -19,7 +19,7 @@ export function NodeMultiSelect({ value, options, onChange }: { value: string; o
   }, [options, query, selected]);
 
   function commit(next: Set<string>) {
-    onChange(options.filter((option) => next.has(option.value)).map((option) => option.value).join(","));
+    onChange([...next].join(","));
   }
 
   function toggle(id: string) {
@@ -49,6 +49,7 @@ export function NodeMultiSelect({ value, options, onChange }: { value: string; o
       <button type="button" disabled={visible.length === 0} onClick={selectVisible}>全选筛选结果</button>
       <button type="button" disabled={selected.size === 0} onClick={() => commit(new Set())}>清空</button>
     </div>
+    {[...selected].filter((id) => !options.some((option) => option.value === id)).map((id) => <p className="inline-notice" key={id}>未找到已绑定节点 {id}，保存时将保留该绑定。<button type="button" onClick={() => toggle(id)}>移除此绑定</button></p>)}
     <div className="node-picker__list" role="group" aria-label="可访问节点">
       {visible.length === 0 ? <p>没有符合条件的节点</p> : visible.map((option) => {
         const checked = selected.has(option.value);

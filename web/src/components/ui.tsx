@@ -1,12 +1,14 @@
-import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import { Children, cloneElement, isValidElement, createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AlertCircle, CheckCircle2, Info, LoaderCircle, X } from "lucide-react";
 import type { StatusTone } from "../types";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
-export function Button({ variant = "secondary", loading, children, className = "", ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; loading?: boolean }) {
-  return <button className={`button button--${variant} ${className}`} disabled={loading || props.disabled} {...props}>{loading && <LoaderCircle className="spin" size={16} aria-hidden="true" />}{children}</button>;
+function overlayRoot() { return document.getElementById("admin-overlays") ?? document.body; }
+
+export function Button({ variant = "secondary", loading, disabled, children, className = "", ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; loading?: boolean }) {
+  return <button className={`button button--${variant} ${className}`} {...props} disabled={loading || disabled}>{loading && <LoaderCircle className="spin" size={16} aria-hidden="true" />}{children}</button>;
 }
 
 const statusMap: Record<string, { label: string; tone: StatusTone }> = {
@@ -49,7 +51,7 @@ export function DataFreshness({ lastSuccessAt, stale = false, refreshing = false
   return <span className={`data-freshness ${stale ? "data-freshness--stale" : ""}`} role={stale ? "alert" : "status"} title={stale && error ? error : undefined}>{stale ? `更新失败，上次成功 ${time}` : refreshing ? `正在更新 · 上次 ${time}` : `更新于 ${time}`}</span>;
 }
 
-export function Drawer({ open, wide = false, title, description, children, onClose, className = "" }: { open: boolean; wide?: boolean; title: string; description?: string; children: ReactNode; onClose: () => void; className?: string }) {
+export function DetailDialog({ open, command = false, title, description, children, onClose, className = "" }: { open: boolean; command?: boolean; title: string; description?: string; children: ReactNode; onClose: () => void; className?: string }) {
   const titleID = useId();
   const descriptionID = useId();
   const dialogRef = useRef<HTMLElement>(null);
@@ -81,10 +83,11 @@ export function Drawer({ open, wide = false, title, description, children, onClo
     };
   }, [open]);
   if (!open) return null;
-  return createPortal(<div className={`drawer-layer ${className}`.trim()}><button type="button" className="drawer-backdrop" aria-label="关闭对话框背景" onClick={() => onCloseRef.current()} /><section ref={dialogRef} data-modal-root className={`drawer ${wide ? "drawer--wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby={titleID} aria-describedby={description ? descriptionID : undefined} tabIndex={-1}><header className="drawer__header"><div><h2 id={titleID}>{title}</h2>{description && <p id={descriptionID}>{description}</p>}</div><button ref={closeRef} type="button" className="icon-button" aria-label="关闭对话框" title="关闭" onClick={() => onCloseRef.current()}><X size={19} /></button></header><div className="drawer__body">{children}</div></section></div>, document.body);
+  return createPortal(<div className={`detail-layer ${className}`.trim()}><button type="button" className="detail-backdrop" aria-label="关闭对话框背景" onClick={() => onCloseRef.current()} /><section ref={dialogRef} data-modal-root className={`detail-dialog ${command ? "detail-dialog--command" : ""}`} role="dialog" aria-modal="true" aria-labelledby={titleID} aria-describedby={description ? descriptionID : undefined} tabIndex={-1}><header className="detail-dialog__header"><div><h2 id={titleID}>{title}</h2>{description && <p id={descriptionID}>{description}</p>}</div><button ref={closeRef} type="button" className="icon-button" aria-label="关闭对话框" title="关闭" onClick={() => onCloseRef.current()}><X size={19} /></button></header><div className="detail-dialog__body">{children}</div></section></div>, overlayRoot());
 }
 
-export function RowMenu({ label, children, className = "" }: { label: string; children: ReactNode; className?: string }) {
+
+export function RowMenu({ label, children, className = "", trigger, triggerClassName = "" }: { label: string; children: ReactNode; className?: string; trigger?: ReactNode; triggerClassName?: string }) {
   const menuID = useId();
   const anchorRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -105,7 +108,7 @@ export function RowMenu({ label, children, className = "" }: { label: string; ch
   useLayoutEffect(() => { if (open) place(); }, [open, place]);
   useEffect(() => {
     if (!open) return;
-    const frame = window.requestAnimationFrame(() => panelRef.current?.querySelector<HTMLElement>("button, a")?.focus());
+    const frame = window.requestAnimationFrame(() => panelRef.current?.querySelector<HTMLElement>("button:not(:disabled), a[href]")?.focus());
     return () => window.cancelAnimationFrame(frame);
   }, [open]);
   useEffect(() => {
@@ -140,10 +143,10 @@ export function RowMenu({ label, children, className = "" }: { label: string; ch
   }
 
   return <>
-    <button ref={anchorRef} type="button" className="icon-button" aria-label={label} title="更多操作" aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuID : undefined} onClick={() => { setPosition(null); setOpen((value) => !value); }}>
-      <MoreHorizontalIcon />
+    <button ref={anchorRef} type="button" className={triggerClassName || "icon-button"} aria-label={label} title={trigger ? undefined : "更多操作"} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuID : undefined} onClick={() => { setPosition(null); setOpen((value) => !value); }}>
+      {trigger ?? <MoreHorizontalIcon />}
     </button>
-    {open && createPortal(<div ref={panelRef} id={menuID} role="menu" aria-label={label} className={`row-menu__panel row-menu__panel--portal ${className}`.trim()} style={{ left: position?.left ?? 0, top: position?.top ?? 0, visibility: position ? "visible" : "hidden" }} onKeyDown={navigateMenu} onClick={(event) => { if ((event.target as Element).closest("button, a")) close(); }}>{children}</div>, document.body)}
+    {open && createPortal(<div ref={panelRef} id={menuID} role="menu" aria-label={label} className={`row-menu__panel row-menu__panel--portal ${className}`.trim()} style={{ left: position?.left ?? 0, top: position?.top ?? 0, visibility: position ? "visible" : "hidden" }} onKeyDown={navigateMenu} onClick={(event) => { if ((event.target as Element).closest("button, a")) { anchorRef.current?.focus(); close(); } }}>{Children.map(children, (child) => isValidElement<Record<string, unknown>>(child) ? cloneElement(child, { role: "menuitem" }) : child)}</div>, overlayRoot())}
   </>;
 }
 
@@ -151,7 +154,7 @@ function MoreHorizontalIcon() {
   return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>;
 }
 
-export function ConfirmDialog({ open, title, description, confirmLabel = "确认", confirmVariant = "danger", loading = false, onConfirm, onClose }: { open: boolean; title: string; description: string; confirmLabel?: string; confirmVariant?: ButtonVariant; loading?: boolean; onConfirm: () => void; onClose: () => void }) {
+export function ConfirmDialog({ open, title, description, confirmLabel = "确认", confirmVariant = "danger", cancelLabel = "取消", loading = false, onConfirm, onClose }: { open: boolean; title: string; description: string; confirmLabel?: string; cancelLabel?: string; confirmVariant?: ButtonVariant; loading?: boolean; onConfirm: () => void; onClose: () => void }) {
   const titleID = useId();
   const descriptionID = useId();
   const dialogRef = useRef<HTMLElement>(null);
@@ -185,7 +188,7 @@ export function ConfirmDialog({ open, title, description, confirmLabel = "确认
     };
   }, [open]);
   if (!open) return null;
-  return createPortal(<div className="confirm-layer"><button type="button" className="confirm-backdrop" aria-label="取消并关闭" onClick={() => { if (!loading) onCloseRef.current(); }} /><section ref={dialogRef} data-modal-root className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby={titleID} aria-describedby={descriptionID} tabIndex={-1}><h2 id={titleID}>{title}</h2><p id={descriptionID}>{description}</p><footer><button ref={cancelRef} type="button" className="button button--secondary" onClick={() => onCloseRef.current()} disabled={loading}>取消</button><Button type="button" variant={confirmVariant} loading={loading} onClick={onConfirm}>{confirmLabel}</Button></footer></section></div>, document.body);
+  return createPortal(<div className="confirm-layer"><button type="button" className="confirm-backdrop" aria-label="取消并关闭" onClick={() => { if (!loading) onCloseRef.current(); }} /><section ref={dialogRef} data-modal-root className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby={titleID} aria-describedby={descriptionID} tabIndex={-1}><h2 id={titleID}>{title}</h2><p id={descriptionID}>{description}</p><footer><button ref={cancelRef} type="button" className="button button--secondary" onClick={() => onCloseRef.current()} disabled={loading}>{cancelLabel}</button><Button type="button" variant={confirmVariant} loading={loading} onClick={onConfirm}>{confirmLabel}</Button></footer></section></div>, overlayRoot());
 }
 
 const focusableSelector = [
@@ -239,8 +242,14 @@ function lockDocumentScroll() {
 }
 
 export function Field({ label, required, error, helper, group = false, children }: { label: string; required?: boolean; error?: string; helper?: string; group?: boolean; children: ReactNode }) {
-  const content = <><span className="field__label">{label}{required && <b aria-hidden="true"> *</b>}</span>{children}{error ? <span className="field__error" role="alert">{error}</span> : helper ? <span className="field__helper">{helper}</span> : null}</>;
-  return group ? <div className={`field ${error ? "field--error" : ""}`}>{content}</div> : <label className={`field ${error ? "field--error" : ""}`}>{content}</label>;
+  const id = useId();
+  const description = error || helper ? `${id}-description` : undefined;
+  const controls = Children.map(children, (child) => {
+    if (!isValidElement<Record<string, unknown>>(child) || !["input", "select", "textarea"].includes(String(child.type))) return child;
+    return cloneElement(child, { "aria-invalid": error ? true : undefined, "aria-describedby": [child.props["aria-describedby"], description].filter(Boolean).join(" ") || undefined });
+  });
+  const content = <><span id={`${id}-label`} className="field__label">{label}{required && <b aria-hidden="true"> *</b>}</span>{controls}{error ? <span id={description} className="field__error" role="alert">{error}</span> : helper ? <span id={description} className="field__helper">{helper}</span> : null}</>;
+  return group ? <div role="group" aria-labelledby={`${id}-label`} aria-describedby={description} className={`field ${error ? "field--error" : ""}`}>{content}</div> : <label className={`field ${error ? "field--error" : ""}`}>{content}</label>;
 }
 
 type ToastItem = { id: number; tone: "success" | "error"; message: string };
@@ -253,7 +262,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setItems((value) => [...value, { id, tone, message }]);
     window.setTimeout(() => setItems((value) => value.filter((item) => item.id !== id)), 4000);
   }, []);
-  return <ToastContext.Provider value={show}>{children}{createPortal(<div className="toast-region" aria-live="polite">{items.map((item) => <div className={`toast toast--${item.tone}`} key={item.id}>{item.tone === "success" ? <CheckCircle2 size={17} /> : <AlertCircle size={17} />}<span>{item.message}</span><button aria-label="关闭通知" onClick={() => setItems((value) => value.filter((entry) => entry.id !== item.id))}><X size={15} /></button></div>)}</div>, document.body)}</ToastContext.Provider>;
+  return <ToastContext.Provider value={show}>{children}{createPortal(<div className="toast-region" aria-live="polite">{items.map((item) => <div className={`toast toast--${item.tone}`} key={item.id}>{item.tone === "success" ? <CheckCircle2 size={17} /> : <AlertCircle size={17} />}<span>{item.message}</span><button aria-label="关闭通知" onClick={() => setItems((value) => value.filter((entry) => entry.id !== item.id))}><X size={15} /></button></div>)}</div>, overlayRoot())}</ToastContext.Provider>;
 }
 
 export const useToast = () => useContext(ToastContext);

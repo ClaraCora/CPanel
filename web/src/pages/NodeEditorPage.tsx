@@ -13,6 +13,7 @@ import { Link, useLocation, useParams, useSearchParams } from "wouter";
 import { ApiError, api } from "../api";
 import {
   Button,
+  EmptyState,
   Field,
   PageHeader,
   TableSkeleton,
@@ -27,6 +28,9 @@ import {
 } from "../components/NodeConfigForm";
 import { useResource } from "../hooks";
 import type { Machine, Node, NodeEndpoint, RoutePolicy, Setting } from "../types";
+import { useUnsavedChanges } from "../components/AdminNavigation";
+import { safeReturnTo } from "../navigation";
+import { requestErrorMessage } from "../resourceModel";
 import { prepareHysteriaTLS } from "../nodeTLS";
 
 type NodeForm = {
@@ -58,71 +62,80 @@ const emptyForm: NodeForm = {
 
 export function NodeEditorPage() {
   const { id } = useParams();
+  const [params] = useSearchParams();
+  return <NodeEditor key={`${id || "new"}:${params.get("copy") || ""}`} />;
+}
+
+function NodeEditor() {
+  const { id } = useParams();
   const [searchParams] = useSearchParams();
   const copyID = searchParams.get("copy");
   const editing = Boolean(id);
   const copying = !editing && Boolean(copyID);
   const [, navigate] = useLocation();
   const toast = useToast();
-  const { data: machines, loading: machinesLoading } = useResource<Machine[]>(
+  const { data: machines, loading: machinesLoading, error: machinesError, reload: reloadMachines } = useResource<Machine[]>(
     "/machines",
     [],
   );
-  const { data: routes } = useResource<RoutePolicy[]>("/route-policies", []);
-  const { data: nodeDefaults } = useResource<Setting[]>("/settings/node_defaults", []);
-  const defaultsApplied = useRef(false);
+  const { data: routes, loading: routesLoading, error: routesError, reload: reloadRoutes } = useResource<RoutePolicy[]>("/route-policies", []);
+  const { data: nodeDefaults, loading: defaultsLoading, error: defaultsError, reload: reloadDefaults } = useResource<Setting[]>("/settings/node_defaults", []);
+  const initialized = useRef(false);
+  const savingRef = useRef(false);
+  const savedID = useRef(id || "");
+  const [returnTo] = useState(() => safeReturnTo("/nodes"));
+  const [initial, setInitial] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [missing, setMissing] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [pendingPublish, setPendingPublish] = useState(Boolean(history.state?.nodePublishFailed));
   const [form, setForm] = useState<NodeForm>(emptyForm);
   const [activeSection, setActiveSection] = useState("node-endpoints");
   const [nodeLoading, setNodeLoading] = useState(editing || copying);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [requestError, setRequestError] = useState("");
+  const [requestError, setRequestError] = useState(history.state?.nodePublishFailed ? "配置已保存，发布失败。请重试发布；无需重新创建节点。" : "");
   const [saving, setSaving] = useState<"save" | "publish" | "">("");
+
+  const dirty = initialized.current && JSON.stringify(form) !== initial;
+  const bypass = useUnsavedChanges(dirty, Boolean(saving));
+  const relatedError = machinesError || routesError || defaultsError;
+  const relatedLoading = machinesLoading || routesLoading || defaultsLoading;
 
   useEffect(() => {
     const sourceID = id || copyID;
     if (!sourceID) return;
-    setNodeLoading(true);
-    api
-      .get<Node>(`/nodes/${sourceID}`)
-      .then((node) =>
-        setForm({
-          name: copying ? `${node.name} 副本` : node.name,
-          machine_id: node.machine_id,
-          route_policy_id: node.route_policy_id ?? "",
-          admin_route_policy_id: node.admin_route_policy_id ?? "",
-          member_route_policy_id: node.member_route_policy_id ?? "",
-          protocol: node.protocol === "hysteria2" ? "hysteria" : node.protocol,
-          listen_ip: node.listen_ip,
-          server_port: String(node.server_port),
-          kernel_type: node.kernel_type,
-          config: prepareHysteriaTLS(node.protocol, node.protocol === "hysteria2" ? { ...node.config, version: 2 } : node.config ?? {}),
-          endpoints: (node.endpoints ?? []).map((endpoint) => ({ ...endpoint, access_scope: endpoint.access_scope || "default" })),
-        }),
-      )
-      .catch((reason) =>
-        setRequestError(
-          reason instanceof Error ? reason.message : "节点加载失败",
-        ),
-      )
-      .finally(() => setNodeLoading(false));
-  }, [copyID, copying, id]);
+    const controller = new AbortController();
+    setNodeLoading(true); setLoadError(""); setMissing(false);
+    api.get<Node>(`/nodes/${sourceID}`, controller.signal).then((node) => {
+      if (controller.signal.aborted) return;
+      const next: NodeForm = {
+        name: copying ? `${node.name} 副本` : node.name,
+        machine_id: node.machine_id,
+        route_policy_id: node.route_policy_id ?? "",
+        admin_route_policy_id: node.admin_route_policy_id ?? "",
+        member_route_policy_id: node.member_route_policy_id ?? "",
+        protocol: node.protocol === "hysteria2" ? "hysteria" : node.protocol,
+        listen_ip: node.listen_ip,
+        server_port: String(node.server_port),
+        kernel_type: node.kernel_type,
+        config: prepareHysteriaTLS(node.protocol, node.protocol === "hysteria2" ? { ...node.config, version: 2 } : node.config ?? {}),
+        endpoints: (node.endpoints ?? []).map((endpoint) => ({ ...endpoint, access_scope: endpoint.access_scope || "default" })),
+      };
+      initialized.current = true; setForm(next); setInitial(JSON.stringify(next));
+    }).catch((reason) => {
+      if (controller.signal.aborted) return;
+      if (reason instanceof ApiError && reason.status === 404) setMissing(true);
+      else setLoadError(requestErrorMessage(reason, "节点加载失败"));
+    }).finally(() => { if (!controller.signal.aborted) setNodeLoading(false); });
+    return () => controller.abort();
+  }, [attempt, copyID, copying, id]);
 
   useEffect(() => {
-    if (!editing && !copying && !defaultsApplied.current && nodeDefaults.length) {
-      const stored = new Map(nodeDefaults.map((item) => [item.key, String(item.value ?? "")]));
-      setForm((value) => ({
-        ...value,
-        kernel_type: stored.get("default_kernel") || "xray",
-        listen_ip: stored.get("listen_ip") || "0.0.0.0",
-      }));
-      defaultsApplied.current = true;
-    }
-  }, [copying, editing, nodeDefaults]);
-
-  useEffect(() => {
-    if (!editing && !copying && !form.machine_id && machines.length)
-      setForm((value) => ({ ...value, machine_id: machines[0].id }));
-  }, [copying, editing, form.machine_id, machines]);
+    if (editing || copying || initialized.current || relatedLoading || relatedError) return;
+    const stored = new Map(nodeDefaults.map((item) => [item.key, String(item.value ?? "")]));
+    const next = { ...emptyForm, config: structuredClone(emptyForm.config), endpoints: [], machine_id: machines[0]?.id || "", kernel_type: stored.get("default_kernel") || "xray", listen_ip: stored.get("listen_ip") || "0.0.0.0" };
+    initialized.current = true; setForm(next); setInitial(JSON.stringify(next));
+  }, [copying, editing, machines, nodeDefaults, relatedError, relatedLoading]);
 
   const selectedMachine = useMemo(
     () => machines.find((item) => item.id === form.machine_id),
@@ -155,7 +168,8 @@ export function NodeEditorPage() {
 
   async function submit(event: FormEvent, publish: boolean) {
     event.preventDefault();
-    if (!validate()) return;
+    if (savingRef.current || !initialized.current || relatedLoading || relatedError || !validate()) return;
+    savingRef.current = true;
     setSaving(publish ? "publish" : "save");
     setRequestError("");
     const payload = {
@@ -171,34 +185,50 @@ export function NodeEditorPage() {
       config: prepareHysteriaTLS(form.protocol, form.config),
       endpoints: form.endpoints.map((endpoint, index) => ({ ...endpoint, name: endpoint.name.trim(), host: endpoint.host.trim(), port: Number(endpoint.port), sort_order: index })),
     };
+    let configurationSaved = false;
     try {
-      const node = editing
-        ? await api.patch<Node>(`/nodes/${id}`, payload)
+      if (!(publish && pendingPublish && !dirty && savedID.current)) {
+        const node = savedID.current
+        ? await api.patch<Node>(`/nodes/${savedID.current}`, payload)
         : await api.post<Node>("/nodes", payload);
-      if (publish) await api.post(`/nodes/${node.id}/publish`);
-      toast(publish ? "节点配置已保存并发布" : "节点配置已保存");
-      navigate("/nodes");
+        savedID.current = node.id;
+        setInitial(JSON.stringify(form));
+      }
+      configurationSaved = true;
+      if (publish) await api.post(`/nodes/${savedID.current}/publish`);
+      setPendingPublish(false);
+      toast(publish ? "配置已提交，等待 Agent 应用" : "节点草稿已保存，尚未发布");
+      bypass(() => navigate(returnTo, { replace: true }));
     } catch (reason) {
-      if (reason instanceof ApiError) {
-        setRequestError(reason.message);
-        setErrors(reason.fields);
-      } else setRequestError("保存失败，请检查连接后重试");
+      if (configurationSaved && publish) {
+        setPendingPublish(true);
+        setRequestError(`配置已保存，发布失败：${requestErrorMessage(reason, "请重试发布")}`);
+        if (!editing && savedID.current) {
+          const query = new URLSearchParams({ returnTo });
+          bypass(() => navigate(`/nodes/${encodeURIComponent(savedID.current)}/edit?${query}`, { replace: true, state: { nodePublishFailed: true } }));
+        }
+      } else {
+        setRequestError(requestErrorMessage(reason, "保存失败，请检查连接后重试"));
+        if (reason instanceof ApiError) setErrors(reason.fields);
+      }
     } finally {
-      setSaving("");
+      savingRef.current = false; setSaving("");
     }
   }
 
-  if (nodeLoading || machinesLoading)
+  if (!nodeLoading && !relatedLoading && (loadError || relatedError || missing)) return <div className="page resource-editor-page"><PageHeader title={missing ? "节点不存在" : "节点加载失败"} /><EmptyState title={missing ? "记录可能已被删除" : "无法加载节点或关联配置"} description={loadError || relatedError || "请返回列表确认。"} action={missing ? <Link className="button button--secondary" to={returnTo}>返回节点列表</Link> : <Button onClick={() => { setAttempt((value) => value + 1); void reloadMachines(); void reloadRoutes(); void reloadDefaults(); }}>重新加载</Button>} /></div>;
+
+  if (nodeLoading || relatedLoading)
     return (
-      <div className="page clear-resources clear-operations clear-node-editor">
+      <div className="page resource-page operations-page admin-node-editor">
          <PageHeader title={editing ? "编辑节点" : copying ? "复制节点" : "添加节点"} />
         <TableSkeleton columns={2} rows={7} />
       </div>
     );
   return (
-    <div className="page page--editor clear-resources clear-operations clear-node-editor">
+    <div className="page page--editor resource-page operations-page admin-node-editor">
       <div className="back-row">
-        <Link to="/nodes">
+        <Link to={returnTo}>
           <ArrowLeft size={16} />
           返回节点列表
         </Link>
@@ -213,21 +243,21 @@ export function NodeEditorPage() {
             : "创建节点配置并绑定到一台 Corade 服务器。"
         }
       />
-      <div className="node-editor-layout"><nav className="editor-section-nav" aria-label="节点编辑章节">
-        <a href="#node-endpoints" aria-current={activeSection === "node-endpoints" ? "location" : undefined} onClick={() => setActiveSection("node-endpoints")}>节点入口</a>
-        <a href="#node-basics" aria-current={activeSection === "node-basics" ? "location" : undefined} onClick={() => setActiveSection("node-basics")}>基础信息</a>
-        <a href="#node-listener" aria-current={activeSection === "node-listener" ? "location" : undefined} onClick={() => setActiveSection("node-listener")}>协议与监听</a>
-        <a href="#node-protocol" aria-current={activeSection === "node-protocol" ? "location" : undefined} onClick={() => setActiveSection("node-protocol")}>协议配置</a>
+      <div className="editor-layout node-editor-layout"><nav className="editor-section-nav" aria-label="节点编辑章节">
+        <button type="button" aria-current={activeSection === "node-endpoints" ? "location" : undefined} onClick={() => { setActiveSection("node-endpoints"); document.getElementById("node-endpoints")?.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" }); }}>节点入口</button>
+        <button type="button" aria-current={activeSection === "node-basics" ? "location" : undefined} onClick={() => { setActiveSection("node-basics"); document.getElementById("node-basics")?.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" }); }}>基础信息</button>
+        <button type="button" aria-current={activeSection === "node-listener" ? "location" : undefined} onClick={() => { setActiveSection("node-listener"); document.getElementById("node-listener")?.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" }); }}>协议与监听</button>
+        <button type="button" aria-current={activeSection === "node-protocol" ? "location" : undefined} onClick={() => { setActiveSection("node-protocol"); document.getElementById("node-protocol")?.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" }); }}>协议配置</button>
       </nav>
-      {requestError && (
-        <div className="form-alert" role="alert">
-          {requestError}
-        </div>
-      )}
       <form
         className="editor-form"
+        aria-label={editing ? "编辑节点" : copying ? "复制节点" : "添加节点"}
+        aria-busy={Boolean(saving)}
+        noValidate
         onSubmit={(event) => void submit(event, false)}
       >
+        {requestError && <div className="form-alert" role="alert">{requestError}</div>}
+        <fieldset disabled={Boolean(saving)} className="editor-fields">
         <section className="form-section" id="node-endpoints">
           <div className="form-section__heading">
             <div>
@@ -274,6 +304,7 @@ export function NodeEditorPage() {
                 }}
               >
                 <option value="">请选择服务器</option>
+                {form.machine_id && !machines.some((item) => item.id === form.machine_id) && <option value={form.machine_id}>未找到服务器（{form.machine_id}）</option>}
                 {machines.map((machine) => (
                   <option value={machine.id} key={machine.id}>
                     {machine.name} · {machine.region || "未设置区域"}
@@ -289,6 +320,7 @@ export function NodeEditorPage() {
                 }
               >
                 <option value="">不单独绑定</option>
+                {form.route_policy_id && !routes.some((item) => item.id === form.route_policy_id) && <option value={form.route_policy_id}>未找到原绑定策略（{form.route_policy_id}）</option>}
                 {routes.filter((route) => (route.scope ?? "default") === "default").map((route) => (
                   <option value={route.id} key={route.id}>
                     {route.name} · rev {route.current_revision}
@@ -299,12 +331,14 @@ export function NodeEditorPage() {
             <Field label="管理员策略" helper="admin 订阅账号使用；留空回退默认策略">
               <select value={form.admin_route_policy_id} onChange={(event) => update("admin_route_policy_id", event.target.value)}>
                 <option value="">跟随默认策略</option>
+                {form.admin_route_policy_id && !routes.some((item) => item.id === form.admin_route_policy_id) && <option value={form.admin_route_policy_id}>未找到原绑定策略（{form.admin_route_policy_id}）</option>}
                 {routes.filter((route) => route.scope === "admin").map((route) => <option value={route.id} key={route.id}>{route.name} · rev {route.current_revision}</option>)}
               </select>
             </Field>
             <Field label="用户/朋友策略" helper="user 与 friend 共用；留空回退默认策略">
               <select value={form.member_route_policy_id} onChange={(event) => update("member_route_policy_id", event.target.value)}>
                 <option value="">跟随默认策略</option>
+                {form.member_route_policy_id && !routes.some((item) => item.id === form.member_route_policy_id) && <option value={form.member_route_policy_id}>未找到原绑定策略（{form.member_route_policy_id}）</option>}
                 {routes.filter((route) => route.scope === "member").map((route) => <option value={route.id} key={route.id}>{route.name} · rev {route.current_revision}</option>)}
               </select>
             </Field>
@@ -371,14 +405,14 @@ export function NodeEditorPage() {
             onSettingsChange={(value) => update("config", value)}
           />
         </section>
+        </fieldset>
         <footer className="editor-actions">
+          <span className="editor-status" role="status">{saving ? "正在提交…" : dirty ? "有未保存修改" : pendingPublish ? "配置已保存，等待重新发布" : "配置已加载"}</span>
           <div>
-            <Link className="button button--ghost" to="/nodes">
-              取消
-            </Link>
+            <Button type="button" variant="ghost" disabled={Boolean(saving)} onClick={() => navigate(returnTo, { replace: true })}>取消</Button>
           </div>
           <div>
-            <Button type="submit" loading={saving === "save"}>
+            <Button type="submit" loading={saving === "save"} disabled={Boolean(saving)}>
               <Save size={16} />
               保存草稿
             </Button>
@@ -386,12 +420,13 @@ export function NodeEditorPage() {
               type="button"
               variant="primary"
               loading={saving === "publish"}
+              disabled={Boolean(saving)}
               onClick={(event) =>
                 void submit(event as unknown as FormEvent, true)
               }
             >
               <Rocket size={16} />
-              保存并发布
+              {pendingPublish && !dirty ? "重试发布" : "保存并发布"}
             </Button>
           </div>
         </footer>

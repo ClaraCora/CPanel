@@ -1,6 +1,5 @@
-import { useState } from "react";
 import { Clock3, Settings } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useSearchParams } from "wouter";
 import { Button, EmptyState, PageHeader, Pagination, StatusBadge, TableSkeleton, formatBytes, formatDate } from "../components/ui";
 import { ResourceListNote } from "../components/ResourceList";
 import { usePagedResource, useResource } from "../hooks";
@@ -18,11 +17,13 @@ type View = "traffic" | "machines" | "nodes" | "devices";
 
 export function HistoryPage() {
   const { data, loading, error, reload } = useResource<HistoricalData>("/history", emptyHistory);
-  const [view, setView] = useState<View>("traffic");
+  const [params, setParams] = useSearchParams();
+  const view = (["traffic", "machines", "nodes", "devices"].includes(params.get("view") || "") ? params.get("view") : "traffic") as View;
+  const setView = (value: View) => setParams((current) => { const next = new URLSearchParams(current); next.set("view", value); next.delete("page"); return next; }, { replace: true });
   const paged = usePagedResource<DailyTraffic | MetricSample | DeviceHistory>(`/history?view=${view}`);
   const retentionLabel = view === "traffic" ? `保留 ${data.retention.traffic_days} 天` : view === "devices" ? `保留 ${data.retention.devices_days} 天` : "仅保留最新值";
 
-  return <div className="page clear-resources clear-operations clear-history">
+  return <div className="page resource-page operations-page admin-history">
     <PageHeader title="历史数据" description="查看保留期内的流量、运行指标与设备连接记录" actions={<Link className="button button--secondary" to="/settings?section=retention"><Settings size={16} />保留设置</Link>} />
     <section className="clear-list"><div className="history-toolbar">
       <div className="history-tabs" role="group" aria-label="历史数据类型">

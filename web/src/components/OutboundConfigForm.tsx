@@ -191,7 +191,7 @@ export function OutboundConfigForm({ protocol, settings, proxyTag, outbounds, cu
 
     <div className="config-group outbound-chain">
       <div className="config-group__heading"><h3>链式出站</h3></div>
-      <div className="config-fields config-fields--single"><Field label="上游出站"><select value={proxyTag} onChange={(event) => onProxyTagChange(event.target.value)}><option value="">不使用上游</option>{outbounds.filter((item) => item.id !== currentID && item.status === "active" && item.protocol !== "direct" && item.protocol !== "block").map((item) => <option value={item.tag} key={item.id}>{item.name} · {item.tag}</option>)}</select></Field></div>
+      <div className="config-fields config-fields--single"><Field label="上游出站"><select value={proxyTag} onChange={(event) => onProxyTagChange(event.target.value)}><option value="">不使用上游</option>{proxyTag && !outbounds.some((item) => item.tag === proxyTag && item.id !== currentID && item.status === "active") && <option value={proxyTag}>原上游暂不可用（{proxyTag}）</option>}{outbounds.filter((item) => item.id !== currentID && item.status === "active" && item.protocol !== "direct" && item.protocol !== "block").map((item) => <option value={item.tag} key={item.id}>{item.name} · {item.tag}</option>)}</select></Field></div>
     </div>
   </div>;
 }

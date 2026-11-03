@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ChevronDown, ChevronUp, Globe, Database, Server, Network, FileKey2, Eye, EyeOff, KeyRound, LockKeyhole, RefreshCw, Save, ScrollText, Send, ShieldCheck, UserRound } from "lucide-react";
 import { useSearchParams } from "wouter";
 import { ApiError, api } from "../api";
 import { Button, EmptyState, Field, PageHeader, Pagination, TableSkeleton, formatPreciseDate, useToast } from "../components/ui";
+import { useUnsavedChanges } from "../components/AdminNavigation";
+import { sameFormValues } from "../resourceModel";
 import { ResourceListNote } from "../components/ResourceList";
 import { usePagedResource, useResource } from "../hooks";
 import type { Admin, Setting, SubscriptionAccessEvent } from "../types";
@@ -24,15 +26,16 @@ const sections: SettingSection[] = [
 ];
 
 export function SettingsPage({ admin, onAdminChange }: { admin: Admin; onAdminChange: (admin: Admin) => void }) {
-  const [params] = useSearchParams();
-  const [active, setActive] = useState(() => sections.some((item) => item.id === params.get("section")) ? params.get("section")! : "account");
+  const [params, setParams] = useSearchParams();
+  const active = sections.some((item) => item.id === params.get("section")) ? params.get("section")! : "account";
+  const setActive = (value: string) => setParams((current) => { const next = new URLSearchParams(current); next.set("section", value); return next; }, { replace: true });
   const icons = [UserRound, Globe, Server, ShieldCheck, Network, FileKey2, Send, Database];
-  return <div className="page clear-resources clear-operations clear-settings"><PageHeader title="系统设置" description="维护管理员账户、站点与运行参数" /><div className="settings-layout"><nav className="settings-nav" aria-label="设置分区">{sections.map((item, index) => { const Icon = icons[index]; return <button type="button" aria-pressed={item.id === active} className={item.id === active ? "active" : ""} onClick={() => setActive(item.id)} key={item.id}><Icon size={16} /><strong>{item.label}</strong></button>; })}<p className="settings-context">修改配置后，请保存当前分区。切换分类会保留未保存的输入。</p></nav><div className="settings-panels">{sections.map((section) => <section className="settings-content" key={section.id} hidden={section.id !== active}><header><div><h2>{section.label}</h2><p>{section.description}</p></div>{section.fields?.some((field) => field.sensitive) && <span className="security-note"><KeyRound size={15} />敏感值加密存储</span>}</header>{section.id === "account" ? <AccountSettings admin={admin} onAdminChange={onAdminChange} /> : <SystemSettingForm section={section} />}</section>)}</div></div><ResourceListNote>所有变更都会记录到审计日志；敏感值留空时保留原值。</ResourceListNote></div>;
+  return <div className="page resource-page operations-page admin-settings"><PageHeader title="系统设置" description="维护管理员账户、站点与运行参数" /><div className="settings-layout"><nav className="settings-nav" aria-label="设置分区">{sections.map((item, index) => { const Icon = icons[index]; return <button type="button" aria-pressed={item.id === active} className={item.id === active ? "active" : ""} onClick={() => setActive(item.id)} key={item.id}><Icon size={16} /><strong>{item.label}</strong></button>; })}<p className="settings-context">修改配置后，请保存当前分区。切换分类会保留未保存的输入。</p></nav><div className="settings-panels">{sections.map((section) => <section className="settings-content" key={section.id} hidden={section.id !== active}><header><div><h2>{section.label}</h2><p>{section.description}</p></div>{section.fields?.some((field) => field.sensitive) && <span className="security-note"><KeyRound size={15} />敏感值加密存储</span>}</header>{section.id === "account" ? <AccountSettings admin={admin} onAdminChange={onAdminChange} /> : <SystemSettingForm section={section} />}</section>)}</div></div><ResourceListNote>所有变更都会记录到审计日志；敏感值留空时保留原值。</ResourceListNote></div>;
 }
 
 export function SubscriptionPage() {
   const [expanded, setExpanded] = useState(() => !window.matchMedia("(max-width: 700px)").matches);
-  return <div className="page clear-resources clear-operations clear-subscription"><PageHeader title="订阅" description="管理订阅输出、访问策略与客户端拉取记录" /><div className="operation-stack"><section className="settings-content"><header><div><h2>{subscriptionSection.label}</h2><p>{subscriptionSection.description}</p></div><Button type="button" aria-expanded={expanded} aria-controls="subscription-settings" onClick={() => setExpanded((value) => !value)}>{expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}{expanded ? "收起设置" : "展开设置"}</Button></header><div id="subscription-settings" hidden={!expanded}><SystemSettingForm section={subscriptionSection} /></div></section><SubscriptionAccessLog /></div></div>;
+  return <div className="page resource-page operations-page admin-subscription"><PageHeader title="订阅" description="管理订阅输出、访问策略与客户端拉取记录" /><div className="operation-stack"><section className="settings-content"><header><div><h2>{subscriptionSection.label}</h2><p>{subscriptionSection.description}</p></div><Button type="button" aria-expanded={expanded} aria-controls="subscription-settings" onClick={() => setExpanded((value) => !value)}>{expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}{expanded ? "收起设置" : "展开设置"}</Button></header><div id="subscription-settings" hidden={!expanded}><SystemSettingForm section={subscriptionSection} /></div></section><SubscriptionAccessLog /></div></div>;
 }
 
 function AccountSettings({ admin, onAdminChange }: { admin: Admin; onAdminChange: (admin: Admin) => void }) {
@@ -45,18 +48,21 @@ function AccountSettings({ admin, onAdminChange }: { admin: Admin; onAdminChange
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const toast = useToast();
+  const locks = useRef(new Set<string>());
+  useUnsavedChanges(profile.name !== admin.name || profile.email !== admin.email || Object.values(password).some(Boolean), profileSaving || passwordSaving);
   const configuredMinimum = Number(securitySettings.find((item) => item.key === "password_min_length")?.value ?? 8);
   const passwordMinimum = Number.isInteger(configuredMinimum) && configuredMinimum >= 8 ? configuredMinimum : 8;
   useEffect(() => setProfile({ name: admin.name, email: admin.email }), [admin.email, admin.name]);
 
   async function saveProfile(event: FormEvent) {
     event.preventDefault();
+    if (locks.current.has("profile")) return;
     const errors: Record<string, string> = {};
     if (!profile.name.trim()) errors.name = "请填写管理员名称";
     if (!/^\S+@\S+\.\S+$/.test(profile.email.trim())) errors.email = "请填写有效的管理员邮箱";
     setProfileErrors(errors);
     if (Object.keys(errors).length) return;
-    setProfileSaving(true);
+    locks.current.add("profile"); setProfileSaving(true);
     try {
       const updated = await api.patch<Admin>("/account/profile", { name: profile.name.trim(), email: profile.email.trim() });
       onAdminChange(updated);
@@ -64,18 +70,19 @@ function AccountSettings({ admin, onAdminChange }: { admin: Admin; onAdminChange
     } catch (reason) {
       if (reason instanceof ApiError) setProfileErrors(reason.fields);
       toast(reason instanceof ApiError ? reason.message : "管理员资料保存失败", "error");
-    } finally { setProfileSaving(false); }
+    } finally { locks.current.delete("profile"); setProfileSaving(false); }
   }
 
   async function savePassword(event: FormEvent) {
     event.preventDefault();
+    if (locks.current.has("password")) return;
     const errors: Record<string, string> = {};
     if (!password.current_password) errors.current_password = "请输入当前密码";
     if (Array.from(password.new_password).length < passwordMinimum) errors.new_password = `新密码至少需要 ${passwordMinimum} 个字符`;
     if (password.new_password !== password.confirm_password) errors.confirm_password = "两次输入的新密码不一致";
     setPasswordErrors(errors);
     if (Object.keys(errors).length) return;
-    setPasswordSaving(true);
+    locks.current.add("password"); setPasswordSaving(true);
     try {
       await api.patch("/account/password", password);
       setPassword({ current_password: "", new_password: "", confirm_password: "" });
@@ -83,11 +90,11 @@ function AccountSettings({ admin, onAdminChange }: { admin: Admin; onAdminChange
     } catch (reason) {
       if (reason instanceof ApiError) setPasswordErrors(reason.fields);
       toast(reason instanceof ApiError ? reason.message : "密码修改失败", "error");
-    } finally { setPasswordSaving(false); }
+    } finally { locks.current.delete("password"); setPasswordSaving(false); }
   }
 
   const passwordType = showPassword ? "text" : "password";
-  return <div className="account-settings"><form className="settings-form account-form" onSubmit={saveProfile}><div className="account-form__heading"><UserRound size={18} /><div><h3>账户资料</h3><p>用于登录后台、侧栏展示和审计记录。</p></div></div><Field label="管理员名称" required error={profileErrors.name}><input value={profile.name} onChange={(event) => setProfile((current) => ({ ...current, name: event.target.value }))} autoComplete="name" /></Field><Field label="登录邮箱" required error={profileErrors.email}><input type="email" value={profile.email} onChange={(event) => setProfile((current) => ({ ...current, email: event.target.value }))} autoComplete="username" /></Field><footer><span><ShieldCheck size={15} />修改会写入管理员审计日志</span><Button type="submit" variant="primary" loading={profileSaving}><Save size={16} />保存账户资料</Button></footer></form><form className="settings-form account-form account-form--password" onSubmit={savePassword}><div className="account-form__heading"><LockKeyhole size={18} /><div><h3>修改密码</h3><p>修改前必须验证当前密码，新密码至少 {passwordMinimum} 个字符。</p></div><button type="button" className="icon-button account-password-toggle" aria-label={showPassword ? "隐藏密码" : "显示密码"} title={showPassword ? "隐藏密码" : "显示密码"} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></div><Field label="当前密码" required error={passwordErrors.current_password}><input type={passwordType} autoComplete="current-password" value={password.current_password} onChange={(event) => setPassword((current) => ({ ...current, current_password: event.target.value }))} /></Field><Field label="新密码" required error={passwordErrors.new_password}><input type={passwordType} minLength={passwordMinimum} autoComplete="new-password" value={password.new_password} onChange={(event) => setPassword((current) => ({ ...current, new_password: event.target.value }))} /></Field><Field label="确认新密码" required error={passwordErrors.confirm_password}><input type={passwordType} minLength={passwordMinimum} autoComplete="new-password" value={password.confirm_password} onChange={(event) => setPassword((current) => ({ ...current, confirm_password: event.target.value }))} /></Field><footer><span><ShieldCheck size={15} />保存后当前设备保持登录，其他会话将退出</span><Button type="submit" variant="primary" loading={passwordSaving}><KeyRound size={16} />更新密码</Button></footer></form></div>;
+  return <div className="account-settings"><form className="settings-form account-form" onSubmit={saveProfile}><fieldset disabled={profileSaving} className="settings-fields"><div className="account-form__heading"><UserRound size={18} /><div><h3>账户资料</h3><p>用于登录后台、管理员菜单和审计记录。</p></div></div><Field label="管理员名称" required error={profileErrors.name}><input value={profile.name} onChange={(event) => setProfile((current) => ({ ...current, name: event.target.value }))} autoComplete="name" /></Field><Field label="登录邮箱" required error={profileErrors.email}><input type="email" value={profile.email} onChange={(event) => setProfile((current) => ({ ...current, email: event.target.value }))} autoComplete="username" /></Field><footer><span><ShieldCheck size={15} />修改会写入管理员审计日志</span><Button type="submit" variant="primary" loading={profileSaving}><Save size={16} />保存账户资料</Button></footer></fieldset></form><form className="settings-form account-form account-form--password" onSubmit={savePassword}><fieldset disabled={passwordSaving} className="settings-fields"><div className="account-form__heading"><LockKeyhole size={18} /><div><h3>修改密码</h3><p>修改前必须验证当前密码，新密码至少 {passwordMinimum} 个字符。</p></div><button type="button" className="icon-button account-password-toggle" aria-label={showPassword ? "隐藏密码" : "显示密码"} title={showPassword ? "隐藏密码" : "显示密码"} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></div><Field label="当前密码" required error={passwordErrors.current_password}><input type={passwordType} autoComplete="current-password" value={password.current_password} onChange={(event) => setPassword((current) => ({ ...current, current_password: event.target.value }))} /></Field><Field label="新密码" required error={passwordErrors.new_password}><input type={passwordType} minLength={passwordMinimum} autoComplete="new-password" value={password.new_password} onChange={(event) => setPassword((current) => ({ ...current, new_password: event.target.value }))} /></Field><Field label="确认新密码" required error={passwordErrors.confirm_password}><input type={passwordType} minLength={passwordMinimum} autoComplete="new-password" value={password.confirm_password} onChange={(event) => setPassword((current) => ({ ...current, confirm_password: event.target.value }))} /></Field><footer><span><ShieldCheck size={15} />保存后当前设备保持登录，其他会话将退出</span><Button type="submit" variant="primary" loading={passwordSaving}><KeyRound size={16} />更新密码</Button></footer></fieldset></form></div>;
 }
 
 function SystemSettingForm({ section }: { section: SettingSection }) {
@@ -96,16 +103,16 @@ function SystemSettingForm({ section }: { section: SettingSection }) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [dirty, setDirty] = useState(false);
+  const [initial, setInitial] = useState<Record<string, string>>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [saveError, setSaveError] = useState("");
+  const locks = useRef(new Set<string>());
+  const dirty = !sameFormValues(values, initial);
+  const dirtyRef = useRef(dirty); dirtyRef.current = dirty;
+  useUnsavedChanges(dirty, saving || testing);
   const toast = useToast();
-  useEffect(() => { const stored = new Map(data.map((item) => [item.key, item.value])); setValues(Object.fromEntries(fields.map((field) => [field.key, field.sensitive && stored.has(field.key) ? "" : stored.has(field.key) ? String(stored.get(field.key) ?? "") : field.defaultValue ?? ""]))); setDirty(false); }, [data, fields]);
-  function updateValue(key: string, value: string) { setValues((current) => ({ ...current, [key]: value })); setDirty(true); }
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  useEffect(() => { if (dirtyRef.current) return; const stored = new Map(data.map((item) => [item.key, item.value])); const next = Object.fromEntries(fields.map((field) => [field.key, field.sensitive && stored.has(field.key) ? "" : stored.has(field.key) ? String(stored.get(field.key) ?? "") : field.defaultValue ?? ""])); setValues(next); setInitial(next); }, [data, fields]);
+  function updateValue(key: string, value: string) { setValues((current) => ({ ...current, [key]: value })); setFieldErrors((current) => ({ ...current, [key]: "" })); }
 
   function generateKey(field: SettingField) {
     const bytes = crypto.getRandomValues(new Uint8Array(32));
@@ -114,29 +121,35 @@ function SystemSettingForm({ section }: { section: SettingSection }) {
   }
 
   async function save(event: FormEvent) {
-    event.preventDefault(); setSaving(true);
+    event.preventDefault();
+    if (locks.current.has("save") || locks.current.has("test")) return;
+    locks.current.add("save"); setSaving(true); setSaveError(""); setFieldErrors({});
     const payload: Record<string, unknown> = {};
     fields.forEach((field) => { const raw = values[field.key] ?? ""; if (field.sensitive && !raw) return; payload[field.key] = field.type === "number" ? Number(raw || 0) : field.type === "toggle" ? raw === "true" : raw; });
-    try { await api.patch(`/settings/${section.id}`, { values: payload, sensitive_keys: fields.filter((field) => field.sensitive && values[field.key]).map((field) => field.key) }); toast(`${section.label}设置已保存`); await reload(); }
-    catch (reason) { toast(reason instanceof ApiError ? reason.message : "设置保存失败", "error"); }
-    finally { setSaving(false); }
+    try { await api.patch(`/settings/${section.id}`, { values: payload, sensitive_keys: fields.filter((field) => field.sensitive && values[field.key]).map((field) => field.key) }); toast(`${section.label}设置已保存`); dirtyRef.current = false; const next = { ...values }; fields.filter((field) => field.sensitive).forEach((field) => { next[field.key] = ""; }); setValues(next); setInitial(next); await reload(); }
+    catch (reason) { if (reason instanceof ApiError) setFieldErrors(reason.fields); setSaveError(reason instanceof ApiError ? reason.message : "设置保存失败，请检查网络后重试"); }
+    finally { locks.current.delete("save"); setSaving(false); }
   }
 
   async function sendTestMessage() {
-    setTesting(true);
+    if (locks.current.has("test") || locks.current.has("save")) return;
+    locks.current.add("test"); setTesting(true);
     try {
       await api.post("/settings/tgbot/test");
       toast("测试消息已发送到绑定的 Telegram 账号");
     } catch (reason) {
       toast(reason instanceof ApiError ? reason.message : "测试消息发送失败", "error");
-    } finally { setTesting(false); }
+    } finally { locks.current.delete("test"); setTesting(false); }
   }
 
   if (loading) return <div className="settings-loading"><TableSkeleton columns={2} rows={5} /></div>;
   if (error) return <EmptyState title="设置加载失败" description={error} action={<Button onClick={() => void reload()}>重新加载</Button>} />;
   return <form onSubmit={save} className="settings-form">
-    {fields.map((field) => <div className={field.type === "textarea" ? "setting-field setting-field--full" : "setting-field"} key={field.key}><Field group={field.generate || field.type === "toggle"} label={field.label} helper={field.helper}>{field.type === "toggle" ? <label className="settings-toggle"><input type="checkbox" aria-label={field.label} checked={(values[field.key] ?? "true") === "true"} onChange={(event) => updateValue(field.key, String(event.target.checked))} /><span>{(values[field.key] ?? "true") === "true" ? "启用" : "关闭"}</span></label> : field.type === "textarea" ? <textarea rows={4} value={values[field.key] ?? ""} onChange={(event) => updateValue(field.key, event.target.value)} /> : field.type === "select" ? <select value={values[field.key] ?? ""} onChange={(event) => updateValue(field.key, event.target.value)}>{field.options?.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select> : field.generate ? <div className="input-with-action"><input aria-label={field.label} type={field.type ?? "text"} min={field.min} max={field.max} value={values[field.key] ?? ""} autoComplete="new-password" placeholder="留空表示不修改" onChange={(event) => updateValue(field.key, event.target.value)} /><Button type="button" onClick={() => { generateKey(field); setDirty(true); }}><RefreshCw size={15} />生成</Button></div> : <input aria-label={field.label} type={field.type ?? "text"} min={field.min} max={field.max} value={values[field.key] ?? ""} autoComplete={field.sensitive ? "new-password" : undefined} placeholder={field.sensitive ? "留空表示不修改" : undefined} onChange={(event) => updateValue(field.key, event.target.value)} />}</Field></div>)}
-    <footer><span><ShieldCheck size={15} />{dirty ? "有未保存修改" : "已保存 · 修改会写入管理员审计日志"}</span><div className="settings-form__actions">{section.id === "tgbot" && <Button type="button" loading={testing} disabled={saving} onClick={() => void sendTestMessage()}><Send size={16} />发送测试消息</Button>}<Button type="submit" variant="primary" loading={saving} disabled={testing || !dirty}><Save size={16} />保存设置</Button></div></footer>
+    {saveError && <div className="form-alert setting-field--full" role="alert">{saveError}</div>}
+    <fieldset disabled={saving || testing} className="settings-fields">
+    {fields.map((field) => <div className={field.type === "textarea" ? "setting-field setting-field--full" : "setting-field"} key={field.key}><Field group={field.generate || field.type === "toggle"} label={field.label} helper={field.helper} error={fieldErrors[field.key]}>{field.type === "toggle" ? <label className="settings-toggle"><input type="checkbox" aria-label={field.label} checked={(values[field.key] ?? "true") === "true"} onChange={(event) => updateValue(field.key, String(event.target.checked))} /><span>{(values[field.key] ?? "true") === "true" ? "启用" : "关闭"}</span></label> : field.type === "textarea" ? <textarea rows={4} value={values[field.key] ?? ""} onChange={(event) => updateValue(field.key, event.target.value)} /> : field.type === "select" ? <select value={values[field.key] ?? ""} onChange={(event) => updateValue(field.key, event.target.value)}>{field.options?.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select> : field.generate ? <div className="input-with-action"><input aria-label={field.label} type={field.type ?? "text"} min={field.min} max={field.max} value={values[field.key] ?? ""} autoComplete="new-password" placeholder="留空表示不修改" onChange={(event) => updateValue(field.key, event.target.value)} /><Button type="button" onClick={() => { generateKey(field); }}><RefreshCw size={15} />生成</Button></div> : <input aria-label={field.label} type={field.type ?? "text"} min={field.min} max={field.max} value={values[field.key] ?? ""} autoComplete={field.sensitive ? "new-password" : undefined} placeholder={field.sensitive ? "留空表示不修改" : undefined} onChange={(event) => updateValue(field.key, event.target.value)} />}</Field></div>)}
+    </fieldset>
+    <footer><span><ShieldCheck size={15} />{dirty ? "有未保存修改" : "已保存 · 修改会写入管理员审计日志"}</span><div className="settings-form__actions">{section.id === "tgbot" && <Button type="button" loading={testing} disabled={saving || dirty} title={dirty ? "请先保存 TG Bot 设置" : undefined} onClick={() => void sendTestMessage()}><Send size={16} />发送测试消息</Button>}<Button type="submit" variant="primary" loading={saving} disabled={testing || !dirty}><Save size={16} />保存设置</Button></div></footer>
   </form>;
 }
 

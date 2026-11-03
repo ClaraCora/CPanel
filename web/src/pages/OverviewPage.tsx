@@ -166,7 +166,7 @@ export function OverviewPage() {
             <div className="section-heading">
               <div>
                 <h2>需要关注</h2>
-                <p>优先处理离线服务器与未发布节点。</p>
+                <p>检查离线服务器及未处于已发布状态的节点。</p>
               </div>
             </div>
             {data.machines_offline === 0 &&
@@ -188,13 +188,13 @@ export function OverviewPage() {
                   </Link>
                 )}
                 {data.nodes_total > data.nodes_published && (
-                  <Link to="/nodes?status=draft" className="attention-row">
+                  <Link to="/nodes" className="attention-row">
                     <Boxes size={18} className="text-warning" />
                     <div>
                       <strong>
-                        {data.nodes_total - data.nodes_published} 个节点等待发布
+                        {data.nodes_total - data.nodes_published} 个节点未处于已发布状态
                       </strong>
-                      <span>检查草稿配置并发布到对应服务器。</span>
+                      <span>查看草稿、停用或异常状态，再决定处理操作。</span>
                     </div>
                     <ArrowRight size={17} />
                   </Link>

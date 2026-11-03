@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { renderResource } from "../test/renderResource";
 import { api } from "../api";
 import { portalApi } from "../portalApi";
 import { demoOutbounds, demoRoutes, demoSettings } from "../mock";
@@ -13,6 +14,7 @@ beforeEach(() => {
   vi.spyOn(api, "get").mockImplementation(async (path) => {
     if (path === "/outbounds") return demoOutbounds as never;
     if (path === "/route-policies") return demoRoutes as never;
+    if (path.startsWith("/settings/subscription/access-log")) return { items: [], total: 0, page: 1, page_size: 50, has_more: false } as never;
     if (path.startsWith("/settings/")) return (demoSettings[path.split("/")[2]] ?? []) as never;
     return [] as never;
   });
@@ -20,15 +22,16 @@ beforeEach(() => {
 
 describe("Clear A operations safeguards", () => {
   it("opens each route from its own rules without contaminating another record", async () => {
-    render(<RoutesPage />);
+    renderResource(RoutesPage, "/routes");
     await screen.findByRole("table");
     fireEvent.click(screen.getByRole("button", { name: `编辑 ${demoRoutes[0].name}` }));
-    let dialog = screen.getByRole("dialog");
+    let dialog = await screen.findByRole("form", { name: "编辑路由策略" });
     expect((within(dialog).getByLabelText(/策略名称/) as HTMLInputElement).value).toBe(demoRoutes[0].name);
     expect(within(dialog).getByDisplayValue("流媒体直连")).toBeTruthy();
-    fireEvent.click(within(dialog).getByRole("button", { name: "关闭对话框" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "取消" }));
+    await screen.findByRole("table");
     fireEvent.click(screen.getByRole("button", { name: `编辑 ${demoRoutes[1].name}` }));
-    dialog = screen.getByRole("dialog");
+    dialog = await screen.findByRole("form", { name: "编辑路由策略" });
     expect(within(dialog).getByDisplayValue("内网直连")).toBeTruthy();
     expect(within(dialog).queryByDisplayValue("流媒体直连")).toBeNull();
   });
@@ -36,10 +39,10 @@ describe("Clear A operations safeguards", () => {
   it("opens the selected outbound's real server and upstream settings", async () => {
     const records = [0, 1].map((index) => ({ ...demoOutbounds[0], id: `out-${index}`, tag: `tag-${index}`, protocol: "socks", proxy_tag: index ? "tag-0" : "", name: `出站${index}`, settings: { servers: [{ address: `server-${index}.example.com`, port: 1080 + index }] } }));
     vi.mocked(api.get).mockImplementation(async () => records as never);
-    render(<OutboundsPage />);
+    renderResource(OutboundsPage, "/outbounds");
     await screen.findByRole("table");
     fireEvent.click(screen.getByRole("button", { name: `编辑 ${records[1].name}` }));
-    const dialog = screen.getByRole("dialog");
+    const dialog = await screen.findByRole("form", { name: "编辑出站" });
     expect((within(dialog).getByLabelText(/服务器地址/) as HTMLInputElement).value).toBe("server-1.example.com");
     expect((within(dialog).getByLabelText(/服务器端口/) as HTMLInputElement).value).toBe("1081");
     expect((within(dialog).getByLabelText("上游出站") as HTMLSelectElement).value).toBe("tag-0");

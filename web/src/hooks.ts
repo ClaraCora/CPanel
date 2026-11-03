@@ -125,6 +125,7 @@ export function usePagedResource<T>(path: string, initial: T[] = []) {
     if (query.trim()) params.set("q", query.trim());
     try {
       const result = await api.get<PageResult<T> | T[]>(`${path}${path.includes("?") ? "&" : "?"}${params.toString()}`, controller.signal);
+      if (controller.signal.aborted) return;
       if (Array.isArray(result)) { setData(result); setTotal(result.length); setHasMore(false); }
       else { setData(result.items ?? []); setTotal(result.total ?? 0); setHasMore(Boolean(result.has_more)); }
     } catch (reason) {
@@ -139,7 +140,7 @@ export function usePagedResource<T>(path: string, initial: T[] = []) {
     params.set("page", String(page)); params.set("page_size", String(pageSize));
     if (query.trim()) params.set("q", query.trim()); else params.delete("q");
     const serialized = params.toString();
-    window.history.replaceState({}, "", `${window.location.pathname}${serialized ? `?${serialized}` : ""}`);
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${serialized ? `?${serialized}` : ""}`);
   }, [page, pageSize, query]);
   return { data, page, pageSize, query, total, hasMore, loading, error, setPage, setQuery, reload };
 }

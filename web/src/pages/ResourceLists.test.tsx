@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { renderResource } from "../test/renderResource";
 import { api } from "../api";
 import { demoMachines, demoNodes, demoPlans, demoUsers } from "../mock";
 import type { User } from "../types";
@@ -26,7 +27,7 @@ beforeEach(() => {
 
 describe("clear resource list workflows", () => {
   it("combines role, status, plan, and search, then clears all filters", async () => {
-    render(<UsersPage />);
+    renderResource(UsersPage, "/users");
     const table = await screen.findByRole("table", { name: "订阅账号列表" });
     fireEvent.click(screen.getByRole("button", { name: /用户\s*3/ }));
     fireEvent.change(screen.getByLabelText("按状态筛选订阅账号"), { target: { value: "active" } });
@@ -42,23 +43,24 @@ describe("clear resource list workflows", () => {
   });
 
   it("preserves admin protection in the menu and editor", async () => {
-    render(<UsersPage />);
+    renderResource(UsersPage, "/users");
     await screen.findByRole("table");
     fireEvent.click(screen.getByRole("button", { name: "admin-a 更多操作" }));
     const menu = screen.getByRole("menu");
-    expect(within(menu).queryByRole("button", { name: "暂停" })).toBeNull();
-    expect(within(menu).queryByRole("button", { name: "删除" })).toBeNull();
-    expect(within(menu).getByRole("button", { name: "进入订阅页面" })).toBeTruthy();
-    fireEvent.click(within(menu).getByRole("button", { name: "编辑" }));
-    const editor = screen.getByRole("dialog");
+    expect(within(menu).queryByRole("menuitem", { name: "暂停" })).toBeNull();
+    expect(within(menu).queryByRole("menuitem", { name: "删除" })).toBeNull();
+    expect(within(menu).getByRole("menuitem", { name: "进入订阅页面" })).toBeTruthy();
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "编辑" }));
+    const editor = await screen.findByRole("form", { name: "编辑订阅账号" });
     expect((within(editor).getByLabelText("账号分类") as HTMLSelectElement).disabled).toBe(true);
     expect((within(editor).getByLabelText(/^门户登录账号/) as HTMLInputElement).disabled).toBe(true);
     expect((within(editor).getByLabelText(/^设置或重置门户密码/) as HTMLInputElement).disabled).toBe(true);
   });
 
   it("combines machine category, region, and search without mutating data", async () => {
-    render(<MachinesPage />);
-    await screen.findByRole("table");
+    renderResource(MachinesPage, "/machines");
+    await screen.findByText("香港边缘 01");
+    fireEvent.click(screen.getByRole("button", { name: "表格视图" }));
     fireEvent.click(screen.getByRole("button", { name: /在线\s*2/ }));
     fireEvent.change(screen.getByLabelText("按区域筛选服务器"), { target: { value: "香港" } });
     fireEvent.change(screen.getByRole("textbox", { name: "搜索服务器" }), { target: { value: "hk01" } });
@@ -77,6 +79,6 @@ describe("clear resource list workflows", () => {
     expect(Object.fromEntries(query)).toEqual({ demo: "1", q: "hysteria2", machine: "mch_hk01", status: "draft" });
     const copy = screen.getByRole("button", { name: "香港 Hysteria2 更多操作" });
     fireEvent.click(copy);
-    expect(screen.getByRole("link", { name: "复制节点" }).getAttribute("href")).toBe("/nodes/new?copy=nod_1046");
+    expect(new URL(screen.getByRole("menuitem", { name: "复制节点" }).getAttribute("href")!, window.location.origin).searchParams.get("copy")).toBe("nod_1046");
   });
 });

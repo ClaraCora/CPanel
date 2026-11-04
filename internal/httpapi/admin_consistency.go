@@ -83,7 +83,7 @@ func (s *Server) adminConsistency(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		route := consistencyRoute(r)
 		read := r.Method == http.MethodGet
-		if read && !route.response {
+		if read && !route.response || standaloneAdminOperation(r) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -113,6 +113,19 @@ func (s *Server) adminConsistency(next http.Handler) http.Handler {
 			return
 		}
 	})
+}
+
+// These operations have no configuration transaction to commit. In particular,
+// revoking a session must survive an unavailable audit sink, and an already sent
+// Telegram message cannot be rolled back. Authentication and CSRF still run in
+// requireAdmin before this middleware.
+func standaloneAdminOperation(r *http.Request) bool {
+	switch r.Method + " " + r.URL.Path {
+	case "DELETE /ca/ht/hh/dq", "POST /ca/ht/sz/tg/cs", "POST /ca/ht/gj/xsmy", "POST /ca/ht/yh/fwjl/gs":
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Server) runConsistentAdminRequest(r *http.Request, next http.Handler, route adminConsistencyRoute, body []byte, read bool) (*bufferedAdminResponse, error) {

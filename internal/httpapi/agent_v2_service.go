@@ -62,7 +62,17 @@ func (s *agentV2Service) panelPublicKey(ctx context.Context) (ed25519.PublicKey,
 
 func (s *agentV2Service) panelIdentity(ctx context.Context) (ed25519.PrivateKey, error) {
 	s.identityMu.Lock()
-	defer s.identityMu.Unlock()
+	var identityToCache ed25519.PrivateKey
+	defer func() {
+		s.identityMu.Unlock()
+		if len(identityToCache) > 0 {
+			s.store.AfterCommit(ctx, func() {
+				s.identityMu.Lock()
+				s.identity = identityToCache
+				s.identityMu.Unlock()
+			})
+		}
+	}()
 	if len(s.identity) == ed25519.PrivateKeySize {
 		return s.identity, nil
 	}
@@ -105,8 +115,8 @@ func (s *agentV2Service) panelIdentity(ctx context.Context) (ed25519.PrivateKey,
 	if !hmac.Equal(privateKey.Public().(ed25519.PublicKey), stored.PublicKey) {
 		return nil, errors.New("stored panel identity public key does not match its private key")
 	}
-	s.identity = privateKey
-	return s.identity, nil
+	identityToCache = privateKey
+	return privateKey, nil
 }
 
 func (s *agentV2Service) acceptHandshake(ctx context.Context, request agentv2.HandshakeRequest, now time.Time) (agentv2.HandshakeResponse, error) {

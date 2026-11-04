@@ -1,7 +1,9 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
+	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/json"
 	"io"
@@ -252,6 +254,205 @@ func TestAdminStaleEditAndRuntimeUpdatesPostgres(t *testing.T) {
 	var name string
 	if err := pool.QueryRow(t.Context(), `SELECT name FROM machines WHERE id=$1`, id).Scan(&name); err != nil || name != "First editor" {
 		t.Fatalf("stored name=%s err=%v", name, err)
+	}
+}
+
+func TestSevenResourceDeletesRejectStaleVersionsPostgres(t *testing.T) {
+	_, pool, handler := consistencyPostgres(t)
+	if _, err := pool.Exec(t.Context(), `INSERT INTO machines(id,name) VALUES('mch_delete_guard','Machine');
+		INSERT INTO nodes(id,machine_id,name,protocol,server_port) VALUES('nod_delete_guard','mch_delete_guard','Node','socks',1080);
+		INSERT INTO access_groups(id,name) VALUES('grp_delete_guard','Group');
+		INSERT INTO plans(id,access_group_id,name) VALUES('pln_delete_guard','grp_delete_guard','Plan');
+		INSERT INTO users(id,name,uuid,subscription_token_hash,subscription_token_prefix) VALUES('usr_delete_guard','User','00000000-0000-4000-8000-000000000009','\x09','prefix');
+		INSERT INTO route_policies(id,name) VALUES('rte_delete_guard','Route');
+		INSERT INTO outbounds(id,name,tag,protocol) VALUES('out_delete_guard','Outbound','delete-guard','socks')`); err != nil {
+		t.Fatal(err)
+	}
+	// Keep this order so the subsequent successful deletes respect references.
+	resources := []struct{ table, path, id string }{
+		{"users", "yh", "usr_delete_guard"},
+		{"plans", "tc", "pln_delete_guard"},
+		{"access_groups", "qxz", "grp_delete_guard"},
+		{"nodes", "jd", "nod_delete_guard"},
+		{"machines", "fwq", "mch_delete_guard"},
+		{"route_policies", "ly", "rte_delete_guard"},
+		{"outbounds", "ck", "out_delete_guard"},
+	}
+	for _, resource := range resources {
+		if _, err := pool.Exec(t.Context(), `UPDATE `+resource.table+` SET name=name||' edited' WHERE id=$1`, resource.id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, resource := range resources {
+		t.Run(resource.table, func(t *testing.T) {
+			stale := consistencyCall(handler, "DELETE", "/ca/ht/"+resource.path+"/"+resource.id, "", "", `"1"`)
+			if stale.Code != http.StatusConflict || !strings.Contains(stale.Body.String(), "EDIT_VERSION_CONFLICT") {
+				t.Fatalf("stale delete=%d %s", stale.Code, stale.Body.String())
+			}
+			var status string
+			var version int64
+			if err := pool.QueryRow(t.Context(), `SELECT status,config_version FROM `+resource.table+` WHERE id=$1`, resource.id).Scan(&status, &version); err != nil {
+				t.Fatal(err)
+			}
+			if status == "archived" || version != 2 {
+				t.Fatalf("stale delete mutated record: status=%s version=%d", status, version)
+			}
+		})
+	}
+	var audits, changes int
+	if err := pool.QueryRow(t.Context(), `SELECT (SELECT count(*) FROM audit_events),(SELECT count(*) FROM control_changes)`).Scan(&audits, &changes); err != nil {
+		t.Fatal(err)
+	}
+	if audits != 0 || changes != 0 {
+		t.Fatalf("rejected deletes produced audit/control side effects=%d/%d", audits, changes)
+	}
+	for _, resource := range resources {
+		response := consistencyCall(handler, "DELETE", "/ca/ht/"+resource.path+"/"+resource.id, "", "", `"2"`)
+		if response.Code != http.StatusOK {
+			t.Fatalf("current %s delete=%d %s", resource.table, response.Code, response.Body.String())
+		}
+	}
+	if _, err := pool.Exec(t.Context(), `INSERT INTO machines(id,name) VALUES('mch_legacy_delete','Legacy client')`); err != nil {
+		t.Fatal(err)
+	}
+	legacy := consistencyCall(handler, "DELETE", "/ca/ht/fwq/mch_legacy_delete", "", "", "")
+	if legacy.Code != http.StatusOK {
+		t.Fatalf("delete without If-Match lost compatibility=%d %s", legacy.Code, legacy.Body.String())
+	}
+}
+
+func TestLogoutStillRevokesSessionWhenAuditFailsPostgres(t *testing.T) {
+	_, pool, handler := consistencyPostgres(t)
+	if _, err := pool.Exec(t.Context(), `CREATE FUNCTION fail_logout_audit_for_test() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'audit unavailable'; END $$;
+		CREATE TRIGGER fail_logout_audit_for_test BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION fail_logout_audit_for_test()`); err != nil {
+		t.Fatal(err)
+	}
+	response := consistencyCall(handler, "DELETE", "/ca/ht/hh/dq", "", "", "")
+	if response.Code != http.StatusOK {
+		t.Fatalf("audit outage prevented logout=%d %s", response.Code, response.Body.String())
+	}
+	expired := false
+	for _, cookie := range response.Result().Cookies() {
+		if cookie.Name == sessionCookieName && cookie.MaxAge < 0 {
+			expired = true
+		}
+	}
+	if !expired {
+		t.Fatal("logout did not clear the browser session cookie")
+	}
+	var revoked bool
+	if err := pool.QueryRow(t.Context(), `SELECT revoked_at IS NOT NULL FROM admin_sessions WHERE token_hash=$1`, auth.HashSecret("consistency-session")).Scan(&revoked); err != nil || !revoked {
+		t.Fatalf("logout revocation rolled back: revoked=%v err=%v", revoked, err)
+	}
+	next := consistencyCall(handler, "GET", "/ca/ht/hh", "", "", "")
+	if next.Code != http.StatusUnauthorized {
+		t.Fatalf("revoked cookie still authenticated=%d %s", next.Code, next.Body.String())
+	}
+}
+
+type consistencyTelegramSender struct{ sent int }
+
+func (s *consistencyTelegramSender) SendTest(context.Context) error {
+	s.sent++
+	return nil
+}
+
+func TestTelegramSendDoesNotBecomeFailedAfterAuditFailurePostgres(t *testing.T) {
+	server, pool, handler := consistencyPostgres(t)
+	sender := &consistencyTelegramSender{}
+	server.telegramBot = sender
+	if _, err := pool.Exec(t.Context(), `CREATE FUNCTION fail_telegram_audit_for_test() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'audit unavailable'; END $$;
+		CREATE TRIGGER fail_telegram_audit_for_test BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION fail_telegram_audit_for_test()`); err != nil {
+		t.Fatal(err)
+	}
+	response := consistencyCall(handler, "POST", "/ca/ht/sz/tg/cs", "", "", "")
+	if response.Code != http.StatusOK || sender.sent != 1 {
+		t.Fatalf("already sent message reported failed: sends=%d response=%d %s", sender.sent, response.Code, response.Body.String())
+	}
+}
+
+func TestStandaloneAdminOperationsDoNotStartConfigurationTransaction(t *testing.T) {
+	server := &Server{}
+	handler := server.adminConsistency(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	for _, route := range []struct{ method, path string }{
+		{"DELETE", "/ca/ht/hh/dq"},
+		{"POST", "/ca/ht/sz/tg/cs"},
+		{"POST", "/ca/ht/gj/xsmy"},
+		{"POST", "/ca/ht/yh/fwjl/gs"},
+	} {
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, httptest.NewRequest(route.method, route.path, nil))
+		if response.Code != http.StatusNoContent {
+			t.Errorf("standalone %s %s unexpectedly opened a configuration transaction", route.method, route.path)
+		}
+	}
+}
+
+func TestPanelIdentityCacheOnlyChangesAfterCommitPostgres(t *testing.T) {
+	server, pool, handler := consistencyPostgres(t)
+	server.cfg.ExternalURL = "https://panel.example.test"
+	if _, err := pool.Exec(t.Context(), `INSERT INTO machines(id,name) VALUES('mch_identity_commit','Machine');
+		CREATE FUNCTION fail_identity_audit_for_test() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'audit unavailable'; END $$;
+		CREATE TRIGGER fail_identity_audit_for_test BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION fail_identity_audit_for_test()`); err != nil {
+		t.Fatal(err)
+	}
+	failed := consistencyCall(handler, "POST", "/ca/ht/fwq/mch_identity_commit/az", "", "", "")
+	if failed.Code != http.StatusInternalServerError {
+		t.Fatalf("installation with failed audit=%d %s", failed.Code, failed.Body.String())
+	}
+	var identities, credentials int
+	if err := pool.QueryRow(t.Context(), `SELECT (SELECT count(*) FROM agent_panel_identity),(SELECT count(*) FROM agent_enrollment_credentials)`).Scan(&identities, &credentials); err != nil {
+		t.Fatal(err)
+	}
+	if identities != 0 || credentials != 0 || len(server.agentV2.identity) != 0 {
+		t.Fatalf("rolled-back installation leaked identity/cache: identities=%d credentials=%d cache=%d", identities, credentials, len(server.agentV2.identity))
+	}
+	if _, err := pool.Exec(t.Context(), `DROP TRIGGER fail_identity_audit_for_test ON audit_events`); err != nil {
+		t.Fatal(err)
+	}
+	success := consistencyCall(handler, "POST", "/ca/ht/fwq/mch_identity_commit/az", "", "", "")
+	if success.Code != http.StatusOK {
+		t.Fatalf("installation after recovery=%d %s", success.Code, success.Body.String())
+	}
+	var stored []byte
+	if err := pool.QueryRow(t.Context(), `SELECT public_key FROM agent_panel_identity WHERE singleton=1`).Scan(&stored); err != nil {
+		t.Fatal(err)
+	}
+	if len(server.agentV2.identity) != ed25519.PrivateKeySize || !bytes.Equal(server.agentV2.identity.Public().(ed25519.PublicKey), stored) {
+		t.Fatal("committed panel identity differs from in-memory cache")
+	}
+}
+
+func TestIdentityResetPreservesSessionsUntilCommitPostgres(t *testing.T) {
+	server, pool, handler := consistencyPostgres(t)
+	if _, err := pool.Exec(t.Context(), `INSERT INTO machines(id,name) VALUES('mch_reset_commit','Machine');
+		INSERT INTO agent_identities(machine_id,public_key) VALUES('mch_reset_commit',decode(repeat('01',32),'hex'));
+		CREATE FUNCTION fail_reset_audit_for_test() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'audit unavailable'; END $$;
+		CREATE TRIGGER fail_reset_audit_for_test BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION fail_reset_audit_for_test()`); err != nil {
+		t.Fatal(err)
+	}
+	server.agentV2.sessions["existing-session"] = agentV2SessionRecord{machine: domain.AgentMachine{ID: "mch_reset_commit"}}
+	failed := consistencyCall(handler, "DELETE", "/ca/ht/fwq/mch_reset_commit/sf", "", "", "")
+	if failed.Code != http.StatusInternalServerError {
+		t.Fatalf("identity reset with failed audit=%d %s", failed.Code, failed.Body.String())
+	}
+	if _, ok := server.agentV2.sessions["existing-session"]; !ok {
+		t.Fatal("rolled-back identity reset removed an active in-memory session")
+	}
+	if _, err := server.store.AgentIdentity(t.Context(), "mch_reset_commit"); err != nil {
+		t.Fatalf("rolled-back identity reset removed persisted identity: %v", err)
+	}
+	if _, err := pool.Exec(t.Context(), `DROP TRIGGER fail_reset_audit_for_test ON audit_events`); err != nil {
+		t.Fatal(err)
+	}
+	success := consistencyCall(handler, "DELETE", "/ca/ht/fwq/mch_reset_commit/sf", "", "", "")
+	if success.Code != http.StatusOK {
+		t.Fatalf("identity reset after recovery=%d %s", success.Code, success.Body.String())
+	}
+	if _, ok := server.agentV2.sessions["existing-session"]; ok {
+		t.Fatal("committed identity reset retained an in-memory session")
 	}
 }
 

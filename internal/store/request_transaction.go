@@ -17,10 +17,11 @@ type requestTransactionKey struct{}
 // successfully committed resource operation is still rolled back if its audit
 // or the final idempotency result cannot be written.
 type RequestTransaction struct {
-	pool *pgxpool.Pool
-	tx   pgx.Tx
-	mu   sync.Mutex
-	err  error
+	pool        *pgxpool.Pool
+	tx          pgx.Tx
+	mu          sync.Mutex
+	err         error
+	afterCommit []func()
 }
 
 func (s *Store) BeginRequest(ctx context.Context, options pgx.TxOptions) (context.Context, *RequestTransaction, error) {
@@ -36,7 +37,30 @@ func (r *RequestTransaction) Commit(ctx context.Context) error {
 	if err := r.Error(); err != nil {
 		return err
 	}
-	return r.tx.Commit(ctx)
+	if err := r.tx.Commit(ctx); err != nil {
+		return err
+	}
+	r.mu.Lock()
+	callbacks := r.afterCommit
+	r.afterCommit = nil
+	r.mu.Unlock()
+	for _, callback := range callbacks {
+		callback()
+	}
+	return nil
+}
+
+// AfterCommit coordinates in-memory cache/session updates with the durable
+// administrative transaction. Non-transactional callers retain immediate
+// execution, while rolled-back requests never apply their callbacks.
+func (s *Store) AfterCommit(ctx context.Context, callback func()) {
+	if request := s.pool.request(ctx); request != nil {
+		request.mu.Lock()
+		request.afterCommit = append(request.afterCommit, callback)
+		request.mu.Unlock()
+		return
+	}
+	callback()
 }
 
 func (r *RequestTransaction) Error() error {

@@ -225,7 +225,7 @@ func (s *Server) handleResetMachineAgentIdentity(w http.ResponseWriter, r *http.
 		writeStoreError(w, r, err)
 		return
 	}
-	s.agentV2.deleteMachineSessions(machineID)
+	s.store.AfterCommit(r.Context(), func() { s.agentV2.deleteMachineSessions(machineID) })
 	admin := currentAdmin(r)
 	_ = s.store.WriteAudit(r.Context(), admin.ID, "machine.agent_identity_reset", "machine", machineID, nil, clientIP(r), requestID(r))
 	writeData(w, r, http.StatusOK, map[string]any{"machine_id": machineID, "reset": true})

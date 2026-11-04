@@ -76,12 +76,12 @@ async function request<T>(path: string, init: RequestInit = {}, receiveMeta?: (m
     const response = await fetch(`${base}${wirePath(path)}`, { ...init, headers, credentials: "same-origin", signal: controller.signal });
     const contentType = response.headers.get("content-type") ?? "";
     if (!contentType.includes("application/json")) {
-      if (response.status === 401) notifyAdminSessionExpired();
+      if (response.status === 401) { untrack(); notifyAdminSessionExpired(); }
       throw new ApiError(response.status, { code: "INVALID_RESPONSE", message: response.ok ? "服务返回了无法识别的响应" : `服务请求失败（${response.status}）` }, response.headers.get("X-Request-ID") ?? "");
     }
     const payload = (await response.json()) as Envelope<T>;
     receiveMeta?.(payload.meta ?? { request_id: response.headers.get("X-Request-ID") || "" });
-    if (response.status === 401) notifyAdminSessionExpired();
+    if (response.status === 401) { untrack(); notifyAdminSessionExpired(); }
     if (!response.ok || payload.error) {
       throw new ApiError(response.status, payload.error ?? { code: "REQUEST_FAILED", message: "请求失败，请稍后重试" }, payload.meta?.request_id || response.headers.get("X-Request-ID") || "");
     }

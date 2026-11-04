@@ -77,8 +77,8 @@ describe("standalone resource editors", () => {
   });
 
   it("keeps a newly saved node after publish failure and retries only publication", async () => {
-    const saved = { ...demoNodes[1], id: "created-node", name: "测试节点" };
-    vi.mocked(api.get).mockImplementation(async (path) => path === "/nodes/created-node" ? saved as never : (path === "/machines" ? demoMachines : path === "/route-policies" ? demoRoutes : []) as never);
+    const saved = { ...demoNodes[1], id: "created-node", name: "测试节点", config_version: 7 };
+    vi.mocked(api.get).mockImplementation(async (path) => path === "/nodes/created-node" ? { ...saved, config_version: 8 } as never : (path === "/machines" ? demoMachines : path === "/route-policies" ? demoRoutes : []) as never);
     const post = vi.spyOn(api, "post").mockImplementation(async (path) => {
       if (path === "/nodes") return saved as never;
       throw new Error("Agent 暂不可用");
@@ -92,6 +92,9 @@ describe("standalone resource editors", () => {
     await screen.findByText(/配置已保存，发布失败/);
     fireEvent.click(screen.getByRole("button", { name: "重试发布" }));
     await waitFor(() => expect(post.mock.calls.filter(([path]) => path.endsWith("/publish"))).toHaveLength(2));
+    const publications = post.mock.calls.filter(([path]) => path.endsWith("/publish"));
+    expect(publications[0][2]?.idempotencyKey).toBeTruthy();
+    expect(publications[1][2]?.idempotencyKey).toBe(publications[0][2]?.idempotencyKey);
     expect(post.mock.calls.filter(([path]) => path === "/nodes")).toHaveLength(1);
     expect(patch).not.toHaveBeenCalled();
     expect(location.pathname).toBe("/nodes/created-node/edit");

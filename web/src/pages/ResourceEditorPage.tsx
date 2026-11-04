@@ -85,6 +85,7 @@ export function ResourceEditorPage<T extends Resource>({ definition, id }: { def
   async function save(event: FormEvent) {
     event.preventDefault();
     if (savingRef.current || !initialized.current || related?.loading || related?.error) return;
+    if (id && record?.config_version === undefined) { setRequestError("服务未返回配置版本，请重新加载后再保存。"); return; }
     const next: Record<string, string> = {};
     fields.filter((field) => (!field.editOnly || record) && (!field.visible || field.visible(values))).forEach((field) => {
       if (field.required && !values[field.key]?.trim()) next[field.key] = `请填写${field.label}`;
@@ -125,7 +126,7 @@ export function ResourceEditorPage<T extends Resource>({ definition, id }: { def
       <nav className="editor-section-nav" aria-label={`${title}编辑章节`}>{groups.map((section, index) => <button key={section.title} type="button" aria-current={activeSection === index ? "location" : undefined} onClick={() => { setActiveSection(index); document.getElementById(`resource-section-${index}`)?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" }); }}>{section.title}</button>)}</nav>
       <form className={`editor-form ${["/route-policies", "/outbounds"].includes(endpoint) ? "" : "editor-form--standard"}`} onSubmit={(event) => void save(event)} noValidate aria-label={pageTitle} aria-busy={saving}>
         {requestError && <RequestFailure message={requestError} error={requestFailure} />}
-        {requestFailure instanceof ApiError && ["CONFIG_VERSION_CONFLICT", "EDIT_VERSION_CONFLICT"].includes(requestFailure.code) && <VersionConflict version={record?.config_version} onReload={() => { setRequestError(""); setRequestFailure(null); setErrors({}); setAttempt((value) => value + 1); }} />}
+        {((id && record?.config_version === undefined) || (requestFailure instanceof ApiError && ["CONFIG_VERSION_CONFLICT", "EDIT_VERSION_CONFLICT"].includes(requestFailure.code))) && <VersionConflict version={record?.config_version} missing={record?.config_version === undefined} onReload={() => { setRequestError(""); setRequestFailure(null); setErrors({}); setAttempt((value) => value + 1); }} />}
         <fieldset disabled={saving} className="editor-fields">
         {groups.map((section, index) => <section className="form-section" id={`resource-section-${index}`} key={section.title}><div className="form-section__heading"><h2>{section.title}</h2></div><ResourceFields fields={fields.filter((field) => section.keys.includes(field.key))} record={record} values={values} errors={errors} onChange={(key, value) => { setValues((current) => ({ ...current, [key]: value })); setErrors((current) => ({ ...current, [key]: "" })); }} />{section.keys.some((key) => ["plan_id", "access_group_id", "node_ids"].includes(key)) && definition.editorContext?.(values, record)}</section>)}
         </fieldset>

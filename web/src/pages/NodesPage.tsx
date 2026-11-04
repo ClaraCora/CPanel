@@ -30,6 +30,8 @@ import { editorHref, useRestoreList } from "../navigation";
 import type { Machine, Node } from "../types";
 import { creationIntent } from "../mutations";
 
+const currentApplicationFailed = (node: Node) => node.apply_status === "failed" && node.attempted_revision === node.current_revision;
+
 export function NodesPage() {
   const [refreshInterval, setRefreshInterval] = useState(15_000);
   const {
@@ -40,7 +42,7 @@ export function NodesPage() {
     refreshing, refreshError, lastSuccessAt, stale,
   } = useResource<Node[]>("/nodes", [], refreshInterval);
   useEffect(() => {
-    setRefreshInterval(nodes.some((node) => node.status === "published" && node.applied_revision !== node.current_revision && node.apply_status !== "failed") ? 5_000 : 15_000);
+    setRefreshInterval(nodes.some((node) => node.status === "published" && node.applied_revision !== node.current_revision && !currentApplicationFailed(node)) ? 5_000 : 15_000);
   }, [nodes]);
   const { data: machines } = useResource<Machine[]>("/machines", []);
   const [params, setParams] = useSearchParams();
@@ -165,12 +167,12 @@ export function NodesPage() {
                 <td data-label="节点"><Link className="resource-name" to={editorHref("/nodes", node.id)}>{node.name}</Link><span className="resource-id">#{node.agent_id} · {node.id}</span></td>
                 <td data-label="服务器"><Link className="cell-primary" to={editorHref("/machines", node.machine_id)}>{node.machine_name}</Link></td>
                 <td data-label="协议 / 监听"><span className="protocol-label">{node.protocol}</span><span className="resource-id mono">{node.listen_ip}:{node.server_port}</span></td>
-                <td data-label="配置版本"><span className="version-pair"><span>已应用 <b className="mono">{node.applied_revision}</b></span><span>当前 <b className="mono">{node.current_revision}</b></span></span>{node.has_draft && <span className="resource-id text-warning">有未发布修改</span>}{node.status === "published" && node.applied_revision !== node.current_revision && <span className={`resource-id ${node.apply_status === "failed" ? "text-danger" : "text-warning"}`}>{node.apply_status === "failed" ? `版本 ${node.attempted_revision ?? node.current_revision} 应用失败` : node.received_revision === node.current_revision ? "Agent 已接收，等待应用" : "等待 Agent 接收并应用"}</span>}<span className="resource-id">{node.kernel_type === "singbox" ? "sing-box" : "Xray"}</span></td>
-                <td data-label="状态"><StatusBadge status={node.status} />{node.last_error && <span className="cell-error">{node.last_error}</span>}</td>
+                <td data-label="配置版本"><span className="version-pair"><span>已应用 <b className="mono">{node.applied_revision}</b></span><span>当前 <b className="mono">{node.current_revision}</b></span></span>{node.has_draft && <span className="resource-id text-warning">有未发布修改</span>}{node.status === "published" && node.applied_revision !== node.current_revision && <span className={`resource-id ${currentApplicationFailed(node) ? "text-danger" : "text-warning"}`}>{currentApplicationFailed(node) ? `版本 ${node.attempted_revision ?? node.current_revision} 应用失败` : node.received_revision === node.current_revision ? "Agent 已接收，等待应用" : "等待 Agent 接收并应用"}</span>}<span className="resource-id">{node.kernel_type === "singbox" ? "sing-box" : "Xray"}</span></td>
+                <td data-label="状态"><StatusBadge status={node.status} />{node.last_error && <span className="cell-error">{node.attempted_revision && node.attempted_revision !== node.current_revision ? `上次版本 ${node.attempted_revision}：` : ""}{node.last_error}</span>}</td>
                 <td data-label="最后上报"><ResourceDate value={node.last_report_at} formatted={formatPreciseDate(node.last_report_at)} /></td>
                 <td className="row-actions" data-label="操作"><div className="clear-row-actions">
                   <Link className="clear-row-edit" to={editorHref("/nodes", node.id)} aria-label={`编辑 ${node.name}`}>编辑</Link>
-                  {(node.has_draft || node.status === "draft" || node.status === "error") && <button type="button" className="icon-button" aria-label={`发布 ${node.name}`} title="发布配置" disabled={publishing === node.id} onClick={() => void publish(node)}>{publishing === node.id ? <span className="mini-spinner" /> : <Rocket size={16} />}</button>}
+                  {(node.has_draft || node.status === "draft" || node.status === "error" || currentApplicationFailed(node)) && <button type="button" className="icon-button" aria-label={`发布 ${node.name}`} title="发布配置" disabled={publishing === node.id} onClick={() => void publish(node)}>{publishing === node.id ? <span className="mini-spinner" /> : <Rocket size={16} />}</button>}
                   <RowMenu className="resource-menu" label={`${node.name} 更多操作`}>
                     <Link to={editorHref("/nodes", node.id).replace("/edit?", "/history?")}>版本历史</Link>
                     <Link to={editorHref("/nodes", node.id)}><Edit3 size={15} />编辑节点</Link>

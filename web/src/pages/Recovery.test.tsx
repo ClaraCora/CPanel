@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Route } from "wouter";
 import { ApiError, api } from "../api";
@@ -10,6 +10,9 @@ import { UserAccessIPsPage } from "./UserAccessIPsPage";
 import { AuditPage } from "./AuditPage";
 import { ToastProvider } from "../components/ui";
 import { agentUpgradeState, canRequestUpgrade, upgradeStateLabel } from "../resourceModel";
+import { SubscriptionPage } from "./SettingsPage";
+import PortalDashboardPage, { demoPortalDashboard } from "../PortalDashboardPage";
+import { portalApi } from "../portalApi";
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -23,6 +26,25 @@ function machineEditor(id?: string) {
 }
 
 describe("mutation recovery", () => {
+  it("requires a safe reload when the server omitted the edit version", async () => {
+    const current = { ...demoMachines[0], config_version: undefined };
+    vi.mocked(api.get).mockResolvedValue([current] as never);
+    const patch = vi.spyOn(api, "patch");
+    machineEditor(current.id);
+    const form = await screen.findByRole("form");
+    await screen.findByText("服务未返回配置版本，暂时无法安全保存。当前输入已保留。");
+    fireEvent.change(within(form).getByLabelText(/服务器名称/), { target: { value: "需要保留的输入" } });
+    fireEvent.submit(form);
+    expect(patch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "放弃本页修改并重新加载" }));
+    const dialog = screen.getByRole("alertdialog");
+    expect((screen.getByLabelText(/服务器名称/) as HTMLInputElement).value).toBe("需要保留的输入");
+    vi.mocked(api.get).mockResolvedValue([{ ...current, name: "重新加载的名称", config_version: 2 }] as never);
+    fireEvent.click(within(dialog).getByRole("button", { name: "重新加载" }));
+    await waitFor(() => expect((screen.getByLabelText(/服务器名称/) as HTMLInputElement).value).toBe("重新加载的名称"));
+    expect(screen.queryByText("服务未返回配置版本，暂时无法安全保存。当前输入已保留。")).toBeNull();
+  });
+
   it("reuses a creation intent after a lost response, and starts another after the input changes", async () => {
     const post = vi.spyOn(api, "post").mockRejectedValue(new TypeError("Failed to fetch"));
     machineEditor();
@@ -87,6 +109,13 @@ describe("upgrade and applied state", () => {
 });
 
 describe("paged search and recovery", () => {
+  it("does not discard an IP record that the paged server matched", async () => {
+    history.replaceState({}, "", "/access-ips?q=后端匹配的地区");
+    vi.mocked(api.get).mockResolvedValue({ items: [demoUserAccessIPs[0]], total: 1, has_more: false } as never);
+    render(<UserAccessIPsPage />);
+    await screen.findByText(demoUserAccessIPs[0].user_name);
+    expect(screen.queryByText("没有匹配的访问 IP")).toBeNull();
+  });
   it("trusts server IP search results and keeps navigation for an empty later page", async () => {
     history.replaceState({}, "", "/access-ips?q=深圳&page=2");
     const result = { items: [], total: 100, has_more: false };
@@ -105,5 +134,80 @@ describe("paged search and recovery", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "搜索审计日志" }), { target: { value: "发布节点" } });
     await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringContaining("q=node.publish"), expect.anything()));
     expect(new URLSearchParams(location.search).get("q")).toBe("发布节点");
+  });
+});
+
+describe("settings and entitlement safeguards", () => {
+  it("protects section settings with the envelope version and retains a conflicting draft", async () => {
+    history.replaceState({}, "", "/subscription");
+    vi.spyOn(api, "getWithMeta").mockResolvedValue({ data: demoSettings.subscription, meta: { request_id: "settings", config_version: 9 } } as never);
+    const patch = vi.spyOn(api, "patch").mockRejectedValue(new ApiError(409, { code: "EDIT_VERSION_CONFLICT", message: "设置已变化" }));
+    render(<SubscriptionPage />);
+    const input = await screen.findByLabelText("订阅基础地址");
+    fireEvent.change(input, { target: { value: "https://retained.example" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存设置" }));
+    await screen.findByText("设置已变化");
+    expect(patch.mock.calls[0][2]).toEqual({ configVersion: 9 });
+    expect((screen.getByLabelText("订阅基础地址") as HTMLInputElement).value).toBe("https://retained.example");
+  });
+
+  it("requires an explicit expiry choice and excludes disabled plans from new assignments", async () => {
+    const disabled = { ...demoPlans[1], id: "disabled-plan", status: "disabled", name: "停用套餐" };
+    vi.mocked(api.get).mockImplementation(async (path) => (path === "/plans" ? [...demoPlans, disabled] : path === "/settings/site" ? demoSettings.site : []) as never);
+    history.replaceState({}, "", "/users/new");
+    render(<AdminNavigation><Route path="/users/new" component={UsersPage} /></AdminNavigation>);
+    const form = await screen.findByRole("form");
+    expect(within(form).queryByRole("option", { name: /停用套餐/ })).toBeNull();
+    expect((within(form).getByLabelText("到期方式") as HTMLSelectElement).value).toBe("default");
+    fireEvent.change(within(form).getByLabelText("到期方式"), { target: { value: "custom" } });
+    expect(within(form).getByLabelText(/到期时间/)).toBeTruthy();
+    fireEvent.change(within(form).getByLabelText("到期方式"), { target: { value: "permanent" } });
+    expect(within(form).queryByLabelText(/到期时间/)).toBeNull();
+    await screen.findByText("保存后长期有效。");
+  });
+
+  it("shows usage and the actual quota reason when there are no authorized portal nodes", async () => {
+    vi.spyOn(portalApi, "dashboard").mockResolvedValue({ ...demoPortalDashboard, nodes: [], traffic_used_bytes: 1024, traffic_limit_bytes: 1024, access_unavailable_reason: "流量已用尽，重置或增加额度后恢复" });
+    render(<PortalDashboardPage session={{ user: { id: "u", name: "user", email: null, role: "user", status: "active" }, csrf_token: "token", expires_at: "2030-01-01", read_only: false }} onLogout={() => undefined} />);
+    await screen.findByText("流量已用尽，重置或增加额度后恢复");
+    expect(screen.getByRole("heading", { name: "流量使用" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /单节点链接/ })).toBeNull();
+    expect((screen.getByRole("button", { name: "Clash / Mihomo" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+describe("portal popup recovery", () => {
+  function accountList() {
+    history.replaceState({}, "", "/users");
+    return render(<ToastProvider><AdminNavigation><UsersPage /></AdminNavigation></ToastProvider>);
+  }
+
+  it("opens a safe blank page before waiting for a slow grant", async () => {
+    const replace = vi.fn();
+    const popup = { opener: window, closed: false, document: { title: "", body: { textContent: "" } }, location: { replace }, close: vi.fn() };
+    const open = vi.spyOn(window, "open").mockReturnValue(popup as unknown as Window);
+    let resolve!: (value: { grant: string }) => void;
+    const post = vi.spyOn(api, "post").mockImplementation(() => new Promise((done) => { resolve = done as typeof resolve; }));
+    accountList();
+    await screen.findByRole("table");
+    fireEvent.click(screen.getByRole("button", { name: `${demoUsers[0].id} 更多操作` }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "进入订阅页面" }));
+    expect(open).toHaveBeenCalledWith("about:blank", "_blank");
+    expect(open.mock.invocationCallOrder[0]).toBeLessThan(post.mock.invocationCallOrder[0]);
+    expect(popup.opener).toBeNull();
+    expect(replace).not.toHaveBeenCalled();
+    await act(async () => resolve({ grant: "one-time-grant" }));
+    expect(replace).toHaveBeenCalledWith("/edu?grant=one-time-grant");
+  });
+
+  it("explains a blocked popup and does not issue an unused grant", async () => {
+    vi.spyOn(window, "open").mockReturnValue(null);
+    const post = vi.spyOn(api, "post");
+    accountList();
+    await screen.findByRole("table");
+    fireEvent.click(screen.getByRole("button", { name: `${demoUsers[0].id} 更多操作` }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "进入订阅页面" }));
+    await screen.findByText("浏览器阻止了新窗口，请允许本站弹出窗口后重试。");
+    expect(post).not.toHaveBeenCalled();
   });
 });

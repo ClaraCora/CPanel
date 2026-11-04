@@ -89,6 +89,7 @@ function NodeEditor() {
   const configVersion = useRef<number | undefined>(undefined);
   const intent = useRef(creationIntent());
   const publishIntent = useRef(creationIntent());
+  const pendingPublishIntent = useRef(typeof history.state?.nodePublishIntent === "string" ? history.state.nodePublishIntent as string : "");
   const [returnTo] = useState(() => safeReturnTo("/nodes"));
   const [initial, setInitial] = useState("");
   const [loadError, setLoadError] = useState("");
@@ -191,6 +192,7 @@ function NodeEditor() {
   async function submit(event: FormEvent, publish: boolean) {
     event.preventDefault();
     if (savingRef.current || !initialized.current || relatedLoading || relatedError || !validate()) return;
+    if (savedID.current && configVersion.current === undefined) { setRequestError("服务未返回配置版本，请重新加载节点后再保存。"); return; }
     savingRef.current = true;
     setSaving(publish ? "publish" : "save");
     setRequestError("");
@@ -221,8 +223,13 @@ function NodeEditor() {
         setInitial(JSON.stringify(form));
       }
       configurationSaved = true;
-      if (publish) await api.post(`/nodes/${savedID.current}/publish`, undefined, { idempotencyKey: publishIntent.current({ id: savedID.current, config_version: configVersion.current }), configVersion: configVersion.current });
+      if (publish) {
+        const key = pendingPublish && !dirty && pendingPublishIntent.current ? pendingPublishIntent.current : publishIntent.current({ id: savedID.current, config_version: configVersion.current });
+        pendingPublishIntent.current = key;
+        await api.post(`/nodes/${savedID.current}/publish`, undefined, { idempotencyKey: key, configVersion: configVersion.current });
+      }
       setPendingPublish(false);
+      pendingPublishIntent.current = "";
       toast(publish ? "配置已提交，等待 Agent 应用" : "节点草稿已保存，尚未发布");
       bypass(() => navigate(returnTo, { replace: true }));
     } catch (reason) {
@@ -232,7 +239,7 @@ function NodeEditor() {
         setRequestError(`配置已保存，发布失败：${requestErrorMessage(reason, "请重试发布")}`);
         if (!editing && savedID.current) {
           const query = new URLSearchParams({ returnTo });
-          bypass(() => navigate(`/nodes/${encodeURIComponent(savedID.current)}/edit?${query}`, { replace: true, state: { nodePublishFailed: true } }));
+          bypass(() => navigate(`/nodes/${encodeURIComponent(savedID.current)}/edit?${query}`, { replace: true, state: { nodePublishFailed: true, nodePublishIntent: pendingPublishIntent.current } }));
         }
       } else {
         setRequestError(requestErrorMessage(reason, "保存失败，请检查连接后重试"));
@@ -287,7 +294,7 @@ function NodeEditor() {
         onSubmit={(event) => void submit(event, false)}
       >
         {requestError && <div id="node-request-error" className="form-alert" role="alert" tabIndex={-1}>{requestError}<ErrorDiagnostic error={requestFailure} /></div>}
-        {requestFailure instanceof ApiError && ["CONFIG_VERSION_CONFLICT", "EDIT_VERSION_CONFLICT"].includes(requestFailure.code) && <VersionConflict version={configVersion.current} onReload={() => { setRequestError(""); setRequestFailure(null); setErrors({}); setAttempt((value) => value + 1); }} />}
+        {((savedID.current && initialized.current && configVersion.current === undefined) || (requestFailure instanceof ApiError && ["CONFIG_VERSION_CONFLICT", "EDIT_VERSION_CONFLICT"].includes(requestFailure.code))) && <VersionConflict version={configVersion.current} missing={configVersion.current === undefined} onReload={() => { setRequestError(""); setRequestFailure(null); setErrors({}); setAttempt((value) => value + 1); }} />}
         <fieldset disabled={Boolean(saving)} className="editor-fields">
         <section className="form-section" id="node-endpoints">
           <div className="form-section__heading">

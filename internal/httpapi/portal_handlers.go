@@ -172,6 +172,12 @@ func (s *Server) handlePortalDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	dashboard.SubscriptionURL = s.subscriptionURL(r, token)
+	if dashboard.TrafficLimitBytes > 0 && dashboard.TrafficUsedBytes >= dashboard.TrafficLimitBytes {
+		dashboard.Nodes = make([]domain.PortalNode, 0)
+		dashboard.AccessUnavailableReason = "流量已用尽，重置或增加额度后恢复"
+		writeData(w, r, http.StatusOK, dashboard)
+		return
+	}
 	data, err := s.store.SubscriptionByUserID(r.Context(), session.User.ID)
 	if err != nil {
 		writeStoreError(w, r, err)

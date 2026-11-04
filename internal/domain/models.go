@@ -576,20 +576,21 @@ type PortalNode struct {
 }
 
 type PortalDashboard struct {
-	ID                string       `json:"id"`
-	Name              string       `json:"name"`
-	Role              string       `json:"role"`
-	Email             *string      `json:"email"`
-	PlanName          *string      `json:"plan_name"`
-	Status            string       `json:"status"`
-	TrafficUsedBytes  int64        `json:"traffic_used_bytes"`
-	TrafficLimitBytes int64        `json:"traffic_limit_bytes"`
-	TrafficResetAt    *time.Time   `json:"traffic_reset_at"`
-	ExpiresAt         *time.Time   `json:"expires_at"`
-	SpeedLimitMbps    int          `json:"speed_limit_mbps"`
-	DeviceLimit       int          `json:"device_limit"`
-	SubscriptionURL   string       `json:"subscription_url"`
-	Nodes             []PortalNode `json:"nodes"`
+	AccessUnavailableReason string       `json:"access_unavailable_reason,omitempty"`
+	ID                      string       `json:"id"`
+	Name                    string       `json:"name"`
+	Role                    string       `json:"role"`
+	Email                   *string      `json:"email"`
+	PlanName                *string      `json:"plan_name"`
+	Status                  string       `json:"status"`
+	TrafficUsedBytes        int64        `json:"traffic_used_bytes"`
+	TrafficLimitBytes       int64        `json:"traffic_limit_bytes"`
+	TrafficResetAt          *time.Time   `json:"traffic_reset_at"`
+	ExpiresAt               *time.Time   `json:"expires_at"`
+	SpeedLimitMbps          int          `json:"speed_limit_mbps"`
+	DeviceLimit             int          `json:"device_limit"`
+	SubscriptionURL         string       `json:"subscription_url"`
+	Nodes                   []PortalNode `json:"nodes"`
 }
 
 type Subscription struct {

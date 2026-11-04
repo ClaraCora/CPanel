@@ -23,7 +23,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 
 ## Finished implementation
 
-服务器与节点列表使用局部紧凑密度：分类控件最小高度 44px，筛选区上下内边距 12px，桌面表格单元上下内边距 12px；服务器卡片内边距桌面 20px、手机 16px，指标分组上下外边距 16px。手机按钮保留 44px 最小触控高度。其他页面、编辑页和公共入口不继承此局部密度。
+服务器与节点列表使用局部紧凑密度：分类控件最小高度 44px，筛选区上下内边距 12px，桌面表格单元上下内边距 12px；服务器卡片内边距桌面 16px、手机 12px，名称字号 15px，正文行高 1.45。CPU、内存、磁盘横向等分，每项上排标签与百分比、下排进度条，字号 12px、行高 1.3、组间距和分组上下外边距均为 12px。只显示一行最后心跳，指标采样时间保留在指标组提示中；Agent 与操作区上内边距 8px，时间区上下外边距 8px。横向指标限定在卡片内，不影响表格。手机按钮保留 44px 最小触控高度。其他页面、编辑页和公共入口不继承此局部密度。
 
 2026-11-04 refinement: ordinary list headers use 24px top spacing and a 20px gap before the work area; ordinary table cells use 14px vertical padding. Server cards group identity, metrics, Agent and timestamps, with bottom actions aligned. Mobile node records combine report time and actions in a shared footer. Tablet overview metrics remain five columns; mobile rankings hide the secondary rank column and right-align intact quantities. Inputs retain their error styling on hover/focus; busy actions expose status and a visible spinner. Full editing routes and public-page styles remain intact. Report and demo evidence: `design-system/ui-polish-2026-11-04.md` and its sibling directory.
 

@@ -27,7 +27,6 @@ export function MachineCard({ machine, hideAddress, upgradeLabel, onEdit, action
     </div>
     <dl className="machine-card__timestamps">
       <div><dt>最后心跳</dt><dd>{formatPreciseDate(machine.last_heartbeat_at)}</dd></div>
-      <div><dt>指标采样</dt><dd>{formatPreciseDate(machine.metrics_sampled_at)}</dd></div>
     </dl>
     <footer>
       <Link to={`/nodes?machine=${encodeURIComponent(machine.id)}`}>{machine.node_count} 个节点</Link>

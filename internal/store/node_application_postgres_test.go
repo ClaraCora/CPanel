@@ -11,7 +11,7 @@ func TestNodeApplicationRequiresExplicitSuccessPostgres(t *testing.T) {
 	ctx, pool := resourcePostgresPool(t)
 	for _, query := range []string{
 		`INSERT INTO machines(id,name) VALUES('mch_apply','Application machine')`,
-		`INSERT INTO nodes(id,machine_id,name,protocol,server_port,status,current_revision) VALUES('nod_apply','mch_apply','Application node','vless',443,'published',3)`,
+		`INSERT INTO nodes(id,machine_id,name,protocol,server_port,status,current_revision) VALUES('nod_apply','mch_apply','Application node','vless',443,'published',1)`,
 	} {
 		if _, err := pool.Exec(ctx, query); err != nil {
 			t.Fatal(err)
@@ -42,12 +42,19 @@ func TestNodeApplicationRequiresExplicitSuccessPostgres(t *testing.T) {
 			t.Fatalf("unexpected application state: %+v", node)
 		}
 	}
+	advance := func(revision int) {
+		t.Helper()
+		if _, err := pool.Exec(ctx, `UPDATE nodes SET current_revision=$1,apply_status='',apply_stage='',last_error='' WHERE id='nod_apply'`, revision); err != nil {
+			t.Fatal(err)
+		}
+	}
 	send("node.telemetry", 3, "", "", "")
 	check(0, 0, "", "")
 	send("node.application", 1, "received", "fetch", "")
 	check(0, 1, "received", "")
 	send("node.application", 1, "applied", "kernel", "")
 	check(1, 1, "applied", "")
+	advance(2)
 	send("node.application", 2, "received", "fetch", "")
 	send("node.application", 2, "failed", "validate", "unsupported protocol")
 	check(1, 2, "failed", "unsupported protocol")
@@ -57,9 +64,16 @@ func TestNodeApplicationRequiresExplicitSuccessPostgres(t *testing.T) {
 	check(1, 2, "failed", "unsupported protocol")
 	send("node.application", 2, "applied", "kernel", "")
 	check(2, 2, "applied", "")
+	advance(3)
+	// After a new publication, delayed older events cannot fill the cleared
+	// result area with an obsolete failure, receive status or success.
+	send("node.application", 2, "failed", "kernel", "obsolete failure")
+	send("node.application", 2, "received", "fetch", "")
+	send("node.application", 2, "applied", "kernel", "")
+	check(2, 2, "", "")
 	// A future version or another machine cannot confirm this node.
 	send("node.application", 4, "applied", "kernel", "")
-	check(2, 2, "applied", "")
+	check(2, 2, "", "")
 	if _, err := pool.Exec(ctx, `INSERT INTO machines(id,name) VALUES('mch_other','Other machine')`); err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +83,7 @@ func TestNodeApplicationRequiresExplicitSuccessPostgres(t *testing.T) {
 	if _, err := s.RecordTelemetryBatch(ctx, "mch_other", domain.MustID("application"), wrongMachine); err != nil {
 		t.Fatal(err)
 	}
-	check(2, 2, "applied", "")
+	check(2, 2, "", "")
 	send("node.application", 3, "received", "fetch", "")
 	send("node.application", 3, "failed", "kernel", "bind failed")
 	check(2, 3, "failed", "bind failed")

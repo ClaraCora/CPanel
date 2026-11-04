@@ -43,21 +43,21 @@ func recordNodeApplication(ctx context.Context, tx pgx.Tx, machineID string, eve
 	}
 	sampledAt := boundedTelemetryTime(event.OccurredAt, time.Now().UTC())
 	// A delayed result for an older revision may confirm that older runtime,
-	// but must not erase the failure/progress of a newer attempt. Replayed
+	// but cannot fill or erase the current desired revision's result. Replayed
 	// received events likewise cannot downgrade a successful/failed attempt.
 	_, err := tx.Exec(ctx, `UPDATE nodes SET
 		received_revision=GREATEST(received_revision,$3),
 		applied_revision=CASE WHEN $4='applied' THEN GREATEST(applied_revision,$3) ELSE applied_revision END,
 		attempted_revision=GREATEST(attempted_revision,$3),
-		apply_status=CASE WHEN $3>=attempted_revision AND
+		apply_status=CASE WHEN $3=current_revision AND $3>=attempted_revision AND
 		  (($4='received' AND $3>applied_revision AND ($3>attempted_revision OR apply_status NOT IN ('failed','applied')))
 		   OR ($4='failed' AND $3>applied_revision)
 		   OR $4='applied') THEN $4 ELSE apply_status END,
-		apply_stage=CASE WHEN $3>=attempted_revision AND
+		apply_stage=CASE WHEN $3=current_revision AND $3>=attempted_revision AND
 		  (($4='received' AND $3>applied_revision AND ($3>attempted_revision OR apply_status NOT IN ('failed','applied')))
 		   OR ($4='failed' AND $3>applied_revision)
 		   OR $4='applied') THEN $5 ELSE apply_stage END,
-		last_error=CASE WHEN $3>=attempted_revision AND
+		last_error=CASE WHEN $3=current_revision AND $3>=attempted_revision AND
 		  (($4='failed' AND $3>applied_revision) OR $4='applied' OR ($4='received' AND $3>attempted_revision))
 		  THEN $6 ELSE last_error END,
 		last_report_at=GREATEST(COALESCE(LEAST(last_report_at,now()),'epoch'::timestamptz),LEAST($7,now())),

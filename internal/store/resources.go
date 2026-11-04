@@ -770,6 +770,11 @@ func (s *Store) PublishNode(ctx context.Context, nodeID, adminID string) (domain
 		return domain.Node{}, err
 	}
 	if originalStatus == "published" && !item.HasDraft {
+		// Return only after releasing this transaction's connection. A retry
+		// without a draft must work even when the pool has one connection.
+		if err := tx.Commit(ctx); err != nil {
+			return domain.Node{}, err
+		}
 		return s.GetNode(ctx, nodeID)
 	}
 	if err := s.validateNodeBindingsTx(ctx, tx, item.MachineID, item.RoutePolicyID, item.AdminRoutePolicyID, item.MemberRoutePolicyID, item.KernelType); err != nil {
@@ -780,7 +785,12 @@ func (s *Store) PublishNode(ctx context.Context, nodeID, adminID string) (domain
 	}
 	_, err = tx.Exec(ctx, `UPDATE nodes SET machine_id=$2,route_policy_id=$3,admin_route_policy_id=$4,member_route_policy_id=$5,
         name=$6,protocol=$7,listen_ip=$8,server_port=$9,kernel_type=$10,config=$11,status='published',
-        current_revision=current_revision+1,updated_at=now() WHERE id=$1`,
+        current_revision=current_revision+1,apply_status='',apply_stage='',last_error='',
+        received_revision=CASE WHEN machine_id<>$2 THEN 0 ELSE received_revision END,
+        applied_revision=CASE WHEN machine_id<>$2 THEN 0 ELSE applied_revision END,
+        attempted_revision=CASE WHEN machine_id<>$2 THEN 0 ELSE attempted_revision END,
+        last_report_at=CASE WHEN machine_id<>$2 THEN NULL ELSE last_report_at END,
+        updated_at=now() WHERE id=$1`,
 		nodeID, item.MachineID, item.RoutePolicyID, item.AdminRoutePolicyID, item.MemberRoutePolicyID, item.Name, item.Protocol, item.ListenIP, item.ServerPort, item.KernelType, item.Config)
 	if err != nil {
 		return domain.Node{}, mapNodeError(err)
@@ -1472,7 +1482,7 @@ func (s *Store) validateRoutePolicyTargets(ctx context.Context, rules []domain.R
 
 func notifyRoutePolicyNodes(ctx context.Context, tx pgx.Tx, routeID string) error {
 	_, err := tx.Exec(ctx, `WITH changed AS (
-		UPDATE nodes SET current_revision=current_revision+1,updated_at=now()
+		UPDATE nodes SET current_revision=current_revision+1,apply_status='',apply_stage='',last_error='',updated_at=now()
 		WHERE $1 IN (route_policy_id,admin_route_policy_id,member_route_policy_id) AND status='published'
 		RETURNING id,agent_id,machine_id,current_revision
 	)
@@ -1721,7 +1731,7 @@ func outboundUpdateAffectsNodeSpecs(input domain.OutboundUpdate) bool {
 
 func notifyAllPublishedNodeSpecs(ctx context.Context, tx pgx.Tx) error {
 	_, err := tx.Exec(ctx, `WITH changed AS (
-		UPDATE nodes SET current_revision=current_revision+1,updated_at=now()
+		UPDATE nodes SET current_revision=current_revision+1,apply_status='',apply_stage='',last_error='',updated_at=now()
 		WHERE status='published'
 		RETURNING id,agent_id,machine_id,current_revision
 	)

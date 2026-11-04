@@ -17,6 +17,9 @@ var (
 	ErrPlanInUse                    = errors.New("plan is still in use")
 	ErrPlanUnavailable              = errors.New("plan is unavailable for new assignments")
 	ErrUserExpiryInvalid            = errors.New("user expiry mode or date is invalid")
+	ErrEditVersionConflict          = errors.New("resource configuration changed since it was loaded")
+	ErrIdempotencyConflict          = errors.New("idempotency key was already used for another request")
+	ErrIdempotencyExpired           = errors.New("idempotency key has expired")
 	ErrRoutePolicyInUse             = errors.New("route policy is still in use")
 	ErrRoutePolicyUnavailable       = errors.New("route policy is unavailable")
 	ErrRoutePolicyScopeMismatch     = errors.New("route policy scope does not match node slot")
@@ -33,11 +36,11 @@ var (
 )
 
 type Store struct {
-	pool *pgxpool.Pool
+	pool *requestPool
 }
 
 func New(pool *pgxpool.Pool) *Store {
-	return &Store{pool: pool}
+	return &Store{pool: &requestPool{base: pool}}
 }
 
 func (s *Store) Ping(ctx context.Context) error {

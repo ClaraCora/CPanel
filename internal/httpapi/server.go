@@ -81,6 +81,7 @@ func (s *Server) Handler() http.Handler {
 
 	router.Route("/ca/ht", func(ops chi.Router) {
 		ops.Use(s.requireAdmin)
+		ops.Use(s.adminConsistency)
 		ops.Get("/hh", s.handleCurrentSession)
 		ops.Delete("/hh/dq", s.handleLogout)
 		ops.Patch("/zh/zl", s.handleUpdateAdminProfile)

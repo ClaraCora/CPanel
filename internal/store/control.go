@@ -614,6 +614,9 @@ func (s *Store) RecordTelemetryBatch(ctx context.Context, machineID, idempotency
 	if err := lockTelemetryDeviceUsers(ctx, tx, batch); err != nil {
 		return false, err
 	}
+	if err := lockTelemetryNodes(ctx, tx, machineID, batch); err != nil {
+		return false, err
+	}
 	for _, event := range batch.Events {
 		switch event.Type {
 		case "node.telemetry":
@@ -631,6 +634,33 @@ func (s *Store) RecordTelemetryBatch(ctx context.Context, machineID, idempotency
 		}
 	}
 	return true, tx.Commit(ctx)
+}
+
+func lockTelemetryNodes(ctx context.Context, tx pgx.Tx, machineID string, batch telemetryBatch) error {
+	ids := make([]int64, 0, len(batch.Events))
+	for _, event := range batch.Events {
+		if event.NodeID > 0 {
+			ids = append(ids, event.NodeID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	// Telemetry changes no node key. NO KEY UPDATE preserves compatibility with
+	// foreign-key readers (group bindings / traffic inserts) while ordering all
+	// node writes in a multi-node batch.
+	rows, err := tx.Query(ctx, `SELECT id FROM nodes WHERE machine_id=$1 AND agent_id=ANY($2) ORDER BY agent_id FOR NO KEY UPDATE`, machineID, ids)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return err
+		}
+	}
+	return rows.Err()
 }
 
 func lockTelemetryDeviceUsers(ctx context.Context, tx pgx.Tx, batch telemetryBatch) error {

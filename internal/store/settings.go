@@ -132,6 +132,14 @@ func (s *Store) upsertSettings(
 		return err
 	}
 	defer tx.Rollback(ctx)
+	// Every settings writer takes the section lock before individual key locks,
+	// matching the HTTP If-Match guard and the section-version trigger order.
+	if _, err := tx.Exec(ctx, `INSERT INTO setting_section_versions(section) VALUES($1) ON CONFLICT DO NOTHING`, section); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `SELECT config_version FROM setting_section_versions WHERE section=$1 FOR UPDATE`, section); err != nil {
+		return err
+	}
 	for key, value := range values {
 		_, err := tx.Exec(ctx, `
 			INSERT INTO settings(section,key,value,sensitive,updated_by)

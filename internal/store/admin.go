@@ -206,7 +206,8 @@ func (s *Store) RevokeAdminSession(ctx context.Context, tokenHash []byte) error 
 	return err
 }
 
-func (s *Store) WriteAudit(ctx context.Context, adminID, action, resourceType, resourceID string, changes any, ipAddress, requestID string) error {
+func (s *Store) WriteAudit(ctx context.Context, adminID, action, resourceType, resourceID string, changes any, ipAddress, requestID string) (err error) {
+	defer func() { markRequestFailure(ctx, err) }()
 	data, err := marshalAuditChanges(resourceType, changes)
 	if err != nil {
 		return err

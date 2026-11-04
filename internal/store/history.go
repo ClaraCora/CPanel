@@ -198,6 +198,9 @@ func (s *Store) listDeviceHistory(ctx context.Context, days int) ([]domain.Devic
 }
 
 func (s *Store) PruneHistoricalData(ctx context.Context) error {
+	if _, err := s.pool.Exec(ctx, `DELETE FROM admin_idempotency_results WHERE expires_at < now()`); err != nil {
+		return fmt.Errorf("prune expired idempotency results: %w", err)
+	}
 	devicesDays := s.SettingInt(ctx, "retention", "devices_days", 30, 1)
 	trafficDays := s.SettingInt(ctx, "retention", "traffic_days", 90, 1)
 	auditDays := s.SettingInt(ctx, "retention", "audit_days", 180, 1)

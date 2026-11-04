@@ -39,6 +39,12 @@ func writeError(w http.ResponseWriter, r *http.Request, status int, code, messag
 
 func writeStoreError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
+	case errors.Is(err, store.ErrEditVersionConflict):
+		writeError(w, r, http.StatusConflict, "EDIT_VERSION_CONFLICT", "配置已被其他页面修改，你的输入已保留，请重新加载后比较并保存", nil)
+	case errors.Is(err, store.ErrIdempotencyConflict):
+		writeError(w, r, http.StatusConflict, "IDEMPOTENCY_CONFLICT", "该操作标识已用于其他内容，请确认之前的创建结果后重新操作", nil)
+	case errors.Is(err, store.ErrIdempotencyExpired):
+		writeError(w, r, http.StatusConflict, "IDEMPOTENCY_EXPIRED", "该创建操作已超过七天，请先检查列表中的创建结果", nil)
 	case errors.Is(err, store.ErrIncompleteNodeRevision):
 		writeError(w, r, http.StatusConflict, "NODE_REVISION_INCOMPLETE", "该历史版本没有完整配置快照，仅可查看，不能完整恢复", nil)
 	case errors.Is(err, store.ErrMachineHasNodes):

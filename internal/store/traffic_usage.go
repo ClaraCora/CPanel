@@ -29,23 +29,11 @@ func (s *Store) ReconcileTrafficUsage(ctx context.Context) (int64, error) {
 	// Telemetry locks the same users in agent_id order before adding detail or
 	// counters. Lock first, then aggregate in a fresh statement snapshot so a
 	// reconciliation cannot overwrite a concurrently committed traffic report.
-	rows, err := tx.Query(ctx, `SELECT id FROM users WHERE status <> 'archived' ORDER BY agent_id FOR UPDATE`)
-	if err != nil {
-		return 0, err
-	}
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			rows.Close()
-			return 0, err
-		}
-	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
+	if err := lockAllTrafficUsers(ctx, tx); err != nil {
 		return 0, err
 	}
 
-	rows, err = tx.Query(ctx, `WITH combined AS (
+	rows, err := tx.Query(ctx, `WITH combined AS (
 		SELECT user_id,upload_bytes,download_bytes FROM traffic_daily
 		WHERE day >= $1::date AND day < $2::date
 		UNION ALL
@@ -107,6 +95,21 @@ func (s *Store) ReconcileTrafficUsage(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return count + withoutResetTag.RowsAffected(), nil
+}
+
+func lockAllTrafficUsers(ctx context.Context, q resourceQuerier) error {
+	rows, err := q.Query(ctx, `SELECT id FROM users WHERE status <> 'archived' ORDER BY agent_id FOR UPDATE`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return err
+		}
+	}
+	return rows.Err()
 }
 
 // recordUserTraffic runs after all users in the batch have been locked. Quota

@@ -14,6 +14,7 @@ export interface Session {
 }
 
 export interface Machine {
+  config_version?: number;
   id: string;
   name: string;
   region: string;
@@ -49,6 +50,12 @@ export interface Machine {
 }
 
 export interface Node {
+  config_version?: number;
+  has_draft?: boolean;
+  received_revision?: number;
+  attempted_revision?: number;
+  apply_status?: "received" | "applied" | "failed" | "";
+  apply_stage?: string;
   id: string;
   agent_id: number;
   machine_id: string;
@@ -83,6 +90,7 @@ export interface NodeEndpoint {
 }
 
 export interface AccessGroup {
+  config_version?: number;
   id: string;
   name: string;
   status: string;
@@ -95,6 +103,7 @@ export interface AccessGroup {
 }
 
 export interface Plan {
+  config_version?: number;
   id: string;
   access_group_id: string;
   access_group_name: string;
@@ -112,6 +121,8 @@ export interface Plan {
 }
 
 export interface User {
+  config_version?: number;
+  access_group_override_id?: string | null;
   id: string;
   agent_id: number;
   role: "admin" | "user" | "friend";
@@ -157,6 +168,7 @@ export interface PortalNode {
 }
 
 export interface PortalDashboard {
+  access_unavailable_reason?: string;
 	id: string;
 	name: string;
 	role: "admin" | "user" | "friend";
@@ -174,6 +186,7 @@ export interface PortalDashboard {
 }
 
 export interface RoutePolicy {
+  config_version?: number;
   id: string;
   name: string;
   status: string;
@@ -208,6 +221,7 @@ export interface RoutePolicyRule {
 }
 
 export interface Outbound {
+  config_version?: number;
   id: string;
   name: string;
   tag: string;
@@ -341,7 +355,7 @@ export interface ApiErrorBody {
 
 export interface Envelope<T> {
   data: T;
-  meta: { request_id: string };
+  meta: { request_id: string; config_version?: number };
   error: ApiErrorBody | null;
 }
 

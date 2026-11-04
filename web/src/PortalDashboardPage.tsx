@@ -64,7 +64,7 @@ export default function PortalDashboardPage({ session, onLogout }: { session: Po
           </section>
           <section className="edu-panel">
             <header><span className="edu-panel__icon"><Server size={19} /></span><div><h2>可用节点</h2><p>选择节点，复制链接后导入客户端。</p></div><strong className="edu-count">{dashboard.nodes.filter((node) => node.status === "online").length} 在线　{dashboard.nodes.length} 全部</strong></header>
-            <div className="edu-node-list">{dashboard.nodes.length === 0 ? <div className="edu-empty">当前套餐没有可用节点。</div> : dashboard.nodes.map((node, index) => <NodeCard key={`${node.name}-${node.entry_name}-${index}`} node={node} onCopied={(message) => setNotice(message)} />)}</div>
+            <div className="edu-node-list">{dashboard.nodes.length === 0 ? <div className="edu-empty" role="status">{dashboard.access_unavailable_reason || "当前套餐没有可用节点。"}</div> : dashboard.nodes.map((node, index) => <NodeCard key={`${node.name}-${node.entry_name}-${index}`} node={node} onCopied={(message) => setNotice(message)} />)}</div>
           </section>
         </div>
         <aside className="edu-side-column">

@@ -62,7 +62,7 @@ describe("standalone resource editors", () => {
     fireEvent.change(within(form).getByLabelText(/套餐流量/), { target: { value: "12" } });
     fireEvent.submit(form);
     await screen.findByText("返回的列表");
-    expect(api.patch).toHaveBeenCalledWith(`/plans/${demoPlans[0].id}`, expect.objectContaining({ traffic_limit_bytes: 12 * 1024 ** 3 }));
+    expect(api.patch).toHaveBeenCalledWith(`/plans/${demoPlans[0].id}`, expect.objectContaining({ traffic_limit_bytes: 12 * 1024 ** 3 }), { configVersion: demoPlans[0].config_version });
     expect(new URLSearchParams(location.search).get("q")).toBe("标准");
   });
 
@@ -73,7 +73,7 @@ describe("standalone resource editors", () => {
     fireEvent.change(within(form).getByLabelText(/账号名称/), { target: { value: "新用户" } });
     fireEvent.submit(form);
     await screen.findByText("返回的列表");
-    expect(api.post).toHaveBeenCalledWith("/users", expect.objectContaining({ name: "新用户", role: "user" }));
+    expect(api.post).toHaveBeenCalledWith("/users", expect.objectContaining({ name: "新用户", role: "user", expires_mode: "default" }), expect.objectContaining({ idempotencyKey: expect.any(String) }));
   });
 
   it("keeps a newly saved node after publish failure and retries only publication", async () => {

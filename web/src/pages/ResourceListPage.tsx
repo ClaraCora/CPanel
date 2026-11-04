@@ -10,6 +10,7 @@ import { subscriptionAvailable, resourceName, statusLabel, requestErrorMessage, 
 import { MachineMetrics } from "../components/MachineMetrics";
 import type { Machine } from "../types";
 import type { Resource, ResourceDefinition } from "../resourceDefinitions";
+import { creationIntent } from "../mutations";
 
 export function ResourceListPage<T extends Resource>({ title, description, endpoint, createLabel, columns, enabledStatus = "active", disabledStatus = "disabled", installable = false, upgradeable = false, identityResettable = false, subscriptionActions = false, portalActions = false, quickAccountCreation = false, deletable = false, identifierAction, protectedItem, refreshIntervalMs = 0, list }: ResourceDefinition<T>) {
 	deletable = deletable || ["/machines", "/access-groups", "/plans", "/route-policies", "/outbounds"].includes(endpoint);
@@ -40,6 +41,7 @@ export function ResourceListPage<T extends Resource>({ title, description, endpo
   const view = params.get("view") === "table" ? "table" : "cards";
   const hideAddress = params.get("hide_address") === "1";
   const locks = useRef(new Set<string>());
+  const quickIntents = useRef({ user: creationIntent(), friend: creationIntent() });
   const [installing, setInstalling] = useState("");
   const [statusTarget, setStatusTarget] = useState<T | null>(null);
   const [changingStatus, setChangingStatus] = useState("");
@@ -82,7 +84,7 @@ export function ResourceListPage<T extends Resource>({ title, description, endpo
       setStatusTarget(null);
       await reload();
     } catch (reason) {
-      toast(requestErrorMessage(reason, "状态修改失败"), "error");
+      toast(reason instanceof ApiError ? reason : requestErrorMessage(reason, "状态修改失败"), "error");
     } finally {
       locks.current.delete("status");
       setChangingStatus("");
@@ -96,19 +98,26 @@ export function ResourceListPage<T extends Resource>({ title, description, endpo
       await writeClipboard(result.url);
       toast("订阅链接已复制");
     } catch (reason) {
-      toast(requestErrorMessage(reason, "订阅链接复制失败，请重试"), "error");
+      toast(reason instanceof ApiError ? reason : requestErrorMessage(reason, "订阅链接复制失败，请重试"), "error");
     } finally {
       setCopying("");
     }
   }
 
 	async function openPortal(item: T) {
+		const popup = window.open("about:blank", "_blank");
+		if (!popup) { toast("浏览器阻止了新窗口，请允许本站弹出窗口后重试。", "error"); return; }
+		popup.opener = null;
+		popup.document.title = "正在打开订阅中心";
+		popup.document.body.textContent = "正在获取只读访问授权，请稍候…";
 		setOpeningPortal(item.id);
 		try {
 			const result = await api.post<{ grant: string }>(`${endpoint}/${item.id}/portal`);
-			window.open(`/edu?grant=${encodeURIComponent(result.grant)}`, "_blank", "noopener,noreferrer");
+			if (popup.closed) throw new Error("订阅窗口已关闭，请重新打开。");
+			popup.location.replace(`/edu?grant=${encodeURIComponent(result.grant)}`);
 		} catch (reason) {
-			toast(requestErrorMessage(reason, "订阅页面打开失败，请重试"), "error");
+			popup.close();
+			toast(reason instanceof ApiError ? reason : requestErrorMessage(reason, "订阅页面打开失败，请重试"), "error");
 		} finally {
 			setOpeningPortal("");
 		}
@@ -152,7 +161,7 @@ export function ResourceListPage<T extends Resource>({ title, description, endpo
       setInstall({ name: "name" in item ? String(item.name) : item.id, command: result.command });
       toast("安装凭据仅限本机，30 分钟内有效且只能登记一次；重新生成会撤销旧命令");
     } catch (reason) {
-      toast(requestErrorMessage(reason, "安装命令生成失败"), "error");
+      toast(reason instanceof ApiError ? reason : requestErrorMessage(reason, "安装命令生成失败"), "error");
     } finally { locks.current.delete("install"); setInstalling(""); }
   }
 
@@ -183,7 +192,7 @@ export function ResourceListPage<T extends Resource>({ title, description, endpo
       setIdentityResetTarget(null);
       await reload();
     } catch (reason) {
-      toast(requestErrorMessage(reason, "Agent 身份重置失败，请重试"), "error");
+      toast(reason instanceof ApiError ? reason : requestErrorMessage(reason, "Agent 身份重置失败，请重试"), "error");
     } finally {
       setResettingIdentity(false);
     }
@@ -194,11 +203,12 @@ export function ResourceListPage<T extends Resource>({ title, description, endpo
     locks.current.add("quick");
     setQuickCreating(role);
     try {
-      await api.post(`${endpoint}/quick/${role}`);
+      await api.post(`${endpoint}/quick/${role}`, undefined, { idempotencyKey: quickIntents.current[role]({ role }) });
+      quickIntents.current[role] = creationIntent();
       toast(`${role === "friend" ? "朋友" : "用户"}已添加，可在列表中编辑资料`);
       await reload();
     } catch (reason) {
-      toast(requestErrorMessage(reason, "一键添加失败，请重试"), "error");
+      toast(reason instanceof ApiError ? reason : requestErrorMessage(reason, "一键添加失败，请重试"), "error");
     } finally {
       locks.current.delete("quick");
       setQuickCreating("");

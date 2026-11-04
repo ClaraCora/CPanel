@@ -1,5 +1,6 @@
 import { demoNodes, demoResource, demoSession } from "./mock";
-import { ApiError, demoMode, getCsrfToken, notifyAdminSessionExpired } from "./auth";
+import { ApiError, adminSessionExpired, demoMode, getCsrfToken, notifyAdminSessionExpired, trackProtectedRequest } from "./auth";
+import { mutationHeaders, type MutationOptions } from "./mutations";
 import type { Envelope } from "./types";
 
 export { ApiError, demoMode } from "./auth";
@@ -55,12 +56,14 @@ function wirePathname(path: string): string {
   return `/${resource}${tail.length ? `/${tail.join("/")}` : ""}`;
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  if (demoMode) return demoRequest<T>(path, init);
+async function request<T>(path: string, init: RequestInit = {}, receiveMeta?: (meta: Envelope<T>["meta"]) => void): Promise<T> {
+  if (demoMode) { receiveMeta?.({ request_id: "demo", config_version: 1 }); return demoRequest<T>(path, init); }
+  if (adminSessionExpired()) throw new ApiError(401, { code: "ADMIN_SESSION_INVALID", message: "请重新登录后继续操作；编辑内容仍保留在当前页面" });
   const headers = new Headers(init.headers);
   if (init.body) headers.set("Content-Type", "application/json");
   if (init.method && !["GET", "HEAD"].includes(init.method)) headers.set("X-CSRF-Token", getCsrfToken());
   const controller = new AbortController();
+  const untrack = trackProtectedRequest(controller);
   let timedOut = false;
   const abortFromCaller = () => controller.abort(init.signal?.reason);
   if (init.signal?.aborted) abortFromCaller();
@@ -71,14 +74,16 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   }, requestTimeoutMs);
   try {
     const response = await fetch(`${base}${wirePath(path)}`, { ...init, headers, credentials: "same-origin", signal: controller.signal });
-    if (response.status === 401) notifyAdminSessionExpired();
     const contentType = response.headers.get("content-type") ?? "";
     if (!contentType.includes("application/json")) {
-      throw new ApiError(response.status, { code: "INVALID_RESPONSE", message: response.ok ? "服务返回了无法识别的响应" : `服务请求失败（${response.status}）` });
+      if (response.status === 401) notifyAdminSessionExpired();
+      throw new ApiError(response.status, { code: "INVALID_RESPONSE", message: response.ok ? "服务返回了无法识别的响应" : `服务请求失败（${response.status}）` }, response.headers.get("X-Request-ID") ?? "");
     }
     const payload = (await response.json()) as Envelope<T>;
+    receiveMeta?.(payload.meta ?? { request_id: response.headers.get("X-Request-ID") || "" });
+    if (response.status === 401) notifyAdminSessionExpired();
     if (!response.ok || payload.error) {
-      throw new ApiError(response.status, payload.error ?? { code: "REQUEST_FAILED", message: "请求失败，请稍后重试" });
+      throw new ApiError(response.status, payload.error ?? { code: "REQUEST_FAILED", message: "请求失败，请稍后重试" }, payload.meta?.request_id || response.headers.get("X-Request-ID") || "");
     }
     return payload.data;
   } catch (reason) {
@@ -89,6 +94,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw reason;
   } finally {
     window.clearTimeout(timeout);
+    untrack();
     init.signal?.removeEventListener("abort", abortFromCaller);
   }
 }
@@ -131,7 +137,7 @@ async function demoRequest<T>(path: string, init: RequestInit): Promise<T> {
     const id = cleanPath.split("/")[2];
     const index = demoNodes.findIndex((item) => item.id === id);
     const input = JSON.parse(String(init.body));
-    demoNodes[index] = { ...demoNodes[index], ...input, status: "draft", updated_at: new Date().toISOString() };
+    demoNodes[index] = { ...demoNodes[index], ...input, status: input.status ?? (demoNodes[index].status === "published" ? "published" : "draft"), has_draft: !input.status, config_version: (demoNodes[index].config_version ?? 1) + 1, updated_at: new Date().toISOString() };
     return demoNodes[index] as T;
   }
   if (cleanPath.endsWith("/publish") && method === "POST") {
@@ -139,6 +145,8 @@ async function demoRequest<T>(path: string, init: RequestInit): Promise<T> {
     const item = demoNodes.find((node) => node.id === id)!;
     item.status = "published";
     item.current_revision += 1;
+    item.config_version = (item.config_version ?? 1) + 1;
+    item.has_draft = false;
     return item as T;
   }
   const resource = cleanPath.split("/")[1];
@@ -148,7 +156,12 @@ async function demoRequest<T>(path: string, init: RequestInit): Promise<T> {
 
 export const api = {
   get: <T>(path: string, signal?: AbortSignal) => request<T>(path, { signal }),
-  post: <T>(path: string, body?: unknown) => request<T>(path, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) }),
-  patch: <T>(path: string, body: unknown) => request<T>(path, { method: "PATCH", body: JSON.stringify(body) }),
+  getWithMeta: async <T>(path: string, signal?: AbortSignal) => {
+    let meta: Envelope<T>["meta"] = { request_id: "" };
+    const data = await request<T>(path, { signal }, (value) => { meta = value; });
+    return { data, meta };
+  },
+  post: <T>(path: string, body?: unknown, options?: MutationOptions) => request<T>(path, { method: "POST", headers: mutationHeaders(options), body: body === undefined ? undefined : JSON.stringify(body) }),
+  patch: <T>(path: string, body: unknown, options?: MutationOptions) => request<T>(path, { method: "PATCH", headers: mutationHeaders(options), body: JSON.stringify(body) }),
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 };

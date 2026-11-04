@@ -44,12 +44,12 @@ function Tab({ active, onClick, children }: { active: boolean; onClick: () => vo
 }
 
 function TrafficTable({ items, page, pageSize, total, hasMore, onPageChange }: { items: DailyTraffic[]; page: number; pageSize: number; total: number; hasMore: boolean; onPageChange: (page: number) => void }) {
-  if (!items.length) return <HistoryEmpty title="保留期内没有流量记录" />;
+  if (!items.length) return <><HistoryEmpty title={page > 1 ? "这一页已没有流量记录" : "保留期内没有流量记录"} /><Pagination page={page} pageSize={pageSize} total={total} hasMore={hasMore} onPageChange={onPageChange} /></>;
   return <div className="table-surface table-surface--standalone"><div className="table-scroll"><table><thead><tr><th>日期</th><th>上传</th><th>下载</th><th>合计</th></tr></thead><tbody>{items.map((item) => <tr key={item.day}><td data-label="日期"><strong className="cell-primary">{new Date(item.day).toLocaleDateString("zh-CN")}</strong></td><td data-label="上传" className="mono">{formatBytes(item.upload_bytes)}</td><td data-label="下载" className="mono">{formatBytes(item.download_bytes)}</td><td data-label="合计" className="mono"><strong>{formatBytes(item.upload_bytes + item.download_bytes)}</strong></td></tr>)}</tbody></table></div><Pagination page={page} pageSize={pageSize} total={total} hasMore={hasMore} onPageChange={onPageChange} /></div>;
 }
 
 function MetricsTable({ title, items, page, pageSize, total, hasMore, onPageChange }: { title: string; items: MetricSample[]; page: number; pageSize: number; total: number; hasMore: boolean; onPageChange: (page: number) => void }) {
-  if (!items.length) return <HistoryEmpty title={`保留期内没有${title}记录`} />;
+  if (!items.length) return <><HistoryEmpty title={page > 1 ? "这一页已没有记录" : `保留期内没有${title}记录`} /><Pagination page={page} pageSize={pageSize} total={total} hasMore={hasMore} onPageChange={onPageChange} /></>;
   return <div className="table-surface table-surface--standalone"><div className="table-scroll"><table><thead><tr><th>{title === "服务器指标" ? "服务器" : "节点"}</th><th>采样时间</th><th>指标摘要</th></tr></thead><tbody>{items.map((item, index) => <tr key={`${item.resource_id}-${item.sampled_at}-${index}`}><td data-label="资源"><strong className="cell-primary">{item.resource_name}</strong><span className="resource-id">{item.resource_id}</span></td><td data-label="采样时间">{formatDate(item.sampled_at)}</td><td data-label="指标摘要"><MetricSummary metrics={item.metrics} /></td></tr>)}</tbody></table></div><Pagination page={page} pageSize={pageSize} total={total} hasMore={hasMore} onPageChange={onPageChange} /></div>;
 }
 
@@ -60,7 +60,7 @@ function MetricSummary({ metrics }: { metrics: Record<string, unknown> }) {
 }
 
 function DeviceTable({ items, page, pageSize, total, hasMore, onPageChange }: { items: DeviceHistory[]; page: number; pageSize: number; total: number; hasMore: boolean; onPageChange: (page: number) => void }) {
-  if (!items.length) return <HistoryEmpty title="保留期内没有设备连接记录" />;
+  if (!items.length) return <><HistoryEmpty title={page > 1 ? "这一页已没有设备连接记录" : "保留期内没有设备连接记录"} /><Pagination page={page} pageSize={pageSize} total={total} hasMore={hasMore} onPageChange={onPageChange} /></>;
   return <div className="table-surface table-surface--standalone"><div className="table-scroll"><table><thead><tr><th>账号</th><th>节点</th><th>IP 地址</th><th>首次出现</th><th>最后出现</th><th>状态</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td data-label="账号"><strong className="cell-primary">{item.user_name}</strong><span className="resource-id">{item.user_id}</span></td><td data-label="节点"><strong className="cell-primary">{item.node_name}</strong><span className="resource-id">{item.node_id}</span></td><td data-label="IP 地址" className="mono">{item.ip_address}</td><td data-label="首次出现">{formatDate(item.first_seen_at)}</td><td data-label="最后出现">{formatDate(item.last_seen_at)}</td><td data-label="状态"><StatusBadge status={item.online ? "online" : "offline"} /></td></tr>)}</tbody></table></div><Pagination page={page} pageSize={pageSize} total={total} hasMore={hasMore} onPageChange={onPageChange} /></div>;
 }
 

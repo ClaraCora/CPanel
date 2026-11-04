@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { MultiSelectOption } from "./components/NodeMultiSelect";
 import type { Outbound } from "./types";
 
-export type Resource = { id: string; status: string; created_at: string; updated_at: string };
+export type Resource = { id: string; status: string; created_at: string; updated_at: string; config_version?: number };
 export type Column<T> = { label: string; render: (item: T) => ReactNode; className?: string; width?: string };
 
 export type ClearListOptions<T> = {
@@ -18,11 +18,12 @@ export type FieldSpec = {
   type?: "text" | "number" | "textarea" | "select" | "node-picker" | "route-rules" | "outbound-config" | "json" | "email" | "datetime-local" | "password";
   required?: boolean;
   helper?: string;
-  options?: (MultiSelectOption & { exclusive?: boolean })[];
+  options?: (MultiSelectOption & { exclusive?: boolean; editOnly?: boolean })[];
 	routeOutbounds?: Outbound[];
   placeholder?: string;
   editOnly?: boolean;
   lockedValue?: string;
+  visible?: (values: Record<string, string>) => boolean;
 	disabled?: (item: any | null) => boolean;
 };
 
@@ -50,5 +51,6 @@ export type ResourceDefinition<T extends Resource> = {
   refreshIntervalMs?: number;
   list?: ClearListOptions<T>;
   related?: { loading: boolean; error: string; retry: () => void };
+  editorContext?: (values: Record<string, string>, record: T | null) => ReactNode;
 };
 

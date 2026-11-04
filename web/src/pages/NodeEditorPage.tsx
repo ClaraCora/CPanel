@@ -16,6 +16,7 @@ import {
   EmptyState,
   Field,
   PageHeader,
+  ErrorDiagnostic,
   TableSkeleton,
   useToast,
 } from "../components/ui";
@@ -32,6 +33,8 @@ import { useUnsavedChanges } from "../components/AdminNavigation";
 import { safeReturnTo } from "../navigation";
 import { requestErrorMessage } from "../resourceModel";
 import { prepareHysteriaTLS } from "../nodeTLS";
+import { creationIntent } from "../mutations";
+import { VersionConflict } from "../components/VersionConflict";
 
 type NodeForm = {
   name: string;
@@ -83,6 +86,9 @@ function NodeEditor() {
   const initialized = useRef(false);
   const savingRef = useRef(false);
   const savedID = useRef(id || "");
+  const configVersion = useRef<number | undefined>(undefined);
+  const intent = useRef(creationIntent());
+  const publishIntent = useRef(creationIntent());
   const [returnTo] = useState(() => safeReturnTo("/nodes"));
   const [initial, setInitial] = useState("");
   const [loadError, setLoadError] = useState("");
@@ -95,6 +101,7 @@ function NodeEditor() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [requestError, setRequestError] = useState(history.state?.nodePublishFailed ? "配置已保存，发布失败。请重试发布；无需重新创建节点。" : "");
   const [saving, setSaving] = useState<"save" | "publish" | "">("");
+  const [requestFailure, setRequestFailure] = useState<unknown>(null);
 
   const dirty = initialized.current && JSON.stringify(form) !== initial;
   const bypass = useUnsavedChanges(dirty, Boolean(saving));
@@ -108,6 +115,7 @@ function NodeEditor() {
     setNodeLoading(true); setLoadError(""); setMissing(false);
     api.get<Node>(`/nodes/${sourceID}`, controller.signal).then((node) => {
       if (controller.signal.aborted) return;
+      configVersion.current = copying ? undefined : node.config_version;
       const next: NodeForm = {
         name: copying ? `${node.name} 副本` : node.name,
         machine_id: node.machine_id,
@@ -186,6 +194,7 @@ function NodeEditor() {
     savingRef.current = true;
     setSaving(publish ? "publish" : "save");
     setRequestError("");
+    setRequestFailure(null);
     const payload = {
       name: form.name.trim(),
       machine_id: form.machine_id,
@@ -203,17 +212,21 @@ function NodeEditor() {
     try {
       if (!(publish && pendingPublish && !dirty && savedID.current)) {
         const node = savedID.current
-        ? await api.patch<Node>(`/nodes/${savedID.current}`, payload)
-        : await api.post<Node>("/nodes", payload);
+        ? configVersion.current !== undefined
+          ? await api.patch<Node>(`/nodes/${savedID.current}`, payload, { configVersion: configVersion.current })
+          : await api.patch<Node>(`/nodes/${savedID.current}`, payload)
+        : await api.post<Node>("/nodes", payload, { idempotencyKey: intent.current(payload) });
         savedID.current = node.id;
+        configVersion.current = node.config_version;
         setInitial(JSON.stringify(form));
       }
       configurationSaved = true;
-      if (publish) await api.post(`/nodes/${savedID.current}/publish`);
+      if (publish) await api.post(`/nodes/${savedID.current}/publish`, undefined, { idempotencyKey: publishIntent.current({ id: savedID.current, config_version: configVersion.current }), configVersion: configVersion.current });
       setPendingPublish(false);
       toast(publish ? "配置已提交，等待 Agent 应用" : "节点草稿已保存，尚未发布");
       bypass(() => navigate(returnTo, { replace: true }));
     } catch (reason) {
+      setRequestFailure(reason);
       if (configurationSaved && publish) {
         setPendingPublish(true);
         setRequestError(`配置已保存，发布失败：${requestErrorMessage(reason, "请重试发布")}`);
@@ -251,9 +264,10 @@ function NodeEditor() {
       </div>
       <PageHeader
         title={editing ? "编辑节点" : copying ? "复制节点" : "添加节点"}
+        actions={id && <Link className="button button--secondary" to={`/nodes/${encodeURIComponent(id)}/history?${new URLSearchParams({ returnTo })}`}>版本历史</Link>}
         description={
           editing
-            ? "保存后节点将变为待发布，当前运行版本不会立即改变。"
+            ? "保存草稿保留当前运行版本；发布后等待 Agent 确认应用。"
             : copying
               ? "已复制原节点配置，请修改名称和监听端口后保存。"
             : "创建节点配置并绑定到一台 Corade 服务器。"
@@ -272,7 +286,8 @@ function NodeEditor() {
         noValidate
         onSubmit={(event) => void submit(event, false)}
       >
-        {requestError && <div id="node-request-error" className="form-alert" role="alert" tabIndex={-1}>{requestError}</div>}
+        {requestError && <div id="node-request-error" className="form-alert" role="alert" tabIndex={-1}>{requestError}<ErrorDiagnostic error={requestFailure} /></div>}
+        {requestFailure instanceof ApiError && ["CONFIG_VERSION_CONFLICT", "EDIT_VERSION_CONFLICT"].includes(requestFailure.code) && <VersionConflict version={configVersion.current} onReload={() => { setRequestError(""); setRequestFailure(null); setErrors({}); setAttempt((value) => value + 1); }} />}
         <fieldset disabled={Boolean(saving)} className="editor-fields">
         <section className="form-section" id="node-endpoints">
           <div className="form-section__heading">

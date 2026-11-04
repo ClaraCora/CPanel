@@ -11,6 +11,8 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [checking, setChecking] = useState(!demoMode);
   const [sessionNotice, setSessionNotice] = useState("");
+  const [reauthenticating, setReauthenticating] = useState(false);
+  const [editorGeneration, setEditorGeneration] = useState(0);
 
   useEffect(() => {
     if (demoMode) return;
@@ -23,13 +25,23 @@ export default function App() {
 
   useEffect(() => {
     const expireSession = () => {
-      setSession(null);
-      setSessionNotice("登录状态已过期，请重新登录");
-      window.history.replaceState(null, "", "/");
+      setReauthenticating(true);
+      setSessionNotice("登录状态已过期。使用原管理员账号重新登录后继续编辑；当前输入仅保留在本页内存中，请勿刷新或关闭页面。");
     };
     window.addEventListener(adminSessionExpiredEvent, expireSession);
     return () => window.removeEventListener(adminSessionExpiredEvent, expireSession);
   }, []);
+
+  function loggedIn(value: Session) {
+    // Another administrator must never inherit the previous administrator's draft.
+    if (session && value.admin.id !== session.admin.id) {
+      setEditorGeneration((current) => current + 1);
+      window.history.replaceState(null, "", "/");
+    }
+    setSessionNotice("");
+    setReauthenticating(false);
+    setSession(value);
+  }
 
   async function logout() {
     try {
@@ -51,12 +63,14 @@ export default function App() {
   if (!session)
     return (
       <ToastProvider>
-        <LoginPage initialError={sessionNotice} onLogin={(value) => { setSessionNotice(""); setSession(value); }} />
+        <LoginPage initialError={sessionNotice} onLogin={loggedIn} />
       </ToastProvider>
     );
 
-  return (
-    <AuthenticatedLoadBoundary>
+  return <>
+    {reauthenticating && <ToastProvider><LoginPage initialError={sessionNotice} onLogin={loggedIn} /></ToastProvider>}
+    <div hidden={reauthenticating} inert={reauthenticating} style={reauthenticating ? { display: "none" } : undefined}>
+    <AuthenticatedLoadBoundary key={editorGeneration}>
       <Suspense fallback={<BootScreen label="正在加载管理后台…" />}>
         <AuthenticatedApp
           session={session}
@@ -65,7 +79,8 @@ export default function App() {
         />
       </Suspense>
     </AuthenticatedLoadBoundary>
-  );
+    </div>
+  </>;
 }
 
 function BootScreen({ label }: { label: string }) {

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ChevronDown, ChevronUp, Globe, Database, Server, Network, FileKey2, Eye, EyeOff, KeyRound, LockKeyhole, RefreshCw, Save, ScrollText, Send, ShieldCheck, UserRound } from "lucide-react";
 import { useSearchParams } from "wouter";
 import { ApiError, api } from "../api";
-import { Button, EmptyState, Field, PageHeader, Pagination, TableSkeleton, formatPreciseDate, useToast } from "../components/ui";
+import { Button, EmptyState, Field, PageHeader, Pagination, RequestFailure, TableSkeleton, formatPreciseDate, useToast } from "../components/ui";
+import { VersionConflict } from "../components/VersionConflict";
 import { useUnsavedChanges } from "../components/AdminNavigation";
 import { sameFormValues } from "../resourceModel";
 import { ResourceListNote } from "../components/ResourceList";
@@ -99,19 +100,21 @@ function AccountSettings({ admin, onAdminChange }: { admin: Admin; onAdminChange
 
 function SystemSettingForm({ section }: { section: SettingSection }) {
   const fields = section.fields ?? [];
-  const { data, loading, error, reload } = useResource<Setting[]>(`/settings/${section.id}`, []);
+  const { data, loading, error, reload, configVersion } = useResource<Setting[]>(`/settings/${section.id}`, [], 0, true);
   const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [initial, setInitial] = useState<Record<string, string>>({});
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saveError, setSaveError] = useState("");
+  const [saveFailure, setSaveFailure] = useState<unknown>(null);
   const locks = useRef(new Set<string>());
   const dirty = !sameFormValues(values, initial);
   const dirtyRef = useRef(dirty); dirtyRef.current = dirty;
+  const replaceOnLoad = useRef(false);
   useUnsavedChanges(dirty, saving || testing);
   const toast = useToast();
-  useEffect(() => { if (dirtyRef.current) return; const stored = new Map(data.map((item) => [item.key, item.value])); const next = Object.fromEntries(fields.map((field) => [field.key, field.sensitive && stored.has(field.key) ? "" : stored.has(field.key) ? String(stored.get(field.key) ?? "") : field.defaultValue ?? ""])); setValues(next); setInitial(next); }, [data, fields]);
+  useEffect(() => { if (dirtyRef.current && !replaceOnLoad.current) return; replaceOnLoad.current = false; const stored = new Map(data.map((item) => [item.key, item.value])); const next = Object.fromEntries(fields.map((field) => [field.key, field.sensitive && stored.has(field.key) ? "" : stored.has(field.key) ? String(stored.get(field.key) ?? "") : field.defaultValue ?? ""])); setValues(next); setInitial(next); }, [data, fields]);
   function updateValue(key: string, value: string) { setValues((current) => ({ ...current, [key]: value })); setFieldErrors((current) => ({ ...current, [key]: "" })); }
 
   function generateKey(field: SettingField) {
@@ -123,11 +126,12 @@ function SystemSettingForm({ section }: { section: SettingSection }) {
   async function save(event: FormEvent) {
     event.preventDefault();
     if (locks.current.has("save") || locks.current.has("test")) return;
+    if (configVersion === undefined) { setSaveError("服务未返回配置版本，请重新加载设置后再保存。"); return; }
     locks.current.add("save"); setSaving(true); setSaveError(""); setFieldErrors({});
     const payload: Record<string, unknown> = {};
     fields.forEach((field) => { const raw = values[field.key] ?? ""; if (field.sensitive && !raw) return; payload[field.key] = field.type === "number" ? Number(raw || 0) : field.type === "toggle" ? raw === "true" : raw; });
-    try { await api.patch(`/settings/${section.id}`, { values: payload, sensitive_keys: fields.filter((field) => field.sensitive && values[field.key]).map((field) => field.key) }); toast(`${section.label}设置已保存`); dirtyRef.current = false; const next = { ...values }; fields.filter((field) => field.sensitive).forEach((field) => { next[field.key] = ""; }); setValues(next); setInitial(next); await reload(); }
-    catch (reason) { if (reason instanceof ApiError) setFieldErrors(reason.fields); setSaveError(reason instanceof ApiError ? reason.message : "设置保存失败，请检查网络后重试"); }
+    try { await api.patch(`/settings/${section.id}`, { values: payload, sensitive_keys: fields.filter((field) => field.sensitive && values[field.key]).map((field) => field.key) }, { configVersion }); toast(`${section.label}设置已保存`); dirtyRef.current = false; const next = { ...values }; fields.filter((field) => field.sensitive).forEach((field) => { next[field.key] = ""; }); setValues(next); setInitial(next); setSaveFailure(null); await reload(); }
+    catch (reason) { if (reason instanceof ApiError) setFieldErrors(reason.fields); setSaveFailure(reason); setSaveError(reason instanceof ApiError ? reason.message : "设置保存失败，请检查网络后重试"); }
     finally { locks.current.delete("save"); setSaving(false); }
   }
 
@@ -138,14 +142,15 @@ function SystemSettingForm({ section }: { section: SettingSection }) {
       await api.post("/settings/tgbot/test");
       toast("测试消息已发送到绑定的 Telegram 账号");
     } catch (reason) {
-      toast(reason instanceof ApiError ? reason.message : "测试消息发送失败", "error");
+      toast(reason instanceof ApiError ? reason : "测试消息发送失败", "error");
     } finally { locks.current.delete("test"); setTesting(false); }
   }
 
   if (loading) return <div className="settings-loading"><TableSkeleton columns={2} rows={5} /></div>;
   if (error) return <EmptyState title="设置加载失败" description={error} action={<Button onClick={() => void reload()}>重新加载</Button>} />;
   return <form onSubmit={save} className="settings-form">
-    {saveError && <div className="form-alert setting-field--full" role="alert">{saveError}</div>}
+    {saveError && <RequestFailure message={saveError} error={saveFailure} />}
+    {saveFailure instanceof ApiError && ["CONFIG_VERSION_CONFLICT", "EDIT_VERSION_CONFLICT"].includes(saveFailure.code) && <VersionConflict version={configVersion} onReload={() => { replaceOnLoad.current = true; setSaveFailure(null); setSaveError(""); setFieldErrors({}); void reload(); }} />}
     <fieldset disabled={saving || testing} className="settings-fields">
     {fields.map((field) => <div className={field.type === "textarea" ? "setting-field setting-field--full" : "setting-field"} key={field.key}><Field group={field.generate || field.type === "toggle"} label={field.label} helper={field.helper} error={fieldErrors[field.key]}>{field.type === "toggle" ? <label className="settings-toggle"><input type="checkbox" aria-label={field.label} checked={(values[field.key] ?? "true") === "true"} onChange={(event) => updateValue(field.key, String(event.target.checked))} /><span>{(values[field.key] ?? "true") === "true" ? "启用" : "关闭"}</span></label> : field.type === "textarea" ? <textarea rows={4} value={values[field.key] ?? ""} onChange={(event) => updateValue(field.key, event.target.value)} /> : field.type === "select" ? <select value={values[field.key] ?? ""} onChange={(event) => updateValue(field.key, event.target.value)}>{field.options?.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select> : field.generate ? <div className="input-with-action"><input aria-label={field.label} type={field.type ?? "text"} min={field.min} max={field.max} value={values[field.key] ?? ""} autoComplete="new-password" placeholder="留空表示不修改" onChange={(event) => updateValue(field.key, event.target.value)} /><Button type="button" onClick={() => { generateKey(field); }}><RefreshCw size={15} />生成</Button></div> : <input aria-label={field.label} type={field.type ?? "text"} min={field.min} max={field.max} value={values[field.key] ?? ""} autoComplete={field.sensitive ? "new-password" : undefined} placeholder={field.sensitive ? "留空表示不修改" : undefined} onChange={(event) => updateValue(field.key, event.target.value)} />}</Field></div>)}
     </fieldset>
@@ -196,5 +201,5 @@ function SubscriptionAccessLog() {
   const [view, setView] = useState<"grouped" | "raw">("grouped");
   const rows = useMemo<SubscriptionAccessDisplayRow[]>(() => view === "grouped" ? groupedSubscriptionAccess(data) : data.map((item) => ({ ...item, access_count: 1, first_seen_at: item.created_at, last_seen_at: item.created_at })), [data, view]);
   const summary = view === "grouped" ? `最近 ${data.length} 条原始记录，合并显示为 ${rows.length} 项` : `最近 ${data.length} 条原始记录`;
-  return <section className="subscription-access" aria-labelledby="subscription-access-title"><header><div><ScrollText size={18} /><div><h3 id="subscription-access-title">订阅拉取记录</h3><p>{summary} · 共 {total} 条</p></div></div><div className="subscription-access__actions"><div className="subscription-access__view-switch" role="group" aria-label="记录显示方式"><button type="button" className={view === "grouped" ? "active" : ""} aria-pressed={view === "grouped"} onClick={() => setView("grouped")}>合并显示</button><button type="button" className={view === "raw" ? "active" : ""} aria-pressed={view === "raw"} onClick={() => setView("raw")}>原始记录</button></div><Button type="button" onClick={() => void reload()} disabled={loading}><RefreshCw size={15} />刷新</Button></div></header>{loading ? <div className="subscription-access__loading"><TableSkeleton columns={6} rows={5} /></div> : error ? <EmptyState title="拉取记录加载失败" description={error} action={<Button type="button" onClick={() => void reload()}>重新加载</Button>} /> : rows.length === 0 ? <EmptyState title="暂无拉取记录" description="新的订阅请求会显示在这里。" /> : <><div className="table-scroll subscription-access__table"><table><thead><tr><th>账号</th><th>结果</th><th>IP 地址</th><th>User-Agent</th><th>次数</th><th>拉取时间</th></tr></thead><tbody>{rows.map((item) => { const outcome = accessOutcome[item.outcome] ?? accessOutcome.failed; const merged = item.access_count > 1; return <tr key={item.id}><td data-label="账号"><strong className="cell-primary">{item.user_name || "未知账号"}</strong><span className="resource-id">{item.user_id || "未匹配账号"}</span></td><td data-label="结果"><span className={`status status--${outcome.tone}`}><span className="status__dot" aria-hidden="true" />{outcome.label}</span><span className="subscription-access__code">HTTP {item.status_code}</span></td><td data-label="IP 地址" className="mono">{item.ip_address || "未知"}</td><td data-label="User-Agent"><code title={item.user_agent}>{item.user_agent || "未提供"}</code></td><td data-label="次数" className="mono"><span className={`subscription-access__count${merged ? " subscription-access__count--merged" : ""}`}>{item.access_count}</span></td><td data-label="拉取时间" className="mono subscription-access__time"><strong>{formatPreciseDate(item.last_seen_at)}</strong>{merged && <span>{formatPreciseDate(item.first_seen_at)} 至 {formatPreciseDate(item.last_seen_at)}</span>}</td></tr>; })}</tbody></table></div><Pagination page={page} pageSize={pageSize} total={total} hasMore={hasMore} onPageChange={setPage} /></>}</section>;
+  return <section className="subscription-access" aria-labelledby="subscription-access-title"><header><div><ScrollText size={18} /><div><h3 id="subscription-access-title">订阅拉取记录</h3><p>{summary} · 共 {total} 条</p></div></div><div className="subscription-access__actions"><div className="subscription-access__view-switch" role="group" aria-label="记录显示方式"><button type="button" className={view === "grouped" ? "active" : ""} aria-pressed={view === "grouped"} onClick={() => setView("grouped")}>合并显示</button><button type="button" className={view === "raw" ? "active" : ""} aria-pressed={view === "raw"} onClick={() => setView("raw")}>原始记录</button></div><Button type="button" onClick={() => void reload()} disabled={loading}><RefreshCw size={15} />刷新</Button></div></header>{loading ? <div className="subscription-access__loading"><TableSkeleton columns={6} rows={5} /></div> : error ? <EmptyState title="拉取记录加载失败" description={error} action={<Button type="button" onClick={() => void reload()}>重新加载</Button>} /> : rows.length === 0 ? <EmptyState title="暂无拉取记录" description="新的订阅请求会显示在这里。" /> : <><div className="table-scroll subscription-access__table"><table><thead><tr><th>账号</th><th>结果</th><th>IP 地址</th><th>User-Agent</th><th>次数</th><th>拉取时间</th></tr></thead><tbody>{rows.map((item) => { const outcome = accessOutcome[item.outcome] ?? accessOutcome.failed; const merged = item.access_count > 1; return <tr key={item.id}><td data-label="账号"><strong className="cell-primary">{item.user_name || "未知账号"}</strong><span className="resource-id">{item.user_id || "未匹配账号"}</span></td><td data-label="结果"><span className={`status status--${outcome.tone}`}><span className="status__dot" aria-hidden="true" />{outcome.label}</span><span className="subscription-access__code">HTTP {item.status_code}</span></td><td data-label="IP 地址" className="mono">{item.ip_address || "未知"}</td><td data-label="User-Agent"><code title={item.user_agent}>{item.user_agent || "未提供"}</code></td><td data-label="次数" className="mono"><span className={`subscription-access__count${merged ? " subscription-access__count--merged" : ""}`}>{item.access_count}</span></td><td data-label="拉取时间" className="mono subscription-access__time"><strong>{formatPreciseDate(item.last_seen_at)}</strong>{merged && <span>{formatPreciseDate(item.first_seen_at)} 至 {formatPreciseDate(item.last_seen_at)}</span>}</td></tr>; })}</tbody></table></div></>}{!loading && !error && <Pagination page={page} pageSize={pageSize} total={total} hasMore={hasMore} onPageChange={setPage} />}</section>;
 }

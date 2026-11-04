@@ -1,6 +1,8 @@
 import { Children, cloneElement, isValidElement, createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { AlertCircle, CheckCircle2, Info, LoaderCircle, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, Copy, Info, LoaderCircle, X } from "lucide-react";
+import { ApiError } from "../auth";
+import { writeClipboard } from "../resourceModel";
 import type { StatusTone } from "../types";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
@@ -41,7 +43,7 @@ export function TableSkeleton({ columns = 6, rows = 6 }: { columns?: number; row
 
 export function Pagination({ page, pageSize, total, hasMore, onPageChange }: { page: number; pageSize: number; total: number; hasMore: boolean; onPageChange: (page: number) => void }) {
   const pages = Math.max(1, Math.ceil(total / pageSize));
-  if (total <= pageSize && !hasMore) return null;
+  if (page <= 1 && total <= pageSize && !hasMore) return null;
   return <nav className="pagination" aria-label="分页"><span>第 {page} 页 · 共 {total.toLocaleString("zh-CN")} 条</span><div><button type="button" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>上一页</button><span className="pagination__current" aria-current="page">{page}</span><button type="button" disabled={!hasMore && page >= pages} onClick={() => onPageChange(page + 1)}>下一页</button></div></nav>;
 }
 
@@ -252,17 +254,34 @@ export function Field({ label, required, error, helper, group = false, children 
   return group ? <div role="group" aria-labelledby={`${id}-label`} aria-describedby={description} className={`field ${error ? "field--error" : ""}`}>{content}</div> : <label className={`field ${error ? "field--error" : ""}`}>{content}</label>;
 }
 
-type ToastItem = { id: number; tone: "success" | "error"; message: string };
-const ToastContext = createContext<(message: string, tone?: "success" | "error") => void>(() => undefined);
+export function ErrorDiagnostic({ error }: { error: unknown }) {
+  const [copyState, setCopyState] = useState("");
+  if (!(error instanceof ApiError) || !error.requestId) return null;
+  async function copy() {
+    if (!(error instanceof ApiError)) return;
+    try {
+      await writeClipboard(`时间：${error.occurredAt}\n请求 ID：${error.requestId}\nHTTP：${error.status}\n错误码：${error.code}`);
+      setCopyState("诊断信息已复制");
+    } catch { setCopyState("复制失败，请手动复制请求 ID"); }
+  }
+  return <span className="error-diagnostic"><span>请求 ID：<code>{error.requestId}</code></span><button type="button" className="clear-row-edit" onClick={() => void copy()}><Copy size={14} aria-hidden="true" />复制诊断信息</button>{copyState && <span role="status">{copyState}</span>}</span>;
+}
+
+export function RequestFailure({ message, error }: { message: string; error?: unknown }) {
+  return <div className="form-alert" role="alert"><span>{message}</span><ErrorDiagnostic error={error} /></div>;
+}
+
+type ToastItem = { id: number; tone: "success" | "error"; message: string | Error };
+const ToastContext = createContext<(message: string | Error, tone?: "success" | "error") => void>(() => undefined);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([]);
-  const show = useCallback((message: string, tone: "success" | "error" = "success") => {
-    const id = Date.now();
+  const show = useCallback((message: string | Error, tone: "success" | "error" = "success") => {
+    const id = Date.now() + Math.random();
     setItems((value) => [...value, { id, tone, message }]);
-    window.setTimeout(() => setItems((value) => value.filter((item) => item.id !== id)), 4000);
+    if (tone !== "error") window.setTimeout(() => setItems((value) => value.filter((item) => item.id !== id)), 4000);
   }, []);
-  return <ToastContext.Provider value={show}>{children}{createPortal(<div className="toast-region" aria-live="polite">{items.map((item) => <div className={`toast toast--${item.tone}`} key={item.id}>{item.tone === "success" ? <CheckCircle2 size={17} /> : <AlertCircle size={17} />}<span>{item.message}</span><button aria-label="关闭通知" onClick={() => setItems((value) => value.filter((entry) => entry.id !== item.id))}><X size={15} /></button></div>)}</div>, overlayRoot())}</ToastContext.Provider>;
+  return <ToastContext.Provider value={show}>{children}{createPortal(<div className="toast-region" aria-live="polite">{items.map((item) => <div className={`toast toast--${item.tone}`} key={item.id}>{item.tone === "success" ? <CheckCircle2 size={17} /> : <AlertCircle size={17} />}<div><span>{item.message instanceof Error ? item.message.message : item.message}</span><ErrorDiagnostic error={item.message} /></div><button aria-label="关闭通知" onClick={() => setItems((value) => value.filter((entry) => entry.id !== item.id))}><X size={15} /></button></div>)}</div>, overlayRoot())}</ToastContext.Provider>;
 }
 
 export const useToast = () => useContext(ToastContext);

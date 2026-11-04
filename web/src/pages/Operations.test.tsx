@@ -11,6 +11,7 @@ import { SettingsPage, SubscriptionPage } from "./SettingsPage";
 beforeEach(() => {
   window.history.replaceState({}, "", "/?demo=1");
   vi.stubGlobal("matchMedia", () => ({ matches: false }));
+  vi.spyOn(api, "getWithMeta").mockImplementation(async (path) => ({ data: demoSettings[path.split("/")[2]] ?? [], meta: { request_id: "test", config_version: 1 } }) as never);
   vi.spyOn(api, "get").mockImplementation(async (path) => {
     if (path === "/outbounds") return demoOutbounds as never;
     if (path === "/route-policies") return demoRoutes as never;

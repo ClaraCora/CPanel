@@ -140,3 +140,8 @@ export function demoResource(path: string): unknown {
   if (path === "/audit-events") return demoAuditEvents;
   return null;
 }
+
+// Demo records use the same optimistic edit contract as real resources.
+for (const records of [demoMachines, demoNodes, demoGroups, demoPlans, demoUsers, demoRoutes, demoOutbounds]) {
+  for (const record of records) record.config_version ??= 1;
+}

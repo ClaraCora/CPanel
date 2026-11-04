@@ -544,3 +544,18 @@ html[data-admin-theme] body { margin: 0; min-width: 320px; background: var(--sur
 @media (prefers-reduced-motion: reduce) {
   .admin-console *, .admin-console *::before, .admin-console *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* Operational recovery and effective configuration context. */
+.admin-console .error-diagnostic { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-top: 8px; font-size: 12px; }
+.admin-console .error-diagnostic code { overflow-wrap: anywhere; }
+.admin-console .error-diagnostic button { display: inline-flex; align-items: center; gap: 6px; }
+.admin-console .conflict-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.admin-console .entitlement-context { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--secondary); }
+.admin-console .entitlement-context h3 { color: var(--text); font-size: 14px; margin: 16px 0 8px; }
+.admin-console .entitlement-context p { margin: 8px 0; line-height: 1.6; }
+.admin-console .entitlement-nodes { display: flex; flex-direction: column; gap: 8px; padding: 0; list-style: none; }
+.admin-console .entitlement-nodes li { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.admin-console .entitlement-nodes a { min-width: 120px; overflow-wrap: anywhere; }
+@media (max-width: 767px) {
+  .admin-console .error-diagnostic button, .admin-console .entitlement-nodes a { min-height: 44px; display: inline-flex; align-items: center; }
+}

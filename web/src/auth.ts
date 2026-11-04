@@ -4,6 +4,7 @@ const base = "/ca/ht";
 const requestTimeoutMs = 15_000;
 let csrfToken = "";
 let adminSessionExpiredNotified = false;
+const protectedRequests = new Set<AbortController>();
 
 export const adminSessionExpiredEvent = "cpanel:admin-session-expired";
 export const portalSessionExpiredEvent = "cpanel:portal-session-expired";
@@ -14,13 +15,16 @@ export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
   readonly fields: Record<string, string>;
+  readonly requestId: string;
+  readonly occurredAt = new Date().toISOString();
 
-  constructor(status: number, body: ApiErrorBody) {
+  constructor(status: number, body: ApiErrorBody, requestId = "") {
     super(body.message);
     this.name = "ApiError";
     this.status = status;
     this.code = body.code;
     this.fields = body.fields ?? {};
+    this.requestId = requestId;
   }
 }
 
@@ -32,7 +36,14 @@ export function notifyAdminSessionExpired() {
   csrfToken = "";
   if (adminSessionExpiredNotified) return;
   adminSessionExpiredNotified = true;
+  protectedRequests.forEach((controller) => controller.abort());
   window.dispatchEvent(new Event(adminSessionExpiredEvent));
+}
+
+export function adminSessionExpired() { return adminSessionExpiredNotified; }
+export function trackProtectedRequest(controller: AbortController) {
+  protectedRequests.add(controller);
+  return () => protectedRequests.delete(controller);
 }
 
 export function notifyPortalSessionExpired() {
@@ -60,11 +71,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const response = await fetch(`${base}${path}`, { ...init, headers, credentials: "same-origin", signal: controller.signal });
     const contentType = response.headers.get("content-type") ?? "";
     if (!contentType.includes("application/json")) {
-      throw new ApiError(response.status, { code: "INVALID_RESPONSE", message: response.ok ? "服务返回了无法识别的响应" : `服务请求失败（${response.status}）` });
+      throw new ApiError(response.status, { code: "INVALID_RESPONSE", message: response.ok ? "服务返回了无法识别的响应" : `服务请求失败（${response.status}）` }, response.headers.get("X-Request-ID") ?? "");
     }
     const payload = (await response.json()) as Envelope<T>;
     if (!response.ok || payload.error) {
-      throw new ApiError(response.status, payload.error ?? { code: "REQUEST_FAILED", message: "请求失败，请稍后重试" });
+      throw new ApiError(response.status, payload.error ?? { code: "REQUEST_FAILED", message: "请求失败，请稍后重试" }, payload.meta?.request_id || response.headers.get("X-Request-ID") || "");
     }
     return payload.data;
   } catch (reason) {

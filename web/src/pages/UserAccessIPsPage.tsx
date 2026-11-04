@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useEffect } from "react";
 import { Copy, LoaderCircle, MapPin, RefreshCw, Search } from "lucide-react";
 import { api } from "../api";
@@ -29,18 +29,8 @@ export function UserAccessIPsPage() {
     const serialized = params.toString();
     window.history.replaceState(window.history.state, "", `${window.location.pathname}${serialized ? `?${serialized}` : ""}`);
   }, [role]);
-  const filtered = useMemo(() => {
-    const keyword = query.trim().toLowerCase();
-    return data.filter((item) => {
-      if (role !== "all" && item.role !== role) return false;
-      if (!keyword) return true;
-      const values = [item.user_name, item.user_id, ...item.addresses.flatMap((address) => {
-        const location = locationRequests[address.ip_address]?.location ?? address.location;
-        return [address.ip_address, address.last_node_name, address.last_node_id ?? "", location?.country ?? "", location?.province ?? "", location?.city ?? "", location?.isp ?? ""];
-      })];
-      return values.some((value) => value.toLowerCase().includes(keyword));
-    });
-  }, [data, locationRequests, query, role]);
+  // Search and role filtering belong to the paged API; never filter a page again.
+  const filtered = data;
 
   async function lookupLocation(ipAddress: string, refresh = false) {
     if (lookupLocks.current.has(ipAddress)) return;
@@ -82,10 +72,11 @@ export function UserAccessIPsPage() {
       <label className="search-box"><Search size={16} /><span className="sr-only">搜索用户访问 IP</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索账号、用户 ID、IP、地区或节点" /></label>
       <span className="toolbar__count">共 {total} 个账号</span>
     </div>
-    <div className="table-surface access-ip-table">{loading ? <TableSkeleton columns={8} rows={7} /> : error ? <EmptyState title="访问 IP 加载失败" description={error} action={<Button onClick={() => void reload()}>重新加载</Button>} /> : filtered.length === 0 ? <EmptyState title={data.length === 0 ? "暂无用户访问 IP" : "没有匹配的访问 IP"} description={data.length === 0 ? "尚未收到节点上报的账号源 IP。" : "请调整搜索内容或账号分类。"} /> : <><div className="table-scroll"><table><thead><tr><th>账号</th><th>分类 / 状态</th><th>最近 IP</th><th>记录数</th><th>最后节点</th><th>最后访问</th><th className="col-access-ip-action"><span className="sr-only">操作</span></th></tr></thead><tbody>{filtered.map((item) => {
+    <div className="table-surface access-ip-table">{loading ? <TableSkeleton columns={8} rows={7} /> : error ? <EmptyState title="访问 IP 加载失败" description={error} action={<Button onClick={() => void reload()}>重新加载</Button>} /> : filtered.length === 0 ? <EmptyState title={query || role !== "all" ? "没有匹配的访问 IP" : page > 1 ? "这一页已没有记录" : "暂无用户访问 IP"} description={query || role !== "all" ? "请调整搜索内容或账号分类。" : page > 1 ? "记录可能已变化，请返回上一页。" : "尚未收到节点上报的账号源 IP。"} action={query || role !== "all" ? <Button onClick={() => { setQuery(""); setRole("all"); }}>清除筛选</Button> : undefined} /> : <><div className="table-scroll"><table><thead><tr><th>账号</th><th>分类 / 状态</th><th>最近 IP</th><th>记录数</th><th>最后节点</th><th>最后访问</th><th className="col-access-ip-action"><span className="sr-only">操作</span></th></tr></thead><tbody>{filtered.map((item) => {
       const latest = item.addresses[0];
       return <tr key={item.user_id}><td data-label="账号"><strong className="cell-primary">{item.user_name}</strong><span className="resource-id">{item.user_id}</span></td><td data-label="分类 / 状态"><span className="cell-primary">{roleLabels[item.role]}</span><StatusBadge status={item.status} /></td><td data-label="最近 IP">{latest ? <IPAddressLocation address={latest} request={locationRequests[latest.ip_address]} onLookup={lookupLocation} /> : <span className="resource-id">暂无地址</span>}</td><td data-label="记录数"><span className="access-ip-count"><strong>{item.addresses.length}</strong><small>/ 10</small></span></td><td data-label="最后节点"><strong className="cell-primary">{latest?.last_node_name || "节点已删除"}</strong>{latest?.last_node_id && <span className="resource-id">{latest?.last_node_id}</span>}</td><td data-label="最后访问" ><ResourceDate value={item.last_seen_at} formatted={formatPreciseDate(item.last_seen_at)} /></td><td data-label="操作" className="col-access-ip-action row-actions"><button type="button" className="clear-row-edit" aria-label={`查看 ${item.user_name} 的访问 IP`} onClick={() => setSelected(item)}>查看 IP</button></td></tr>;
-    })}</tbody></table></div><Pagination page={page} pageSize={pageSize} total={total} hasMore={hasMore} onPageChange={setPage} /></>}</div>
+    })}</tbody></table></div></>}</div>
+    {!loading && !error && <Pagination page={page} pageSize={pageSize} total={total} hasMore={hasMore} onPageChange={setPage} />}
     </section><ResourceListNote>每个账号保留最近 10 个不同源 IP；归属地按需查询，可手动刷新缓存。</ResourceListNote>
     <DetailDialog className="resource-detail clear-operation-editor clear-ip-editor" open={Boolean(selected)} title={selected ? `${selected.user_name} 的访问 IP` : "访问 IP"} description={selected ? `${roleLabels[selected.role]} · ${selected.user_id}` : undefined} onClose={() => setSelected(null)}>{selected && <div className="access-ip-detail"><div className="access-ip-detail__summary"><span>最近访问</span><strong className="mono">{formatPreciseDate(selected.last_seen_at)}</strong><span>已记录</span><strong className="mono">{selected.addresses.length} / 10</strong></div><div className="table-scroll"><table><thead><tr><th>IP 地址</th><th>首次出现</th><th>最后出现</th><th>最后节点</th><th><span className="sr-only">复制</span></th></tr></thead><tbody>{selected.addresses.map((address) => <tr key={address.ip_address}><td data-label="IP 地址"><IPAddressLocation address={address} request={locationRequests[address.ip_address]} onLookup={lookupLocation} /></td><td data-label="首次出现" className="mono">{formatPreciseDate(address.first_seen_at)}</td><td data-label="最后出现" className="mono">{formatPreciseDate(address.last_seen_at)}</td><td data-label="最后节点"><strong className="cell-primary">{address.last_node_name || "节点已删除"}</strong>{address.last_node_id && <span className="resource-id">{address.last_node_id}</span>}</td><td data-label="操作"><button type="button" className="icon-button" aria-label={`复制 IP ${address.ip_address}`} title="复制 IP" onClick={() => void copyIP(address.ip_address)}><Copy size={16} /></button></td></tr>)}</tbody></table></div></div>}</DetailDialog>
   </div>;

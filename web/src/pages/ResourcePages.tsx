@@ -1,4 +1,4 @@
-import { useLocation, useParams } from "wouter";
+import { Link, useLocation, useParams } from "wouter";
 import { KeyRound } from "lucide-react";
 import { formatBytes, formatDateWithYear, formatPreciseDate } from "../components/ui";
 import { defaultOutboundSettings } from "../components/OutboundConfigForm";
@@ -10,6 +10,8 @@ import type { Resource, ResourceDefinition } from "../resourceDefinitions";
 import type { AccessGroup, Machine, Node, Outbound, Plan, RoutePolicy, User } from "../types";
 import { ResourceListPage } from "./ResourceListPage";
 import { ResourceEditorPage } from "./ResourceEditorPage";
+import { GroupContext, UserEntitlementContext } from "../components/EntitlementContext";
+import { editorHref } from "../navigation";
 
 function ResourcePage<T extends Resource>(definition: ResourceDefinition<T>) {
   const [path] = useLocation();
@@ -51,17 +53,18 @@ function TrafficUsage({ used, limit }: { used: number; limit: number }) {
   return <div className="traffic-usage">
     <span><strong>{formatBytes(used)}</strong><small>/ {limit > 0 ? formatBytes(limit) : "不限"}</small></span>
     {limit > 0 && <span className="traffic-usage__track" role="progressbar" aria-label="流量使用比例" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(percent)}><i style={{ width: `${percent}%` }} /></span>}
+    {limit > 0 && used >= limit && <span className="text-warning">流量已用尽，节点授权暂停</span>}
   </div>;
 }
 
 export function AccessGroupsPage() {
   const { data: nodes, loading: relatedLoading, error: relatedError, reload: retryRelated } = useResource<Node[]>("/nodes", []);
-  return <ResourcePage<AccessGroup> related={{ loading: relatedLoading, error: relatedError, retry: () => { void retryRelated(); } }} list={{ kind: "groups", searchPlaceholder: "搜索权限组名称或备注", note: "权限组定义节点访问范围，不是后台管理员角色。节点需处于已发布状态才可使用。" }} title="权限组" description="控制用户和朋友可以访问的节点范围" endpoint="/access-groups" createLabel="添加权限组" defaults={{ name: "", notes: "", node_ids: "" }} fields={[{ key: "name", label: "权限组名称", required: true, placeholder: "例如：标准线路" }, { key: "node_ids", label: "可访问节点", type: "node-picker", options: nodes.map((item) => ({ value: item.id, label: item.name, detail: `${item.protocol.toUpperCase()} · ${item.machine_name} · 端口 ${item.server_port} · ${item.status === "published" ? "已发布" : item.status === "disabled" ? "已停用" : item.status === "draft" ? "草稿" : "异常"}`, keywords: `${item.id} ${item.machine_name} ${item.protocol} ${item.server_port}` })) }, { key: "notes", label: "备注", type: "textarea", placeholder: "选填，仅管理员可见" }]} transform={(v) => ({ name: v.name, notes: v.notes, node_ids: v.node_ids.split(",").filter(Boolean) })} toValues={(item) => ({ name: item.name, notes: item.notes ?? "", node_ids: (item.node_ids ?? []).join(",") })} columns={[{ label: "权限组", width: "25%", render: (item) => primary(item.name, item.id, item.notes) }, { label: "可访问节点", width: "31%", render: (item) => <><span className="mono">{item.node_count} 个节点</span><div className="resource-node-chips">{(item.node_ids ?? []).slice(0, 3).map((id) => <span key={id}>{nodes.find((node) => node.id === id)?.name || id}</span>)}{(item.node_ids?.length ?? 0) > 3 && <span>+{item.node_ids.length - 3}</span>}</div></> }, { label: "账号数", width: "9%", render: (item) => <span className="mono">{item.user_count}</span> }, { label: "更新时间", render: (item) => <ResourceDate value={item.updated_at} formatted={formatDateWithYear(item.updated_at)} /> }]} />;
+  return <ResourcePage<AccessGroup> related={{ loading: relatedLoading, error: relatedError, retry: () => { void retryRelated(); } }} list={{ kind: "groups", searchPlaceholder: "搜索权限组名称或备注", note: "权限组定义节点访问范围，不是后台管理员角色。节点需处于已发布状态才可使用。" }} title="权限组" description="控制用户和朋友可以访问的节点范围" endpoint="/access-groups" createLabel="添加权限组" defaults={{ name: "", notes: "", node_ids: "" }} fields={[{ key: "name", label: "权限组名称", required: true, placeholder: "例如：标准线路" }, { key: "node_ids", label: "可访问节点", type: "node-picker", options: nodes.map((item) => ({ value: item.id, label: item.name, detail: `${item.protocol.toUpperCase()} · ${item.machine_name} · 端口 ${item.server_port} · ${item.status === "published" ? "已发布" : item.status === "disabled" ? "已停用" : item.status === "draft" ? "草稿" : "异常"}`, keywords: `${item.id} ${item.machine_name} ${item.protocol} ${item.server_port}` })) }, { key: "notes", label: "备注", type: "textarea", placeholder: "选填，仅管理员可见" }]} transform={(v) => ({ name: v.name, notes: v.notes, node_ids: v.node_ids.split(",").filter(Boolean) })} toValues={(item) => ({ name: item.name, notes: item.notes ?? "", node_ids: (item.node_ids ?? []).join(",") })} columns={[{ label: "权限组", width: "25%", render: (item) => primary(item.name, item.id, item.notes) }, { label: "可访问节点", width: "31%", render: (item) => <><span className="mono">绑定 {item.node_count} 个 · 已发布 {(item.node_ids ?? []).filter((id) => nodes.some((node) => node.id === id && node.status === "published")).length} 个</span><div className="resource-node-chips">{(item.node_ids ?? []).slice(0, 3).map((id) => <Link key={id} to={editorHref("/nodes", id)}>{nodes.find((node) => node.id === id)?.name || id}</Link>)}{(item.node_ids?.length ?? 0) > 3 && <span>+{item.node_ids.length - 3}</span>}</div></> }, { label: "账号数", width: "9%", render: (item) => <span className="mono">{item.user_count}</span> }, { label: "更新时间", render: (item) => <ResourceDate value={item.updated_at} formatted={formatDateWithYear(item.updated_at)} /> }]} />;
 }
 
 export function PlansPage() {
   const { data: groups, loading: relatedLoading, error: relatedError, reload: retryRelated } = useResource<AccessGroup[]>("/access-groups", []);
-  return <ResourcePage<Plan> related={{ loading: relatedLoading, error: relatedError, retry: () => { void retryRelated(); } }}
+  return <ResourcePage<Plan> editorContext={(values) => <GroupContext group={groups.find((item) => item.id === values.access_group_id)} />} related={{ loading: relatedLoading, error: relatedError, retry: () => { void retryRelated(); } }}
     title="套餐"
     description="定义流量、重置周期、速率、设备数和默认访问范围"
     endpoint="/plans"
@@ -81,7 +84,7 @@ export function PlansPage() {
     transform={(v) => ({ name: v.name, access_group_id: v.access_group_id, traffic_limit_bytes: Number(v.traffic_gb) * 1024 ** 3, speed_limit_mbps: Number(v.speed_limit_mbps || 0), device_limit: Number(v.device_limit || 0), reset_strategy: v.reset_strategy, default_valid_days: Number(v.default_valid_days || 0), notes: v.notes })}
     toValues={(item) => ({ name: item.name, access_group_id: item.access_group_id, traffic_gb: String(item.traffic_limit_bytes / 1024 ** 3), speed_limit_mbps: String(item.speed_limit_mbps), device_limit: String(item.device_limit), reset_strategy: item.reset_strategy, default_valid_days: String(item.default_valid_days), notes: item.notes ?? "" })}
     columns={[
-      { label: "套餐 / 权限组", width: "25%", render: (item) => primary(item.name, item.id, item.access_group_name) },
+      { label: "套餐 / 权限组", width: "25%", render: (item) => <>{primary(item.name, item.id)}<Link className="resource-id" to={editorHref("/access-groups", item.access_group_id)}>{item.access_group_name}</Link></> },
       { label: "流量", width: "13%", className: "mono", render: (item) => formatBytes(item.traffic_limit_bytes) },
       { label: "速率", width: "13%", className: "mono", render: (item) => `${item.speed_limit_mbps || "不限"}${item.speed_limit_mbps ? " Mbps" : ""}` },
       { label: "设备", width: "8%", render: (item) => item.device_limit ? `${item.device_limit} 台` : "不限" },
@@ -105,28 +108,31 @@ export function UsersPage() {
     deletable
     disabledStatus="paused"
     protectedItem={(item) => item.role === "admin"}
-    defaults={{ role: "user", name: "", email: "", plan_id: plans[0]?.id ?? "", expires_at: "", notes: "", portal_login: "", portal_password: "" }}
+    defaults={{ role: "user", name: "", email: "", plan_id: plans.find((item) => item.status === "active")?.id ?? "", expires_mode: "default", expires_at: "", notes: "", portal_login: "", portal_password: "" }}
+    editorContext={(values, record) => <UserEntitlementContext values={values} record={record} plans={plans} />}
     fields={[
       { key: "role", label: "账号分类", type: "select", lockedValue: "admin", options: [{ value: "admin", label: "管理员", exclusive: true }, { value: "user", label: "用户" }, { value: "friend", label: "朋友" }] },
       { key: "uuid", label: "UDID", editOnly: true, required: true, helper: "修改后会随节点成员配置同步到 Corade" },
       { key: "name", label: "账号名称", required: true },
       { key: "email", label: "邮箱", type: "email" },
-      { key: "plan_id", label: "套餐", type: "select", options: [{ value: "", label: "暂不分配" }, ...plans.map((item) => ({ value: item.id, label: item.name }))] },
-      { key: "expires_at", label: "到期时间", type: "datetime-local" },
+      { key: "plan_id", label: "套餐", type: "select", options: [{ value: "", label: "暂不分配" }, ...plans.map((item) => ({ value: item.id, label: item.name + (item.status !== "active" ? "（已停用，仅保留原关联）" : ""), exclusive: item.status !== "active" }))] },
+      { key: "expires_mode", label: "到期方式", type: "select", options: [{ value: "keep", label: "保留当前期限（首次分配按套餐默认）", editOnly: true }, { value: "default", label: "按套餐默认期限重新计算" }, { value: "custom", label: "自定义到期时间" }, { value: "permanent", label: "长期有效" }] },
+      { key: "expires_at", label: "到期时间", type: "datetime-local", required: true, visible: (values) => values.expires_mode === "custom", helper: "按浏览器本地时间输入，保存时转换为统一时间。" },
       { key: "notes", label: "内部备注", type: "textarea" },
 		{ key: "portal_login", label: "门户登录账号", helper: "用户在 /edu 使用的唯一账号。已有邮箱会自动预填。", disabled: (item) => item?.role === "admin" },
 		{ key: "portal_password", label: "设置或重置门户密码", type: "password", helper: "至少 8 位；编辑时留空则不修改。管理员订阅账号使用后台一键进入。", disabled: (item) => item?.role === "admin" },
     ]}
     transform={(v, editing) => {
       const email = v.email.trim();
-      const values = { role: v.role, name: v.name.trim(), email: editing ? email : email || null, plan_id: editing ? v.plan_id : v.plan_id || null, expires_at: v.expires_at ? new Date(v.expires_at).toISOString() : editing ? "" : null, notes: v.notes, portal_login: v.portal_login.trim(), portal_password: v.portal_password };
+      const expiry = v.expires_mode === "keep" ? {} : { expires_mode: v.expires_mode, ...(v.expires_mode === "custom" ? { expires_at: new Date(v.expires_at).toISOString() } : {}) };
+      const values = { role: v.role, name: v.name.trim(), email: editing ? email : email || null, plan_id: editing ? v.plan_id : v.plan_id || null, ...expiry, notes: v.notes, portal_login: v.portal_login.trim(), portal_password: v.portal_password };
       return editing ? { ...values, uuid: v.uuid } : values;
     }}
-    toValues={(item) => ({ role: item.role, uuid: item.uuid, name: item.name, email: item.email ?? "", plan_id: item.plan_id ?? "", expires_at: localDateTime(item.expires_at), notes: item.notes ?? "", portal_login: item.portal_login ?? "", portal_password: "" })}
+    toValues={(item) => ({ role: item.role, uuid: item.uuid, name: item.name, email: item.email ?? "", plan_id: item.plan_id ?? "", expires_mode: "keep", expires_at: localDateTime(item.expires_at), notes: item.notes ?? "", portal_login: item.portal_login ?? "", portal_password: "" })}
     columns={[
       { label: "账号", width: "21%", render: (item) => primary(item.name, item.id, item.email || item.id) },
       { label: "分类", width: "8%", render: (item) => <span className="resource-role">{item.role === "admin" && <KeyRound size={12} aria-hidden="true" />}{item.role === "admin" ? "管理员" : item.role === "friend" ? "朋友" : "用户"}</span> },
-      { label: "套餐", width: "11%", render: (item) => item.plan_name || "未分配" },
+      { label: "套餐", width: "11%", render: (item) => item.plan_id ? <Link to={editorHref("/plans", item.plan_id)}>{item.plan_name || item.plan_id}</Link> : "未分配" },
       { label: "流量用量", width: "16%", render: (item) => <TrafficUsage used={item.traffic_used_bytes} limit={item.traffic_limit_bytes} /> },
 		{ label: "门户", width: "13%", render: (item) => item.role === "admin" ? <span>后台进入<span className="resource-id">管理员只读代入</span></span> : item.portal_enabled ? item.portal_login : "未启用" },
       { label: "到期", render: (item) => item.expires_at ? <ResourceDate value={item.expires_at} formatted={formatDateWithYear(item.expires_at)} /> : "长期" },

@@ -80,7 +80,7 @@ func writeStoreError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, store.ErrConflict):
 		writeError(w, r, http.StatusConflict, "RESOURCE_CONFLICT", "资源存在冲突或仍被引用", nil)
 	default:
-		slog.Error("request failed", "request_id", requestID(r), "error", err)
+		slog.Error("request failed", "request_id", requestID(r), "method", r.Method, "route", diagnosticRoute(r), "error", err)
 		writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "服务暂时不可用", nil)
 	}
 }

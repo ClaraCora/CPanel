@@ -3,6 +3,8 @@ package httpapi
 import (
 	"context"
 	"crypto/subtle"
+	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"runtime/debug"
@@ -11,6 +13,7 @@ import (
 
 	"cpanel/internal/auth"
 	"cpanel/internal/domain"
+	"github.com/go-chi/chi/v5"
 )
 
 type contextKey string
@@ -77,12 +80,29 @@ func recoveryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if recovered := recover(); recovered != nil {
-				_ = debug.Stack()
+				id := requestID(r)
+				if headerID := w.Header().Get("X-Request-ID"); headerID != "" {
+					id = headerID
+				}
+				slog.Error("request panic", "request_id", id, "method", r.Method, "route", diagnosticRoute(r),
+					"panic", fmt.Sprint(recovered), "stack", string(debug.Stack()))
+				r = r.WithContext(context.WithValue(r.Context(), requestIDKey, id))
 				writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "服务暂时不可用", nil)
 			}
 		}()
 		next.ServeHTTP(w, r)
 	})
+}
+
+// Route patterns retain enough context to locate a failure without logging
+// subscription tokens, grant query strings, passwords, or arbitrary raw URLs.
+func diagnosticRoute(r *http.Request) string {
+	if route := chi.RouteContext(r.Context()); route != nil {
+		if pattern := route.RoutePattern(); pattern != "" {
+			return pattern
+		}
+	}
+	return "unmatched"
 }
 
 func localHealth(next http.HandlerFunc) http.HandlerFunc {

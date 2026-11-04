@@ -382,16 +382,22 @@ func (s *Store) ListNodes(ctx context.Context) ([]domain.Node, error) {
 			&item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
-		item.Endpoints, err = s.nodeEndpoints(ctx, item.ID)
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows.Close()
+	for index := range items {
+		items[index].Endpoints, err = s.nodeEndpoints(ctx, items[index].ID)
 		if err != nil {
 			return nil, err
 		}
-		if err := loadNodeDraft(ctx, s.pool, &item); err != nil {
+		if err := loadNodeDraft(ctx, s.pool, &items[index]); err != nil {
 			return nil, err
 		}
-		items = append(items, item)
 	}
-	return items, rows.Err()
+	return items, nil
 }
 
 func (s *Store) GetNode(ctx context.Context, nodeID string) (domain.Node, error) {

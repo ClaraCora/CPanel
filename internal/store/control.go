@@ -624,6 +624,10 @@ func (s *Store) RecordTelemetryBatch(ctx context.Context, machineID, idempotency
 			if err := recordNodeDevices(ctx, tx, machineID, event, deviceOfflineThreshold); err != nil {
 				return false, err
 			}
+		case "node.application":
+			if err := recordNodeApplication(ctx, tx, machineID, event); err != nil {
+				return false, err
+			}
 		}
 	}
 	return true, tx.Commit(ctx)
@@ -779,10 +783,9 @@ func recordNodeTelemetry(ctx context.Context, tx pgx.Tx, machineID string, event
 	sampledAt := boundedTelemetryTime(event.OccurredAt, time.Now().UTC())
 	var nodeID string
 	err := tx.QueryRow(ctx, `
-		UPDATE nodes SET applied_revision=CASE WHEN $3 > 0 THEN LEAST(current_revision,GREATEST(applied_revision,$3)) ELSE applied_revision END,
-		       last_report_at=GREATEST(COALESCE(LEAST(last_report_at,now()),'epoch'::timestamptz),LEAST($4,now())),updated_at=now()
+		UPDATE nodes SET last_report_at=GREATEST(COALESCE(LEAST(last_report_at,now()),'epoch'::timestamptz),LEAST($3,now())),updated_at=now()
 		WHERE machine_id=$1 AND agent_id=$2 AND status='published'
-		RETURNING id`, machineID, event.NodeID, data.Revision, sampledAt).Scan(&nodeID)
+		RETURNING id`, machineID, event.NodeID, sampledAt).Scan(&nodeID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
 	}

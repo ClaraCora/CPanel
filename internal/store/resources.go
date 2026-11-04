@@ -366,7 +366,7 @@ func (s *Store) ListNodes(ctx context.Context) ([]domain.Node, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT n.id,n.agent_id,n.machine_id,m.name,n.route_policy_id,n.admin_route_policy_id,n.member_route_policy_id,n.name,n.protocol,n.listen_ip,
 		       n.server_port,n.kernel_type,n.config,n.status,n.current_revision,n.applied_revision,
-		       n.last_report_at,n.last_error,n.created_at,n.updated_at
+		       n.last_report_at,n.last_error,n.received_revision,n.attempted_revision,n.apply_status,n.apply_stage,n.created_at,n.updated_at
 		FROM nodes n JOIN machines m ON m.id=n.machine_id
 		WHERE n.status <> 'archived' ORDER BY n.created_at DESC`)
 	if err != nil {
@@ -379,6 +379,7 @@ func (s *Store) ListNodes(ctx context.Context) ([]domain.Node, error) {
 		if err := rows.Scan(&item.ID, &item.AgentID, &item.MachineID, &item.MachineName, &item.RoutePolicyID, &item.AdminRoutePolicyID, &item.MemberRoutePolicyID,
 			&item.Name, &item.Protocol, &item.ListenIP, &item.ServerPort, &item.KernelType, &item.Config,
 			&item.Status, &item.CurrentRevision, &item.AppliedRevision, &item.LastReport, &item.LastError,
+			&item.ReceivedRevision, &item.AttemptedRevision, &item.ApplyStatus, &item.ApplyStage,
 			&item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
@@ -405,12 +406,13 @@ func (s *Store) GetNode(ctx context.Context, nodeID string) (domain.Node, error)
 	err := s.pool.QueryRow(ctx, `
 		SELECT n.id,n.agent_id,n.machine_id,m.name,n.route_policy_id,n.admin_route_policy_id,n.member_route_policy_id,n.name,n.protocol,n.listen_ip,
 		       n.server_port,n.kernel_type,n.config,n.status,n.current_revision,n.applied_revision,
-		       n.last_report_at,n.last_error,n.created_at,n.updated_at
+		       n.last_report_at,n.last_error,n.received_revision,n.attempted_revision,n.apply_status,n.apply_stage,n.created_at,n.updated_at
 		FROM nodes n JOIN machines m ON m.id=n.machine_id
 		WHERE n.id=$1 AND n.status <> 'archived'`, nodeID,
 	).Scan(&item.ID, &item.AgentID, &item.MachineID, &item.MachineName, &item.RoutePolicyID, &item.AdminRoutePolicyID, &item.MemberRoutePolicyID,
 		&item.Name, &item.Protocol, &item.ListenIP, &item.ServerPort, &item.KernelType, &item.Config,
 		&item.Status, &item.CurrentRevision, &item.AppliedRevision, &item.LastReport, &item.LastError,
+		&item.ReceivedRevision, &item.AttemptedRevision, &item.ApplyStatus, &item.ApplyStage,
 		&item.CreatedAt, &item.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.Node{}, ErrNotFound

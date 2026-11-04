@@ -123,6 +123,10 @@ type Node struct {
 	Status               string          `json:"status"`
 	CurrentRevision      int             `json:"current_revision"`
 	AppliedRevision      int             `json:"applied_revision"`
+	ReceivedRevision     int             `json:"received_revision"`
+	AttemptedRevision    int             `json:"attempted_revision"`
+	ApplyStatus          string          `json:"apply_status"`
+	ApplyStage           string          `json:"apply_stage"`
 	LastReport           *time.Time      `json:"last_report_at"`
 	LastError            string          `json:"last_error,omitempty"`
 	CreatedAt            time.Time       `json:"created_at"`

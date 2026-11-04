@@ -1,0 +1,154 @@
+{
+  "screens": [
+    {
+      "file": "machines-1440-light.png",
+      "overflow": false,
+      "heading": "服务器"
+    },
+    {
+      "file": "nodes-1440-light.png",
+      "overflow": false,
+      "heading": "节点"
+    },
+    {
+      "file": "node-editor-1440-light.png",
+      "overflow": false,
+      "heading": "编辑节点"
+    },
+    {
+      "file": "node-history-1440-light.png",
+      "overflow": false,
+      "heading": "节点版本历史"
+    },
+    {
+      "file": "user-editor-1440-light.png",
+      "overflow": false,
+      "heading": "编辑订阅账号"
+    },
+    {
+      "file": "plan-editor-1440-light.png",
+      "overflow": false,
+      "heading": "编辑套餐"
+    },
+    {
+      "file": "access-group-1440-light.png",
+      "overflow": false,
+      "heading": "编辑权限组"
+    },
+    {
+      "file": "settings-1440-light.png",
+      "overflow": false,
+      "heading": "系统设置"
+    },
+    {
+      "file": "access-ips-1440-light.png",
+      "overflow": false,
+      "heading": "用户访问 IP"
+    },
+    {
+      "file": "audit-1440-light.png",
+      "overflow": false,
+      "heading": "审计日志"
+    },
+    {
+      "file": "machines-390-light.png",
+      "overflow": false,
+      "heading": "服务器"
+    },
+    {
+      "file": "nodes-390-light.png",
+      "overflow": false,
+      "heading": "节点"
+    },
+    {
+      "file": "node-editor-390-light.png",
+      "overflow": false,
+      "heading": "编辑节点"
+    },
+    {
+      "file": "node-history-390-light.png",
+      "overflow": false,
+      "heading": "节点版本历史"
+    },
+    {
+      "file": "user-editor-390-light.png",
+      "overflow": false,
+      "heading": "编辑订阅账号"
+    },
+    {
+      "file": "plan-editor-390-light.png",
+      "overflow": false,
+      "heading": "编辑套餐"
+    },
+    {
+      "file": "access-group-390-light.png",
+      "overflow": false,
+      "heading": "编辑权限组"
+    },
+    {
+      "file": "settings-390-light.png",
+      "overflow": false,
+      "heading": "系统设置"
+    },
+    {
+      "file": "access-ips-390-light.png",
+      "overflow": false,
+      "heading": "用户访问 IP"
+    },
+    {
+      "file": "audit-390-light.png",
+      "overflow": false,
+      "heading": "审计日志"
+    },
+    {
+      "file": "machines-1024-light.png",
+      "overflow": false,
+      "heading": "服务器"
+    },
+    {
+      "file": "node-editor-1024-light.png",
+      "overflow": false,
+      "heading": "编辑节点"
+    },
+    {
+      "file": "node-history-1024-light.png",
+      "overflow": false,
+      "heading": "节点版本历史"
+    },
+    {
+      "file": "machines-1440-dark.png",
+      "overflow": false,
+      "heading": "服务器"
+    },
+    {
+      "file": "node-editor-1440-dark.png",
+      "overflow": false,
+      "heading": "编辑节点"
+    },
+    {
+      "file": "node-history-1440-dark.png",
+      "overflow": false,
+      "heading": "节点版本历史"
+    },
+    {
+      "file": "machines-390-dark.png",
+      "overflow": false,
+      "heading": "服务器"
+    },
+    {
+      "file": "node-editor-390-dark.png",
+      "overflow": false,
+      "heading": "编辑节点"
+    },
+    {
+      "file": "node-history-390-dark.png",
+      "overflow": false,
+      "heading": "节点版本历史"
+    }
+  ],
+  "errors": [],
+  "behaviors": {
+    "history_restores_draft_without_publish": true,
+    "same_admin_reauthentication_preserves_memory_only_input_and_requires_manual_retry": true
+  }
+}

@@ -16,6 +16,7 @@ import {
 import { AuditPage } from "./pages/AuditPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { NodeEditorPage } from "./pages/NodeEditorPage";
+import { NodeHistoryPage } from "./pages/NodeHistoryPage";
 import { NodesPage } from "./pages/NodesPage";
 import { OverviewPage } from "./pages/OverviewPage";
 import { SettingsPage, SubscriptionPage } from "./pages/SettingsPage";
@@ -43,6 +44,7 @@ export default function AuthenticatedApp({
             <Route path="/nodes" component={NodesPage} />
             <Route path="/nodes/new" component={NodeEditorPage} />
             <Route path="/nodes/:id/edit" component={NodeEditorPage} />
+            <Route path="/nodes/:id/history" component={NodeHistoryPage} />
             <Route path="/access-groups" component={AccessGroupsPage} />
             <Route path="/access-groups/new" component={AccessGroupsPage} />
             <Route path="/access-groups/:id/edit" component={AccessGroupsPage} />

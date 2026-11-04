@@ -44,6 +44,8 @@ function wirePathname(path: string): string {
   if (segments[0] === "machines" && tail[1] === "agent-identity") tail[1] = "sf";
   if (segments[0] === "machines" && tail[1] === "credentials") tail[1] = "pz";
   if (segments[0] === "nodes" && tail[1] === "publish") tail[1] = "fb";
+  if (segments[0] === "nodes" && tail[1] === "revisions") tail[1] = "bb";
+  if (segments[0] === "nodes" && tail[1] === "restore") tail[1] = "hf";
   if (segments[0] === "users" && tail[0] === "quick") {
     tail[0] = "ks";
     tail[1] = rolePaths[tail[1]] ?? tail[1];

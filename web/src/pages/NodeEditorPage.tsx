@@ -255,7 +255,7 @@ function NodeEditor() {
 
   if (!nodeLoading && !relatedLoading && (loadError || relatedError || missing)) return <div className="page resource-editor-page"><PageHeader title={missing ? "节点不存在" : "节点加载失败"} /><EmptyState title={missing ? "记录可能已被删除" : "无法加载节点或关联配置"} description={loadError || relatedError || "请返回列表确认。"} action={missing ? <Link className="button button--secondary" to={returnTo}>返回节点列表</Link> : <Button onClick={() => { setAttempt((value) => value + 1); void reloadMachines(); void reloadRoutes(); void reloadDefaults(); }}>重新加载</Button>} /></div>;
 
-  if (nodeLoading || relatedLoading)
+  if (nodeLoading || relatedLoading || !initialized.current)
     return (
       <div className="page resource-page operations-page admin-node-editor">
          <PageHeader title={editing ? "编辑节点" : copying ? "复制节点" : "添加节点"} />

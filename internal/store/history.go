@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"cpanel/internal/domain"
 )
@@ -201,14 +202,25 @@ func (s *Store) PruneHistoricalData(ctx context.Context) error {
 	trafficDays := s.SettingInt(ctx, "retention", "traffic_days", 90, 1)
 	auditDays := s.SettingInt(ctx, "retention", "audit_days", 180, 1)
 	subscriptionAccessDays := s.SettingInt(ctx, "retention", "subscription_access_days", 30, 1)
+	location := loadTrafficLocation(s.SettingString(ctx, "site", "timezone", "Asia/Shanghai"))
+	now := time.Now().In(location)
+	monthStart, _, _ := trafficMonthBounds(now, location)
+	cutoff := now.AddDate(0, 0, -trafficDays).Format(time.DateOnly)
+	if cutoff > monthStart {
+		cutoff = monthStart
+	}
+	// Current-month details are the source for quota reconciliation. They cannot
+	// be pruned even when the display retention is shorter than the month.
+	for _, table := range []string{"traffic_daily", "imported_node_traffic_daily", "imported_user_traffic_daily"} {
+		if _, err := s.pool.Exec(ctx, `DELETE FROM `+table+` WHERE day < $1::date`, cutoff); err != nil {
+			return fmt.Errorf("prune historical traffic: %w", err)
+		}
+	}
 	queries := []struct {
 		query string
 		days  int
 	}{
 		{`DELETE FROM user_devices WHERE last_seen_at < now() - ($1::int * interval '1 day')`, devicesDays},
-		{`DELETE FROM traffic_daily WHERE day < current_date - $1::int`, trafficDays},
-		{`DELETE FROM imported_node_traffic_daily WHERE day < current_date - $1::int`, trafficDays},
-		{`DELETE FROM imported_user_traffic_daily WHERE day < current_date - $1::int`, trafficDays},
 		{`DELETE FROM audit_events WHERE created_at < now() - ($1::int * interval '1 day')`, auditDays},
 		{`DELETE FROM subscription_access_events WHERE created_at < now() - ($1::int * interval '1 day')`, subscriptionAccessDays},
 	}

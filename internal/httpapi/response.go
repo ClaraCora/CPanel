@@ -47,6 +47,10 @@ func writeStoreError(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, r, http.StatusConflict, "ACCESS_GROUP_IN_USE", "该权限组仍被套餐或账号使用，请先解除关联", nil)
 	case errors.Is(err, store.ErrPlanInUse):
 		writeError(w, r, http.StatusConflict, "PLAN_IN_USE", "该套餐仍有账号使用，请先调整这些账号的套餐", nil)
+	case errors.Is(err, store.ErrPlanUnavailable):
+		writeError(w, r, http.StatusConflict, "PLAN_UNAVAILABLE", "套餐已停用、归档或不存在，请选择启用中的套餐", map[string]string{"plan_id": "请选择启用中的套餐"})
+	case errors.Is(err, store.ErrUserExpiryInvalid):
+		writeError(w, r, http.StatusUnprocessableEntity, "USER_EXPIRY_INVALID", "请选择有效的到期方式和日期", map[string]string{"expires_at": "自定义到期时间不能为空，且必须是有效日期"})
 	case errors.Is(err, store.ErrRoutePolicyInUse):
 		writeError(w, r, http.StatusConflict, "ROUTE_POLICY_IN_USE", "该路由策略仍被节点使用，请先解除节点绑定", nil)
 	case errors.Is(err, store.ErrRoutePolicyUnavailable):

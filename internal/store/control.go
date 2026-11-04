@@ -632,14 +632,30 @@ func (s *Store) RecordTelemetryBatch(ctx context.Context, machineID, idempotency
 func lockTelemetryDeviceUsers(ctx context.Context, tx pgx.Tx, batch telemetryBatch) error {
 	agentIDs := make(map[int64]bool)
 	for _, event := range batch.Events {
-		if event.Type != "node.devices" {
+		var reported map[string]bool
+		switch event.Type {
+		case "node.devices":
+			var data nodeDevicesData
+			if err := json.Unmarshal(event.Data, &data); err != nil {
+				return fmt.Errorf("decode node devices: %w", err)
+			}
+			reported = make(map[string]bool, len(data.Devices))
+			for id := range data.Devices {
+				reported[id] = true
+			}
+		case "node.telemetry":
+			var data nodeTelemetryData
+			if err := json.Unmarshal(event.Data, &data); err != nil {
+				return fmt.Errorf("decode node telemetry: %w", err)
+			}
+			reported = make(map[string]bool, len(data.Traffic))
+			for id := range data.Traffic {
+				reported[id] = true
+			}
+		default:
 			continue
 		}
-		var data nodeDevicesData
-		if err := json.Unmarshal(event.Data, &data); err != nil {
-			return fmt.Errorf("decode node devices: %w", err)
-		}
-		for rawUserID := range data.Devices {
+		for rawUserID := range reported {
 			agentID, err := strconv.ParseInt(rawUserID, 10, 64)
 			if err == nil && agentID > 0 {
 				agentIDs[agentID] = true
@@ -783,25 +799,7 @@ func recordNodeTelemetry(ctx context.Context, tx pgx.Tx, machineID string, event
 		if err != nil || userID <= 0 || traffic[0] < 0 || traffic[1] < 0 || (traffic[0] == 0 && traffic[1] == 0) {
 			continue
 		}
-		_, err = tx.Exec(ctx, runtimeEligibleUsersCTE+`, entitled AS (
-			  SELECT u.id AS user_id,n.id AS node_id
-			FROM nodes n
-			JOIN access_group_nodes gn ON gn.node_id=n.id
-			JOIN runtime_eligible_users u ON u.agent_id=$3
-			WHERE n.id=$1 AND n.machine_id=$2
-			  AND gn.access_group_id=u.access_group_id
-			), recorded AS (
-			  INSERT INTO traffic_daily(day,user_id,node_id,upload_bytes,download_bytes)
-			  SELECT $4::date,user_id,node_id,$5,$6 FROM entitled
-			ON CONFLICT(day,user_id,node_id) DO UPDATE SET
-			  upload_bytes=traffic_daily.upload_bytes+EXCLUDED.upload_bytes,
-			  download_bytes=traffic_daily.download_bytes+EXCLUDED.download_bytes
-			  RETURNING user_id
-			)
-			UPDATE users SET traffic_used_bytes=traffic_used_bytes+$5+$6
-			WHERE id IN (SELECT user_id FROM recorded)`,
-			nodeID, machineID, userID, telemetryDay(sampledAt, trafficLocation), traffic[0], traffic[1])
-		if err != nil {
+		if err := recordUserTraffic(ctx, tx, nodeID, machineID, userID, sampledAt, trafficLocation, traffic); err != nil {
 			return err
 		}
 	}

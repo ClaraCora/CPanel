@@ -268,6 +268,7 @@ type UserCreate struct {
 	SpeedLimitOverrideMbps    *int       `json:"speed_limit_override_mbps"`
 	DeviceLimitOverride       *int       `json:"device_limit_override"`
 	ExpiresAt                 *time.Time `json:"expires_at"`
+	ExpiresMode               string     `json:"expires_mode"`
 	Notes                     string     `json:"notes"`
 	PortalLogin               string     `json:"portal_login"`
 	PortalPassword            string     `json:"portal_password"`
@@ -291,6 +292,7 @@ type UserUpdate struct {
 	Name                  *string `json:"name"`
 	Email                 *string `json:"email"`
 	ExpiresAt             *string `json:"expires_at"`
+	ExpiresMode           *string `json:"expires_mode"`
 	Notes                 *string `json:"notes"`
 	Status                *string `json:"status"`
 	PortalLogin           *string `json:"portal_login"`

@@ -15,6 +15,8 @@ var (
 	ErrMachineHasNodes              = errors.New("machine still has nodes")
 	ErrAccessGroupInUse             = errors.New("access group is still in use")
 	ErrPlanInUse                    = errors.New("plan is still in use")
+	ErrPlanUnavailable              = errors.New("plan is unavailable for new assignments")
+	ErrUserExpiryInvalid            = errors.New("user expiry mode or date is invalid")
 	ErrRoutePolicyInUse             = errors.New("route policy is still in use")
 	ErrRoutePolicyUnavailable       = errors.New("route policy is unavailable")
 	ErrRoutePolicyScopeMismatch     = errors.New("route policy scope does not match node slot")

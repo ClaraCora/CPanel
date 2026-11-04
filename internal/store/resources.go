@@ -878,21 +878,28 @@ func (s *Store) CreateAccessGroup(ctx context.Context, name, notes string, nodeI
 }
 
 func (s *Store) ArchivePlan(ctx context.Context, planID string) error {
-	var exists bool
-	var userCount int
-	if err := s.pool.QueryRow(ctx, `SELECT
-		EXISTS(SELECT 1 FROM plans WHERE id=$1 AND status <> 'archived'),
-		(SELECT count(*) FROM users WHERE plan_id=$1 AND status <> 'archived')`, planID).Scan(&exists, &userCount); err != nil {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
 		return err
 	}
-	if !exists {
+	defer tx.Rollback(ctx)
+	var status string
+	if err := tx.QueryRow(ctx, `SELECT status FROM plans WHERE id=$1 AND status <> 'archived' FOR UPDATE`, planID).Scan(&status); errors.Is(err, pgx.ErrNoRows) {
 		return ErrNotFound
+	} else if err != nil {
+		return err
+	}
+	var userCount int
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM users WHERE plan_id=$1 AND status <> 'archived'`, planID).Scan(&userCount); err != nil {
+		return err
 	}
 	if userCount > 0 {
 		return ErrPlanInUse
 	}
-	_, err := s.pool.Exec(ctx, `UPDATE plans SET status='archived',updated_at=now() WHERE id=$1`, planID)
-	return err
+	if _, err := tx.Exec(ctx, `UPDATE plans SET status='archived',updated_at=now() WHERE id=$1`, planID); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (s *Store) UpdateAccessGroup(ctx context.Context, groupID string, input domain.AccessGroupUpdate) (domain.AccessGroup, error) {
@@ -1064,20 +1071,46 @@ func (s *Store) CreateUser(ctx context.Context, input domain.UserCreate) (domain
 	if input.Role == "" {
 		input.Role = "user"
 	}
-	err = s.pool.QueryRow(ctx, `
+	location := loadTrafficLocation(s.SettingString(ctx, "site", "timezone", "Asia/Shanghai"))
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return domain.UserCreated{}, err
+	}
+	defer tx.Rollback(ctx)
+	plan, err := assignedPlanTx(ctx, tx, input.PlanID, nil)
+	if err != nil {
+		return domain.UserCreated{}, err
+	}
+	mode := input.ExpiresMode
+	if mode == "" {
+		mode = "default"
+		if input.ExpiresAt != nil {
+			mode = "custom"
+		}
+	}
+	expires, err := userExpiry(mode, input.ExpiresAt, plan.defaultValidDays, time.Now(), location)
+	if err != nil {
+		return domain.UserCreated{}, err
+	}
+	var nextReset *time.Time
+	if plan.resetStrategy == "calendar_month" {
+		_, _, reset := trafficMonthBounds(time.Now(), location)
+		nextReset = &reset
+	}
+	err = tx.QueryRow(ctx, `
 		INSERT INTO users(id,role,plan_id,access_group_override_id,name,email,uuid,subscription_token_hash,
 		                  subscription_token_prefix,subscription_token_plain,traffic_limit_override_bytes,speed_limit_override_mbps,
 		                  device_limit_override,expires_at,notes,portal_login,portal_password_hash,portal_enabled_at,traffic_reset_at)
 		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,
 		       NULLIF(BTRIM($16),''),NULLIF($17,''),CASE WHEN NULLIF($17,'') IS NULL THEN NULL ELSE now() END,
-		       date_trunc('month',now()) + interval '1 month')
+		       $18)
 		RETURNING agent_id,role,plan_id,access_group_override_id,name,email,subscription_token_prefix,status,
 		          COALESCE(portal_login,''),(portal_password_hash IS NOT NULL),
 		          traffic_limit_override_bytes,speed_limit_override_mbps,device_limit_override,traffic_used_bytes,
 		          traffic_reset_at,expires_at,notes,created_at,updated_at`,
 		item.ID, input.Role, input.PlanID, input.AccessGroupOverrideID, strings.TrimSpace(input.Name), input.Email,
 		uuid, hash, auth.Prefix(plain, 12), plain, input.TrafficLimitOverrideBytes, input.SpeedLimitOverrideMbps,
-		input.DeviceLimitOverride, input.ExpiresAt, strings.TrimSpace(input.Notes), input.PortalLogin, input.PortalPasswordHash,
+		input.DeviceLimitOverride, expires, strings.TrimSpace(input.Notes), input.PortalLogin, input.PortalPasswordHash, nextReset,
 	).Scan(&item.AgentID, &item.Role, &item.PlanID, &item.AccessGroupOverrideID, &item.Name, &item.Email,
 		&item.SubscriptionTokenPrefix, &item.Status, &item.PortalLogin, &item.PortalEnabled,
 		&item.TrafficLimitOverrideBytes, &item.SpeedLimitOverrideMbps,
@@ -1086,21 +1119,24 @@ func (s *Store) CreateUser(ctx context.Context, input domain.UserCreate) (domain
 	if err != nil {
 		return item, mapError(err)
 	}
-	if err := s.NotifyAllPublishedNodes(ctx); err != nil {
+	if err := notifyAllPublishedNodesTx(ctx, tx); err != nil {
 		return domain.UserCreated{}, err
 	}
-	return item, nil
+	return item, tx.Commit(ctx)
 }
 
 func (s *Store) UpdateUser(ctx context.Context, userID string, input domain.UserUpdate) (domain.User, error) {
+	location := loadTrafficLocation(s.SettingString(ctx, "site", "timezone", "Asia/Shanghai"))
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return domain.User{}, err
 	}
 	defer tx.Rollback(ctx)
 	var adminLinked bool
-	if err := tx.QueryRow(ctx, `SELECT admin_id IS NOT NULL FROM users
-		WHERE id=$1 AND status <> 'archived'`, userID).Scan(&adminLinked); errors.Is(err, pgx.ErrNoRows) {
+	var currentPlanID *string
+	var currentExpiry *time.Time
+	if err := tx.QueryRow(ctx, `SELECT admin_id IS NOT NULL,plan_id,expires_at FROM users
+		WHERE id=$1 AND status <> 'archived' FOR UPDATE`, userID).Scan(&adminLinked, &currentPlanID, &currentExpiry); errors.Is(err, pgx.ErrNoRows) {
 		return domain.User{}, ErrNotFound
 	} else if err != nil {
 		return domain.User{}, err
@@ -1110,6 +1146,23 @@ func (s *Store) UpdateUser(ctx context.Context, userID string, input domain.User
 	}
 	if !adminLinked && input.Role != nil && *input.Role == "admin" {
 		return domain.User{}, ErrConflict
+	}
+	resultingPlanID := currentPlanID
+	if input.PlanID != nil {
+		value := strings.TrimSpace(*input.PlanID)
+		resultingPlanID = nil
+		if value != "" {
+			resultingPlanID = &value
+		}
+	}
+	plan, err := assignedPlanTx(ctx, tx, resultingPlanID, currentPlanID)
+	if err != nil {
+		return domain.User{}, err
+	}
+	input.ExpiresAt, err = updateUserExpiry(input.ExpiresMode, input.ExpiresAt,
+		currentPlanID == nil && resultingPlanID != nil && currentExpiry == nil, plan.defaultValidDays, time.Now(), location)
+	if err != nil {
+		return domain.User{}, err
 	}
 	command, err := tx.Exec(ctx, `UPDATE users SET
 		role=COALESCE($2,role),uuid=COALESCE(NULLIF(BTRIM($3),''),uuid),
@@ -1136,10 +1189,10 @@ func (s *Store) UpdateUser(ctx context.Context, userID string, input domain.User
 			return domain.User{}, err
 		}
 	}
-	if err := tx.Commit(ctx); err != nil {
+	if err := notifyAllPublishedNodesTx(ctx, tx); err != nil {
 		return domain.User{}, err
 	}
-	if err := s.NotifyAllPublishedNodes(ctx); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		return domain.User{}, err
 	}
 	items, err := s.ListUsers(ctx)

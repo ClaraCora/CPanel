@@ -224,6 +224,7 @@ function NodeEditor() {
       }
       configurationSaved = true;
       if (publish) {
+        if (configVersion.current === undefined) throw new Error("服务未返回配置版本，请重新加载节点后再发布。");
         const key = pendingPublish && !dirty && pendingPublishIntent.current ? pendingPublishIntent.current : publishIntent.current({ id: savedID.current, config_version: configVersion.current });
         pendingPublishIntent.current = key;
         await api.post(`/nodes/${savedID.current}/publish`, undefined, { idempotencyKey: key, configVersion: configVersion.current });

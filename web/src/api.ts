@@ -184,5 +184,5 @@ export const api = {
   },
   post: <T>(path: string, body?: unknown, options?: MutationOptions) => request<T>(path, { method: "POST", headers: mutationHeaders(options), body: body === undefined ? undefined : JSON.stringify(body) }),
   patch: <T>(path: string, body: unknown, options?: MutationOptions) => request<T>(path, { method: "PATCH", headers: mutationHeaders(options), body: JSON.stringify(body) }),
-  delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+  delete: <T>(path: string, options?: MutationOptions) => request<T>(path, { method: "DELETE", headers: mutationHeaders(options) }),
 };

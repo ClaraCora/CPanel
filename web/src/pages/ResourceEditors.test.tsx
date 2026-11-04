@@ -100,6 +100,21 @@ describe("standalone resource editors", () => {
     expect(location.pathname).toBe("/nodes/created-node/edit");
   });
 
+  it("keeps a created node without publishing when the save response omits its config version", async () => {
+    const saved = { ...demoNodes[1], id: "created-without-version", name: "缺失版本的节点", config_version: undefined };
+    vi.mocked(api.get).mockImplementation(async (path) => path === `/nodes/${saved.id}` ? saved as never : (path === "/machines" ? demoMachines : path === "/route-policies" ? demoRoutes : []) as never);
+    const post = vi.spyOn(api, "post").mockResolvedValue(saved);
+    open(NodeEditorPage, "/nodes", "/new");
+    const form = await screen.findByRole("form", { name: "添加节点" });
+    fireEvent.change(within(form).getByLabelText(/节点名称/), { target: { value: saved.name } });
+    fireEvent.click(within(form).getByRole("button", { name: "保存并发布" }));
+    await screen.findByRole("form", { name: "编辑节点" });
+    await screen.findByText("服务未返回配置版本，暂时无法安全保存。当前输入已保留。");
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(post.mock.calls[0][0]).toBe("/nodes");
+    expect(location.pathname).toBe(`/nodes/${saved.id}/edit`);
+  });
+
   it("focuses and describes the invalid node endpoint without dropping other input", async () => {
     open(NodeEditorPage, "/nodes", "/new");
     const form = await screen.findByRole("form", { name: "添加节点" });

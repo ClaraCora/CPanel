@@ -44,5 +44,7 @@ describe("admin API session handling", () => {
     expect(new Headers(vi.mocked(fetch).mock.calls.at(-1)?.[1]?.headers).get("Idempotency-Key")).toBe("stable-intent");
     await api.patch("/machines/mch", { name: "two" }, { configVersion: 8 });
     expect(new Headers(vi.mocked(fetch).mock.calls.at(-1)?.[1]?.headers).get("If-Match")).toBe('"8"');
+    await api.delete("/nodes/node", { configVersion: 12 });
+    expect(new Headers(vi.mocked(fetch).mock.calls.at(-1)?.[1]?.headers).get("If-Match")).toBe('"12"');
   });
 });

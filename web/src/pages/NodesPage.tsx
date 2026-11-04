@@ -31,6 +31,9 @@ import type { Machine, Node } from "../types";
 import { creationIntent } from "../mutations";
 
 const currentApplicationFailed = (node: Node) => node.apply_status === "failed" && node.attempted_revision === node.current_revision;
+const hasConfigVersion = (node: Node): node is Node & { config_version: number } => Number.isSafeInteger(node.config_version) && (node.config_version ?? 0) > 0;
+const versionConflict = (reason: unknown) => reason instanceof ApiError && ["EDIT_VERSION_CONFLICT", "CONFIG_VERSION_CONFLICT"].includes(reason.code);
+type PublishIntent = { key: string; configVersion: number };
 
 export function NodesPage() {
   const [refreshInterval, setRefreshInterval] = useState(15_000);
@@ -50,14 +53,36 @@ export function NodesPage() {
   const machine = params.get("machine") ?? "";
   const status = params.get("status") ?? "";
   const locks = useRef(new Set<string>());
-  const publishIntents = useRef(new Map<string, ReturnType<typeof creationIntent>>());
+  const publishIntents = useRef(new Map<string, PublishIntent>());
+  const [pendingPublications, setPendingPublications] = useState<Set<string>>(new Set());
+  const [conflicts, setConflicts] = useState<Set<string>>(new Set());
   const [statusTarget, setStatusTarget] = useState<Node | null>(null);
   useRestoreList(!loading && !error);
-  const [publishing, setPublishing] = useState("");
+  const [publishing, setPublishing] = useState<Set<string>>(new Set());
   const [changingStatus, setChangingStatus] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Node | null>(null);
   const [deleting, setDeleting] = useState(false);
   const toast = useToast();
+
+  function refresh() {
+    // A deliberate refresh acknowledges a rejected stale mutation. Ambiguous
+    // publication results retain their original key, even across this refresh.
+    conflicts.forEach((id) => publishIntents.current.delete(id));
+    setPendingPublications((current) => new Set([...current].filter((id) => !conflicts.has(id))));
+    setConflicts(new Set());
+    setStatusTarget(null); setDeleteTarget(null);
+    void reload();
+  }
+
+  function canMutate(node: Node): node is Node & { config_version: number } {
+    if (!hasConfigVersion(node)) { toast("服务未返回有效配置版本，请刷新列表后再操作。", "error"); return false; }
+    return !conflicts.has(node.id);
+  }
+
+  function rejectConflict(id: string) {
+    setConflicts((current) => new Set(current).add(id));
+    setStatusTarget(null); setDeleteTarget(null);
+  }
 
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -87,36 +112,42 @@ export function NodesPage() {
   }
 
   async function publish(node: Node) {
-    if (locks.current.has(node.id)) return;
+    if (locks.current.has(node.id) || !canMutate(node)) return;
     locks.current.add(node.id);
-    setPublishing(node.id);
+    setPublishing((current) => new Set(current).add(node.id));
     try {
-      if (!publishIntents.current.has(node.id)) publishIntents.current.set(node.id, creationIntent());
-      await api.post(`/nodes/${node.id}/publish`, undefined, { idempotencyKey: publishIntents.current.get(node.id)!({ id: node.id, config_version: node.config_version, current_revision: node.current_revision }), configVersion: node.config_version });
+      if (!publishIntents.current.has(node.id)) publishIntents.current.set(node.id, { key: creationIntent()({ id: node.id }), configVersion: node.config_version });
+      const intent = publishIntents.current.get(node.id)!;
+      await api.post(`/nodes/${node.id}/publish`, undefined, { idempotencyKey: intent.key, configVersion: intent.configVersion });
+      publishIntents.current.delete(node.id);
+      setPendingPublications((current) => new Set([...current].filter((id) => id !== node.id)));
       toast(`${node.name} 配置已提交，等待 Agent 应用`);
       await reload();
     } catch (reason) {
+      if (versionConflict(reason)) rejectConflict(node.id);
+      else setPendingPublications((current) => new Set(current).add(node.id));
       toast(
         reason instanceof ApiError ? reason : "发布失败，请重试",
         "error",
       );
     } finally {
       locks.current.delete(node.id);
-      setPublishing("");
+      setPublishing((current) => new Set([...current].filter((id) => id !== node.id)));
     }
   }
 
   async function toggleStatus(node: Node) {
-    if (locks.current.has(node.id)) return;
+    if (locks.current.has(node.id) || !canMutate(node)) return;
     locks.current.add(node.id);
     setChangingStatus(node.id);
     const nextStatus = node.status === "disabled" ? "draft" : "disabled";
     try {
-      await api.patch(`/nodes/${node.id}`, { status: nextStatus });
+      await api.patch(`/nodes/${node.id}`, { status: nextStatus }, { configVersion: node.config_version });
       toast(nextStatus === "disabled" ? `${node.name} 已停用` : `${node.name} 已恢复为草稿`);
       setStatusTarget(null);
       await reload();
     } catch (reason) {
+      if (versionConflict(reason)) rejectConflict(node.id);
       toast(reason instanceof ApiError ? reason : "节点状态修改失败", "error");
     } finally {
       locks.current.delete(node.id);
@@ -125,18 +156,24 @@ export function NodesPage() {
   }
 
   async function deleteNode() {
-    if (!deleteTarget || locks.current.has("delete")) return;
+    if (!deleteTarget || locks.current.has("delete") || locks.current.has(deleteTarget.id) || !canMutate(deleteTarget)) return;
+    const node = deleteTarget;
     locks.current.add("delete");
+    locks.current.add(node.id);
     setDeleting(true);
     try {
-      await api.delete(`/nodes/${deleteTarget.id}`);
-      toast(`${deleteTarget.name} 已删除`);
+      await api.delete(`/nodes/${node.id}`, { configVersion: node.config_version });
+      publishIntents.current.delete(node.id);
+      setPendingPublications((current) => new Set([...current].filter((id) => id !== node.id)));
+      toast(`${node.name} 已删除`);
       setDeleteTarget(null);
       await reload();
     } catch (reason) {
+      if (versionConflict(reason)) rejectConflict(node.id);
       toast(reason instanceof ApiError ? reason : "节点删除失败，请重试", "error");
     } finally {
       locks.current.delete("delete");
+      locks.current.delete(node.id);
       setDeleting(false);
     }
   }
@@ -146,8 +183,9 @@ export function NodesPage() {
       <PageHeader
         title="节点"
         description="维护 Corade 运行的入站服务配置"
-        actions={<><DataFreshness lastSuccessAt={lastSuccessAt} stale={stale} refreshing={refreshing} error={refreshError} /><Button disabled={loading || refreshing} onClick={() => void reload(true)}><RefreshCw size={16} />刷新</Button><Link className="button button--primary" to={editorHref("/nodes")}><Plus size={16} />添加节点</Link></>}
+        actions={<><DataFreshness lastSuccessAt={lastSuccessAt} stale={stale} refreshing={refreshing} error={refreshError} /><Button disabled={loading || refreshing || publishing.size > 0 || Boolean(changingStatus) || deleting} onClick={refresh}><RefreshCw size={16} />刷新</Button><Link className="button button--primary" to={editorHref("/nodes")}><Plus size={16} />添加节点</Link></>}
       />
+      {conflicts.size > 0 && <div className="form-alert" role="alert">节点配置已变化，请刷新列表并检查最新状态后再操作。<Button onClick={refresh} disabled={publishing.size > 0 || Boolean(changingStatus) || deleting}>刷新并检查最新状态</Button></div>}
       <ResourceListSurface>
         <ResourceCategoryFilters label="节点分类筛选" value={status} options={[
           { value: "", label: "全部", count: nodes.length },
@@ -168,17 +206,17 @@ export function NodesPage() {
                 <td data-label="服务器"><Link className="cell-primary" to={editorHref("/machines", node.machine_id)}>{node.machine_name}</Link></td>
                 <td data-label="协议 / 监听"><span className="protocol-label">{node.protocol}</span><span className="resource-id mono">{node.listen_ip}:{node.server_port}</span></td>
                 <td data-label="配置版本"><span className="version-pair"><span>已应用 <b className="mono">{node.applied_revision}</b></span><span>当前 <b className="mono">{node.current_revision}</b></span></span>{node.has_draft && <span className="resource-id text-warning">有未发布修改</span>}{node.status === "published" && node.applied_revision !== node.current_revision && <span className={`resource-id ${currentApplicationFailed(node) ? "text-danger" : "text-warning"}`}>{currentApplicationFailed(node) ? `版本 ${node.attempted_revision ?? node.current_revision} 应用失败` : node.received_revision === node.current_revision ? "Agent 已接收，等待应用" : "等待 Agent 接收并应用"}</span>}<span className="resource-id">{node.kernel_type === "singbox" ? "sing-box" : "Xray"}</span></td>
-                <td data-label="状态"><StatusBadge status={node.status} />{node.last_error && <span className="cell-error">{node.attempted_revision && node.attempted_revision !== node.current_revision ? `上次版本 ${node.attempted_revision}：` : ""}{node.last_error}</span>}</td>
+                <td data-label="状态"><StatusBadge status={node.status} />{!hasConfigVersion(node) && <span className="cell-error">缺少配置版本，请刷新后再操作</span>}{pendingPublications.has(node.id) && !conflicts.has(node.id) && <span className="resource-id text-warning">上次发布未完成，可重试确认</span>}{node.last_error && <span className="cell-error">{node.attempted_revision && node.attempted_revision !== node.current_revision ? `上次版本 ${node.attempted_revision}：` : ""}{node.last_error}</span>}</td>
                 <td data-label="最后上报"><ResourceDate value={node.last_report_at} formatted={formatPreciseDate(node.last_report_at)} /></td>
                 <td className="row-actions" data-label="操作"><div className="clear-row-actions">
                   <Link className="clear-row-edit" to={editorHref("/nodes", node.id)} aria-label={`编辑 ${node.name}`}>编辑</Link>
-                  {(node.has_draft || node.status === "draft" || node.status === "error" || currentApplicationFailed(node)) && <button type="button" className="icon-button" aria-label={`发布 ${node.name}`} title="发布配置" disabled={publishing === node.id} onClick={() => void publish(node)}>{publishing === node.id ? <span className="mini-spinner" /> : <Rocket size={16} />}</button>}
+                  {(node.has_draft || node.status === "draft" || node.status === "error" || currentApplicationFailed(node) || pendingPublications.has(node.id)) && <button type="button" className="icon-button" aria-label={`${pendingPublications.has(node.id) ? "重试确认发布" : "发布"} ${node.name}`} title={pendingPublications.has(node.id) ? "使用同一操作标识确认上次发布结果" : "发布配置"} disabled={locks.current.has(node.id) || !hasConfigVersion(node) || conflicts.has(node.id)} onClick={() => void publish(node)}>{publishing.has(node.id) ? <span className="mini-spinner" /> : <Rocket size={16} />}</button>}
                   <RowMenu className="resource-menu" label={`${node.name} 更多操作`}>
                     <Link to={editorHref("/nodes", node.id).replace("/edit?", "/history?")}>版本历史</Link>
                     <Link to={editorHref("/nodes", node.id)}><Edit3 size={15} />编辑节点</Link>
                     <Link to={editorHref("/nodes", "new", node.id)}><Copy size={15} />复制节点</Link>
-                    <button disabled={changingStatus === node.id} onClick={() => setStatusTarget(node)}><Power size={15} />{node.status === "disabled" ? "恢复为草稿" : "停用节点"}</button>
-                    <button type="button" className="menu-action--danger" onClick={() => setDeleteTarget(node)}><Trash2 size={15} />删除节点</button>
+                    <button disabled={locks.current.has(node.id) || !hasConfigVersion(node) || conflicts.has(node.id)} onClick={() => setStatusTarget(node)}><Power size={15} />{node.status === "disabled" ? "恢复为草稿" : "停用节点"}</button>
+                    <button type="button" className="menu-action--danger" disabled={locks.current.has(node.id) || !hasConfigVersion(node) || conflicts.has(node.id)} onClick={() => setDeleteTarget(node)}><Trash2 size={15} />删除节点</button>
                   </RowMenu>
                 </div></td>
               </tr>)}</tbody>

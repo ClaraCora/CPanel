@@ -52,6 +52,7 @@ export interface Machine {
 export interface Node {
   config_version?: number;
   has_draft?: boolean;
+  restored_from_revision?: number;
   received_revision?: number;
   attempted_revision?: number;
   apply_status?: "received" | "applied" | "failed" | "";

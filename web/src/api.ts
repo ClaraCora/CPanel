@@ -2,6 +2,7 @@ import { demoNodes, demoResource, demoSession } from "./mock";
 import { ApiError, adminSessionExpired, demoMode, getCsrfToken, notifyAdminSessionExpired, trackProtectedRequest } from "./auth";
 import { mutationHeaders, type MutationOptions } from "./mutations";
 import type { Envelope } from "./types";
+import { demoNodeRevisions, recordDemoNodeRevision, restoreDemoNodeRevision } from "./demoNodeHistory";
 
 export { ApiError, demoMode } from "./auth";
 
@@ -117,6 +118,20 @@ async function demoRequest<T>(path: string, init: RequestInit): Promise<T> {
 		return { ip_address: input.ip_address, cached: false, location: { scope: "public", country_code: "CN", country: "中国", province: "广东省", city: "深圳", isp: "中国电信", resolved_at: new Date().toISOString() } } as T;
 	}
 	if (cleanPath.startsWith("/users/") && cleanPath.endsWith("/portal") && method === "POST") return { grant: "demo-portal-grant", expires_at: new Date(Date.now() + 90_000).toISOString() } as T;
+  const revisionMatch = cleanPath.match(/^\/nodes\/([^/]+)\/(revisions|restore)$/);
+  if (revisionMatch) {
+    const index = demoNodes.findIndex((node) => node.id === decodeURIComponent(revisionMatch[1]));
+    if (index < 0) throw new ApiError(404, { code: "NOT_FOUND", message: "节点不存在" });
+    const node = demoNodes[index];
+    if (method === "GET" && revisionMatch[2] === "revisions") return demoNodeRevisions(node) as T;
+    if (method === "POST" && revisionMatch[2] === "restore") {
+      if (new Headers(init.headers).get("If-Match") !== `"${node.config_version}"`) throw new ApiError(409, { code: "CONFIG_VERSION_CONFLICT", message: "配置已被修改，请重新加载后再恢复" });
+      const restored = restoreDemoNodeRevision(node, Number(JSON.parse(String(init.body)).revision));
+      if (!restored) throw new ApiError(409, { code: "NODE_REVISION_INCOMPLETE", message: "此版本缺少完整快照，只能查看" });
+      demoNodes[index] = restored;
+      return restored as T;
+    }
+  }
 	if (method === "GET") {
 		const viewMatch = path.match(/^\/history\?view=(traffic|machines|nodes|devices)/);
 		if (viewMatch) {
@@ -129,13 +144,15 @@ async function demoRequest<T>(path: string, init: RequestInit): Promise<T> {
 	}
   if (cleanPath === "/nodes" && method === "POST") {
     const input = JSON.parse(String(init.body));
-    const item = { ...demoNodes[0], ...input, id: `nod_demo_${Date.now()}`, agent_id: Date.now() % 100000, machine_name: "演示服务器", status: "draft", current_revision: 0, applied_revision: 0 };
+    const item = { ...demoNodes[0], ...input, id: `nod_demo_${Date.now()}`, agent_id: Date.now() % 100000, machine_name: "演示服务器", status: "draft", current_revision: 0, applied_revision: 0, config_version: 1, has_draft: false, apply_status: "", apply_stage: "", last_error: "" };
     demoNodes.unshift(item);
     return item as T;
   }
   if (cleanPath.startsWith("/nodes/") && method === "PATCH") {
     const id = cleanPath.split("/")[2];
     const index = demoNodes.findIndex((item) => item.id === id);
+    if (index < 0) throw new ApiError(404, { code: "NOT_FOUND", message: "节点不存在" });
+    demoNodeRevisions(demoNodes[index]);
     const input = JSON.parse(String(init.body));
     demoNodes[index] = { ...demoNodes[index], ...input, status: input.status ?? (demoNodes[index].status === "published" ? "published" : "draft"), has_draft: !input.status, config_version: (demoNodes[index].config_version ?? 1) + 1, updated_at: new Date().toISOString() };
     return demoNodes[index] as T;
@@ -143,10 +160,14 @@ async function demoRequest<T>(path: string, init: RequestInit): Promise<T> {
   if (cleanPath.endsWith("/publish") && method === "POST") {
     const id = cleanPath.split("/")[2];
     const item = demoNodes.find((node) => node.id === id)!;
+    if (!item) throw new ApiError(404, { code: "NOT_FOUND", message: "节点不存在" });
+    demoNodeRevisions(item);
     item.status = "published";
     item.current_revision += 1;
     item.config_version = (item.config_version ?? 1) + 1;
     item.has_draft = false;
+    item.apply_status = ""; item.apply_stage = ""; item.last_error = "";
+    recordDemoNodeRevision(item);
     return item as T;
   }
   const resource = cleanPath.split("/")[1];

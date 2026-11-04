@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { Route, Switch } from "wouter";
-import { api } from "../api";
+import { api, ApiError } from "../api";
 import { AdminNavigation } from "../components/AdminNavigation";
 import { demoNodes } from "../mock";
 import { redactRevision, revisionDiff } from "../nodeRevisionDiff";
@@ -47,6 +47,9 @@ it("requires confirmation, preserves failed history, and restores only a draft",
   await screen.findByRole("heading", { name: "节点编辑页面" });
   expect(post).toHaveBeenCalledTimes(2);
   expect(post.mock.calls.every(([path]) => path === "/nodes/nod_history/restore")).toBe(true);
+  expect(post.mock.calls[0][2]?.configVersion).toBe(4);
+  expect(post.mock.calls[0][2]?.idempotencyKey).toBeTruthy();
+  expect(post.mock.calls[1][2]?.idempotencyKey).toBe(post.mock.calls[0][2]?.idempotencyKey);
   const restoredReturn = new URL(new URLSearchParams(location.search).get("returnTo")!, location.origin);
   expect(restoredReturn.pathname).toBe("/nodes");
   expect(restoredReturn.searchParams.get("q")).toBe("香港");
@@ -55,8 +58,31 @@ it("requires confirmation, preserves failed history, and restores only a draft",
 });
 
 it("redacts nested secrets while still identifying changed secret fields", () => {
-  const value = { tls: { private_key: "private", certificate: "cert" }, routes: [{ password: "nested" }], server_port: 443 };
+  const value = { tls: { private_key: "private", certificate: "cert" }, routes: [{ password: "nested" }], server_key: "ss2022-secret", users: [{ id: "vless-credential", pass: "trojan-credential" }], server_port: 443 };
   const redacted = JSON.stringify(redactRevision(value));
   expect(redacted).not.toContain('"private"'); expect(redacted).not.toContain('"cert"'); expect(redacted).not.toContain('"nested"');
+  expect(redacted).not.toContain("ss2022-secret"); expect(redacted).not.toContain("vless-credential"); expect(redacted).not.toContain("trojan-credential");
+  expect(JSON.stringify(revisionDiff({}, value))).not.toContain("vless-credential");
+  expect(JSON.stringify(revisionDiff({}, value))).not.toContain("trojan-credential");
   expect(revisionDiff({ password: "a" }, { password: "b" })).toEqual([{ path: "password", before: "[已隐藏]", after: "[已隐藏]" }]);
+});
+
+it("retains history and offers recovery after a concurrent edit", async () => {
+  vi.spyOn(api, "post").mockRejectedValue(new ApiError(409, { code: "EDIT_VERSION_CONFLICT", message: "配置已被修改" }, "restore-request"));
+  open(); await screen.findByRole("table");
+  fireEvent.click(screen.getByRole("button", { name: "恢复为草稿" }));
+  fireEvent.click(screen.getByRole("button", { name: "恢复并编辑" }));
+  await screen.findByText("配置已被修改");
+  expect(screen.getByText("restore-request")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "恢复为草稿" }).hasAttribute("disabled")).toBe(true);
+  expect(location.pathname).toBe("/nodes/nod_history/history");
+});
+
+it("does not restore if the server omitted the configuration version", async () => {
+  vi.mocked(api.get).mockImplementation(async (path) => (path.endsWith("/revisions") ? revisions : { ...demoNodes[0], config_version: undefined }) as never);
+  const post = vi.spyOn(api, "post");
+  open(); await screen.findByRole("table");
+  expect(screen.getByRole("button", { name: "恢复为草稿" }).hasAttribute("disabled")).toBe(true);
+  expect(screen.getByText(/服务未返回配置版本/)).toBeTruthy();
+  expect(post).not.toHaveBeenCalled();
 });

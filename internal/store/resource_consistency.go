@@ -437,6 +437,8 @@ func (s *Store) outboundTagReferencedTx(ctx context.Context, tx pgx.Tx, tag stri
 			WHERE r.status='published' AND EXISTS(SELECT 1 FROM jsonb_array_elements(latest.rules) rule
 				WHERE COALESCE((rule->>'disabled')::boolean,false)=false
 				  AND lower(COALESCE(rule->'action'->>'type',''))='route'
-				  AND lower(COALESCE(rule->'action'->>'target',''))=lower($1))`, tag).Scan(&referenced)
+				  AND lower(COALESCE(rule->'action'->>'target',''))=lower($1)
+			)
+		)`, tag).Scan(&referenced)
 	return referenced, err
 }

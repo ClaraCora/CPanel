@@ -1,4 +1,4 @@
-import { ApiError } from "./api";
+import { ApiError } from "./auth";
 import type { Resource } from "./resourceDefinitions";
 import type { Machine } from "./types";
 

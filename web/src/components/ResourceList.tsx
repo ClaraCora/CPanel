@@ -32,5 +32,5 @@ export function ResourceListNote({ children }: { children: ReactNode }) {
 
 export function ResourceDate({ value, formatted }: { value: string | null | undefined; formatted: string }) {
   const [date, time] = formatted.split(" ");
-  return <time dateTime={value || undefined} title={formatted}><span className="mono">{date}</span>{time && <span className="resource-id mono">{time}</span>}</time>;
+  return <time className="resource-date" dateTime={value || undefined} title={formatted}><span className="mono">{date}</span>{time && <span className="resource-id mono">{time}</span>}</time>;
 }

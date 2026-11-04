@@ -25,6 +25,8 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 
 服务器与节点列表使用局部紧凑密度：分类控件最小高度 44px，筛选区上下内边距 12px，桌面表格单元上下内边距 12px；服务器卡片内边距桌面 20px、手机 16px，指标分组上下外边距 16px。手机按钮保留 44px 最小触控高度。其他页面、编辑页和公共入口不继承此局部密度。
 
+2026-11-04 refinement: ordinary list headers use 24px top spacing and a 20px gap before the work area; ordinary table cells use 14px vertical padding. Server cards group identity, metrics, Agent and timestamps, with bottom actions aligned. Mobile node records combine report time and actions in a shared footer. Tablet overview metrics remain five columns; mobile rankings hide the secondary rank column and right-align intact quantities. Inputs retain their error styling on hover/focus; busy actions expose status and a visible spinner. Full editing routes and public-page styles remain intact. Report and demo evidence: `design-system/ui-polish-2026-11-04.md` and its sibling directory.
+
 Implemented in `e0d2ef7`, tested in `3741c05` and corrected in `cbf5224`. Root `DESIGN.md` and `.impeccable/design.json` now describe the replacement system. Old resource/operations briefs explicitly defer here for administration and preserve only valid public portal guidance.
 
 Primary source is `web/src/admin-console.css`; public style consolidation is `public-surfaces.css`. Seven old overlay stylesheets and all administration Drawer references were removed. `ResourceEditorPage` and `NodeEditorPage` implement complete editing routes. Current mobile filters have independent rows, actual primary text controls are at least 44×44px, and node client/server errors restore focus to described targets or a focusable summary.

@@ -10,7 +10,7 @@ type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 function overlayRoot() { return document.getElementById("admin-overlays") ?? document.body; }
 
 export function Button({ variant = "secondary", loading, disabled, children, className = "", ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; loading?: boolean }) {
-  return <button className={`button button--${variant} ${className}`} {...props} disabled={loading || disabled}>{loading && <LoaderCircle className="spin" size={16} aria-hidden="true" />}{children}</button>;
+  return <button className={`button button--${variant} ${className}`} {...props} aria-busy={loading || props["aria-busy"]} disabled={loading || disabled}>{loading && <LoaderCircle className="spin" size={16} aria-hidden="true" />}{children}</button>;
 }
 
 const statusMap: Record<string, { label: string; tone: StatusTone }> = {

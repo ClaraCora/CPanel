@@ -1,0 +1,249 @@
+{
+  "data": "existing demo mode, no production requests",
+  "checks": [
+    {
+      "label": "machines-1440-light",
+      "cardHeight": 372.3125,
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "title": "服务器",
+      "width": 1440
+    },
+    {
+      "label": "machines-390-light",
+      "cardHeight": 390.71875,
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "title": "服务器",
+      "width": 390
+    },
+    {
+      "label": "nodes-390-light",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "rowHeight": 320.328125,
+      "title": "节点",
+      "width": 390
+    },
+    {
+      "label": "nodes-1024-light",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "rowHeight": 89.78125,
+      "title": "节点",
+      "width": 1024
+    },
+    {
+      "label": "nodes-1440-light",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "rowHeight": 87.78125,
+      "title": "节点",
+      "width": 1440
+    },
+    {
+      "label": "node-editor-1440-light",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "title": "编辑节点",
+      "width": 1440
+    },
+    {
+      "label": "node-editor-390-dark",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "title": "编辑节点",
+      "width": 390
+    },
+    {
+      "label": "overview-1440-dark",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "title": "运行总览",
+      "width": 1440
+    },
+    {
+      "label": "overview-1024-light",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "title": "运行总览",
+      "width": 1024
+    },
+    {
+      "label": "overview-390-light",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "title": "运行总览",
+      "width": 390
+    },
+    {
+      "label": "订阅账号-390-light",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "rowHeight": 400.921875,
+      "title": "订阅账号",
+      "width": 390
+    },
+    {
+      "label": "套餐-390-light",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "rowHeight": 412.109375,
+      "title": "套餐",
+      "width": 390
+    },
+    {
+      "label": "权限组-390-light",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "rowHeight": 428.125,
+      "title": "权限组",
+      "width": 390
+    },
+    {
+      "label": "出站-390-light",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "rowHeight": 413.109375,
+      "title": "出站",
+      "width": 390
+    },
+    {
+      "label": "路由策略-390-light",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "rowHeight": 457.609375,
+      "title": "路由策略",
+      "width": 390
+    },
+    {
+      "label": "订阅-390-light",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "title": "订阅",
+      "width": 390
+    },
+    {
+      "label": "访问 IP-390-light",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "title": "用户访问 IP",
+      "width": 390
+    },
+    {
+      "label": "历史数据-390-light",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "title": "历史数据",
+      "width": 390
+    },
+    {
+      "label": "系统设置-390-light",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "title": "系统设置",
+      "width": 390
+    },
+    {
+      "label": "审计日志-390-light",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "title": "审计日志",
+      "width": 390
+    },
+    {
+      "label": "服务器-390-light",
+      "cardHeight": 390.71875,
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "title": "服务器",
+      "width": 390
+    },
+    {
+      "label": "machines-1024-light",
+      "cardHeight": 372.3125,
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "title": "服务器",
+      "width": 1024
+    },
+    {
+      "label": "machines-1440-dark",
+      "cardHeight": 372.3125,
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "title": "服务器",
+      "width": 1440
+    },
+    {
+      "label": "machines-table-1440-dark",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "rowHeight": 98.5625,
+      "title": "服务器",
+      "width": 1440
+    },
+    {
+      "label": "machine-editor-1440-dark",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "title": "编辑服务器",
+      "width": 1440
+    },
+    {
+      "label": "settings-1440-dark",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "title": "系统设置",
+      "width": 1440
+    },
+    {
+      "label": "users-1440-dark",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "rowHeight": 73.984375,
+      "title": "订阅账号",
+      "width": 1440
+    },
+    {
+      "label": "nodes-1440-dark-final",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "rowHeight": 87.78125,
+      "title": "节点",
+      "width": 1440
+    },
+    {
+      "label": "nodes-390-dark-final",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "rowHeight": 320.328125,
+      "title": "节点",
+      "width": 390
+    },
+    {
+      "label": "node-editor-390-dark-final",
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "title": "编辑节点",
+      "width": 390
+    },
+    {
+      "label": "machines-1440-light-final",
+      "cardHeight": 372.3125,
+      "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", sans-serif",
+      "overflow": false,
+      "title": "服务器",
+      "width": 1440
+    }
+  ],
+  "interactions": [
+    "node search with no results and clear filters",
+    "server hide address and card/table switch",
+    "server full-page editor and cancel returns to same view",
+    "node full-page editor at desktop and mobile",
+    "row menu ArrowDown and Escape restores focus",
+    "required field error focuses invalid input with red border/outline",
+    "dirty form cancellation confirmation and discard"
+  ]
+}

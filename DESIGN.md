@@ -45,13 +45,13 @@ colors:
   command-text: "#ffffff"
 typography:
   title:
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei UI", sans-serif'
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif'
     fontSize: "26px"
     fontWeight: 650
     lineHeight: 1.35
     letterSpacing: "0"
   body:
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei UI", sans-serif'
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif'
     fontSize: "14px"
     fontWeight: 400
     lineHeight: 1.6
@@ -71,6 +71,7 @@ spacing:
   sm: "8px"
   control-gap: "12px"
   md: "16px"
+  content-gap: "20px"
   lg: "24px"
   xl: "32px"
 components:
@@ -97,7 +98,7 @@ components:
 
 **Creative North Star: "Readable operations, complete editing."**
 
-本文件记录 2026-11-03 已实施的管理员后台设计。权威为用户的《CPanel界面重构实施方案.MD》和 `.impeccable/surfaces/admin-console.md`；旧的后台玻璃、侧栏及编辑抽屉规则已被替代。正文及示例描述现有实现，不添加业务能力。
+本文件记录 2026-11-03 已实施的管理员后台设计及 2026-11-04 的视觉打磨。权威为用户的《CPanel界面重构实施方案.MD》和 `.impeccable/surfaces/admin-console.md`；旧的后台玻璃、侧栏及编辑抽屉规则已被替代。正文及示例描述现有实现，不添加业务能力。
 
 后台使用顶部导航、浅色默认、蓝色主操作、完整深色主题和独立编辑页面。登录页及 `/edu` 保留既有外观和行为；公共页面保留 `web/src/portal.css` 基础，并由 `web/src/public-surfaces.css` 维护合并规则，不继承本轮后台色板。现有图表、协议、权限及请求契约以业务代码为准。
 
@@ -118,7 +119,7 @@ components:
 
 ## Typography
 
-系统中文字体栈为 `-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei UI", sans-serif`，正文 14px / 1.6。标题 26px、650、1.35；分区标题 18px、600、1.5；小标题 15px、600。辅助数据多为 12–13px。正文和标题均不使用负字距。
+系统中文字体栈为 `-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`，正文 14px / 1.6。标题 26px、650、1.35；分区标题 18px、600、1.5；小标题 15px、600。辅助数据多为 12–13px；手机记录字段标签为 12px，技术数值通常为 13px。正文和标题均不使用负字距。
 
 IP、ID、端口、版本、数值和配置采用既有等宽类；代码和审计 JSON 使用 `"Cascadia Mono", Consolas, monospace`、13px / 1.8。数字使用 tabular-nums。手机输入字号 16px，避免编辑时缩放。不要把等宽字体推广到普通中文说明。
 
@@ -128,9 +129,15 @@ IP、ID、端口、版本、数值和配置采用既有等宽类；代码和审�
 
 服务器卡片在至少 1200px 为三列、768–1199px 两列、低于 768px 单列。导航低于 1024px 折为菜单。表格手机端显示字段标签、核心状态和操作；JSON、命令和复杂配置仅在组件内滚动。
 
+普通列表页顶留白 24px，页头与工作区间隔 20px；分类最小高度 48px，工具栏上下内边距 14px，表格单元上下内边距 14px。桌面输入和普通按钮高 40px，视图切换外框同高。页脚以淡背景和细分隔线承接数量与分页，不另建视觉重块。常用间距以后台作用域 token 维护。
+
 服务器与节点列表采用局部紧凑密度：分类控件最小高度 44px，筛选区上下内边距 12px，桌面表格单元上下内边距 12px。服务器卡片内边距桌面为 20px、手机为 16px，指标分组上下外边距 16px。手机按钮保留 44px 最小触控高度。该密度仅用于这两类列表，不改变其他页面、编辑页或公共入口的间距规范。
 
+服务器卡片外网格内边距 16px；地址与区域在同一信息行自动换行，资源指标、Agent 和时间分别成组，底部操作在同一行卡片中对齐。手机节点名称独占首行；最后上报与操作并排放在底部分隔线下，避免重复字段标签和操作独占一行。总览平板保留五列指标并隐藏辅助图标，手机为两列加末项通栏；流量排行的数值右对齐、单位不拆行，手机隐藏辅助序号列。
+
 普通编辑表单最大 1120px，节点/路由/出站工作区最大 1440px；达到 1200px 时章节导航约 200px。基础字段至少 1024px 可双列，复杂配置占整行。底部操作栏为 sticky，含安全区留白，最后字段保持可见。手机筛选器与刷新提示独立换行；主要操作实际命中区域至少 44×44px。
+
+表单分区桌面内边距 24px，字段纵横间距为 20/24px；手机保存栏内边距 12px 并保留底部安全区。字号、表单完整页面和可达的操作优先于继续压缩高度。
 
 全后台列表路由为 `/`、`/machines`、`/nodes`、`/users`、`/plans`、`/access-groups`、`/subscription`、`/access-ips`、`/routes`、`/outbounds`、`/history`、`/settings`、`/audit`。七类资源使用各自 `/new` 与 `/:id/edit`，节点复制保留 `/nodes/new?copy=:id`。所有编辑均在认证边界内。
 
@@ -147,6 +154,8 @@ IP、ID、端口、版本、数值和配置采用既有等宽类；代码和审�
 ## Components
 
 **操作与字段。** 主操作为蓝色实心按钮，普通操作中性，删除与重置保留确认。提交期间锁定控件和重复请求；失败保留输入，字段错误通过标签、说明及 `aria-describedby` 关联。按钮和链接焦点轮廓为主题色 2px、外偏移 3px；输入框为 2px 外偏移。协议错误摘要可聚焦。选择、插入光标、滚动条和数字都有后台主题规则。
+
+普通后台链接继承正文颜色，并由资源入口和操作类显式设置强调色，避免浏览器默认访问色破坏主题。错误字段同时使用危险色边框、浅底和说明，聚焦时继续保留错误色；列表错误说明独立成行。加载按钮通过 `aria-busy` 表达状态；节点发布的等待图标具有固定 16px 尺寸与边框，减少布局跳动。分类和视图切换的焦点框向内偏移，避免被容器裁切。
 
 **列表与服务器卡片。** 页头主操作、分类数量、搜索与组合筛选连接到同一数据集。卡片和表格共享筛选、记录和动作；隐藏地址覆盖可见文本及辅助描述。离线显示心跳/采样时间，缺少指标为“—”。真实分页沿用服务端口径，不能把当前页当成全部。
 
@@ -174,3 +183,5 @@ IP、ID、端口、版本、数值和配置采用既有等宽类；代码和审�
 - Don't 持久化表单密码/令牌/证书、制造零值/总数，或把已提交配置标成 Agent 已应用。
 
 源码与验证边界：`web/src/admin-console.css`、公共 `public-surfaces.css`、`AdminTheme`、`AdminNavigation`、`AppShell`、`ui` 及对应页面。实现及回退见 `design-system/admin-console-migration.md`；证据见 `design-system/admin-console-2026-11-03/`。首轮审查三项修正最终 scoped ship，不表示穷尽所有协议联机及生产安全验证。无新增产品栅格图片。
+
+2026-11-04 视觉打磨的优先级、代码入口及验证边界见 `design-system/ui-polish-2026-11-04.md`；截图和浏览器检查记录位于同名目录。截图仅为演示验收证据，不进入产品资源包。

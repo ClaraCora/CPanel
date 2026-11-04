@@ -103,6 +103,8 @@ func (s *Server) Handler() http.Handler {
 		ops.Patch("/jd/{id}", s.handleUpdateNode)
 		ops.Delete("/jd/{id}", s.handleDeleteNode)
 		ops.Post("/jd/{id}/fb", s.handlePublishNode)
+		ops.Get("/jd/{id}/bb", s.handleNodeRevisions)
+		ops.Post("/jd/{id}/hf", s.handleRestoreNodeRevision)
 		ops.Get("/qxz", s.handleListAccessGroups)
 		ops.Post("/qxz", s.handleCreateAccessGroup)
 		ops.Patch("/qxz/{id}", s.handleUpdateAccessGroup)

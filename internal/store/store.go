@@ -11,6 +11,7 @@ import (
 var (
 	ErrNotFound                     = errors.New("resource not found")
 	ErrConflict                     = errors.New("resource conflict")
+	ErrIncompleteNodeRevision       = errors.New("historical node revision has no complete snapshot")
 	ErrMachineHasNodes              = errors.New("machine still has nodes")
 	ErrAccessGroupInUse             = errors.New("access group is still in use")
 	ErrPlanInUse                    = errors.New("plan is still in use")

@@ -105,27 +105,29 @@ type MachineCredential struct {
 }
 
 type Node struct {
-	ID                  string          `json:"id"`
-	AgentID             int64           `json:"agent_id"`
-	MachineID           string          `json:"machine_id"`
-	MachineName         string          `json:"machine_name"`
-	RoutePolicyID       *string         `json:"route_policy_id"`
-	AdminRoutePolicyID  *string         `json:"admin_route_policy_id"`
-	MemberRoutePolicyID *string         `json:"member_route_policy_id"`
-	Name                string          `json:"name"`
-	Protocol            string          `json:"protocol"`
-	ListenIP            string          `json:"listen_ip"`
-	ServerPort          int             `json:"server_port"`
-	KernelType          string          `json:"kernel_type"`
-	Config              json.RawMessage `json:"config"`
-	Status              string          `json:"status"`
-	CurrentRevision     int             `json:"current_revision"`
-	AppliedRevision     int             `json:"applied_revision"`
-	LastReport          *time.Time      `json:"last_report_at"`
-	LastError           string          `json:"last_error,omitempty"`
-	CreatedAt           time.Time       `json:"created_at"`
-	UpdatedAt           time.Time       `json:"updated_at"`
-	Endpoints           []NodeEndpoint  `json:"endpoints"`
+	ID                   string          `json:"id"`
+	HasDraft             bool            `json:"has_draft"`
+	RestoredFromRevision int             `json:"restored_from_revision,omitempty"`
+	AgentID              int64           `json:"agent_id"`
+	MachineID            string          `json:"machine_id"`
+	MachineName          string          `json:"machine_name"`
+	RoutePolicyID        *string         `json:"route_policy_id"`
+	AdminRoutePolicyID   *string         `json:"admin_route_policy_id"`
+	MemberRoutePolicyID  *string         `json:"member_route_policy_id"`
+	Name                 string          `json:"name"`
+	Protocol             string          `json:"protocol"`
+	ListenIP             string          `json:"listen_ip"`
+	ServerPort           int             `json:"server_port"`
+	KernelType           string          `json:"kernel_type"`
+	Config               json.RawMessage `json:"config"`
+	Status               string          `json:"status"`
+	CurrentRevision      int             `json:"current_revision"`
+	AppliedRevision      int             `json:"applied_revision"`
+	LastReport           *time.Time      `json:"last_report_at"`
+	LastError            string          `json:"last_error,omitempty"`
+	CreatedAt            time.Time       `json:"created_at"`
+	UpdatedAt            time.Time       `json:"updated_at"`
+	Endpoints            []NodeEndpoint  `json:"endpoints"`
 }
 
 type NodeEndpoint struct {

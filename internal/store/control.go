@@ -71,9 +71,30 @@ func (s *Store) AgentNodes(ctx context.Context, machineID string) ([]domain.Agen
 }
 
 func (s *Store) AgentNodeSpec(ctx context.Context, machineID string, agentNodeID int64) (domain.AgentNodeSpec, error) {
+	var raw []byte
+	err := s.pool.QueryRow(ctx, `SELECT r.snapshot->'spec' FROM nodes n
+        LEFT JOIN node_revisions r ON r.node_id=n.id AND r.revision=n.current_revision
+        WHERE n.machine_id=$1 AND n.agent_id=$2 AND n.status='published'`, machineID, agentNodeID).Scan(&raw)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.AgentNodeSpec{}, ErrNotFound
+	}
+	if err != nil {
+		return domain.AgentNodeSpec{}, err
+	}
+	if len(raw) > 0 && string(raw) != "null" {
+		var spec domain.AgentNodeSpec
+		if err := json.Unmarshal(raw, &spec); err != nil {
+			return spec, err
+		}
+		return spec, nil
+	}
+	return compileAgentNodeSpec(ctx, s.pool, machineID, agentNodeID)
+}
+
+func compileAgentNodeSpec(ctx context.Context, q nodeQueryer, machineID string, agentNodeID int64) (domain.AgentNodeSpec, error) {
 	var item domain.AgentNodeSpec
 	var defaultPolicyID, adminPolicyID, memberPolicyID *string
-	err := s.pool.QueryRow(ctx, `SELECT n.agent_id,n.current_revision,n.protocol,n.listen_ip,n.server_port,n.kernel_type,n.config,
+	err := q.QueryRow(ctx, `SELECT n.agent_id,n.current_revision,n.protocol,n.listen_ip,n.server_port,n.kernel_type,n.config,
 		       n.route_policy_id,n.admin_route_policy_id,n.member_route_policy_id
 		FROM nodes n
 		WHERE n.machine_id=$1 AND n.agent_id=$2 AND n.status='published'`, machineID, agentNodeID).Scan(
@@ -89,12 +110,12 @@ func (s *Store) AgentNodeSpec(ctx context.Context, machineID string, agentNodeID
 	if defaultPolicyID == nil && adminPolicyID == nil && memberPolicyID == nil {
 		return item, nil
 	}
-	allOutbounds, err := s.agentRouteOutbounds(ctx, item.KernelType)
+	allOutbounds, err := agentRouteOutbounds(ctx, q, item.KernelType)
 	if err != nil {
 		return domain.AgentNodeSpec{}, err
 	}
 	profiles := make(map[string]map[string]any, 3)
-	defaultProfile, err := s.agentRouteProfile(ctx, defaultPolicyID, allOutbounds)
+	defaultProfile, err := agentRouteProfile(ctx, q, defaultPolicyID, allOutbounds)
 	if err != nil {
 		return domain.AgentNodeSpec{}, err
 	}
@@ -105,7 +126,7 @@ func (s *Store) AgentNodeSpec(ctx context.Context, machineID string, agentNodeID
 	for scope, policyID := range map[string]*string{"admin": adminPolicyID, "member": memberPolicyID} {
 		profile := defaultProfile
 		if policyID != nil && (defaultPolicyID == nil || *policyID != *defaultPolicyID) {
-			profile, err = s.agentRouteProfile(ctx, policyID, allOutbounds)
+			profile, err = agentRouteProfile(ctx, q, policyID, allOutbounds)
 			if err != nil {
 				return domain.AgentNodeSpec{}, err
 			}
@@ -122,8 +143,8 @@ func (s *Store) AgentNodeSpec(ctx context.Context, machineID string, agentNodeID
 	return item, err
 }
 
-func (s *Store) agentRouteOutbounds(ctx context.Context, kernelType string) ([]map[string]any, error) {
-	rows, err := s.pool.Query(ctx, `SELECT jsonb_strip_nulls(jsonb_build_object(
+func agentRouteOutbounds(ctx context.Context, q nodeQueryer, kernelType string) ([]map[string]any, error) {
+	rows, err := q.Query(ctx, `SELECT jsonb_strip_nulls(jsonb_build_object(
 		'tag',o.tag,'protocol',o.protocol,'settings',o.settings,'proxy_tag',NULLIF(o.proxy_tag,'')))
 		FROM outbounds o WHERE o.status='active' AND o.protocol NOT IN ('direct','block') AND $1=ANY(o.kernel_support)
 		ORDER BY o.created_at`, kernelType)
@@ -146,7 +167,7 @@ func (s *Store) agentRouteOutbounds(ctx context.Context, kernelType string) ([]m
 	return all, rows.Err()
 }
 
-func (s *Store) agentRouteProfile(ctx context.Context, policyID *string, allOutbounds []map[string]any) (map[string]any, error) {
+func agentRouteProfile(ctx context.Context, q nodeQueryer, policyID *string, allOutbounds []map[string]any) (map[string]any, error) {
 	profile := emptyAgentRouteProfile()
 	if policyID == nil || strings.TrimSpace(*policyID) == "" {
 		return profile, nil
@@ -154,8 +175,14 @@ func (s *Store) agentRouteProfile(ctx context.Context, policyID *string, allOutb
 	var published bool
 	var defaultTag string
 	var rawRules []byte
-	err := s.pool.QueryRow(ctx, `SELECT r.status='published',COALESCE(r.default_outbound_tag,''),COALESCE((SELECT rr.rules FROM route_policy_revisions rr WHERE rr.route_policy_id=r.id ORDER BY rr.revision DESC LIMIT 1),'[]'::jsonb) FROM route_policies r WHERE r.id=$1`, *policyID).Scan(&published, &defaultTag, &rawRules)
-	if errors.Is(err, pgx.ErrNoRows) || !published {
+	err := q.QueryRow(ctx, `SELECT r.status='published',COALESCE(r.default_outbound_tag,''),COALESCE((SELECT rr.rules FROM route_policy_revisions rr WHERE rr.route_policy_id=r.id ORDER BY rr.revision DESC LIMIT 1),'[]'::jsonb) FROM route_policies r WHERE r.id=$1`, *policyID).Scan(&published, &defaultTag, &rawRules)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !published {
 		return nil, nil
 	}
 	var rules []domain.RoutePolicyRule

@@ -386,6 +386,9 @@ func (s *Store) ListNodes(ctx context.Context) ([]domain.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		if err := loadNodeDraft(ctx, s.pool, &item); err != nil {
+			return nil, err
+		}
 		items = append(items, item)
 	}
 	return items, rows.Err()
@@ -410,11 +413,19 @@ func (s *Store) GetNode(ctx context.Context, nodeID string) (domain.Node, error)
 		return domain.Node{}, mapError(err)
 	}
 	item.Endpoints, err = s.nodeEndpoints(ctx, item.ID)
+	if err != nil {
+		return item, err
+	}
+	err = loadNodeDraft(ctx, s.pool, &item)
 	return item, err
 }
 
 func (s *Store) nodeEndpoints(ctx context.Context, nodeID string) ([]domain.NodeEndpoint, error) {
-	rows, err := s.pool.Query(ctx, `SELECT id,node_id,name,host,port,status,COALESCE(access_scope,'default'),sort_order,created_at,updated_at
+	return queryNodeEndpoints(ctx, s.pool, nodeID)
+}
+
+func queryNodeEndpoints(ctx context.Context, q nodeQueryer, nodeID string) ([]domain.NodeEndpoint, error) {
+	rows, err := q.Query(ctx, `SELECT id,node_id,name,host,port,status,COALESCE(access_scope,'default'),sort_order,created_at,updated_at
 		FROM node_endpoints WHERE node_id=$1 ORDER BY sort_order,name,id`, nodeID)
 	if err != nil {
 		return nil, err
@@ -597,6 +608,18 @@ func (s *Store) UpdateNode(ctx context.Context, nodeID string, input domain.Node
 	}
 	originalMachineID := item.MachineID
 	originalStatus := item.Status
+	if input.Status != nil && hasNodeConfiguration(input) {
+		return domain.Node{}, ErrConflict
+	}
+	if input.Status == nil {
+		item.Endpoints, err = queryNodeEndpoints(ctx, tx, item.ID)
+		if err != nil {
+			return domain.Node{}, err
+		}
+		if err := loadNodeDraft(ctx, tx, &item); err != nil {
+			return domain.Node{}, err
+		}
+	}
 	if input.MachineID != nil {
 		item.MachineID = strings.TrimSpace(*input.MachineID)
 	}
@@ -651,11 +674,29 @@ func (s *Store) UpdateNode(ctx context.Context, nodeID string, input domain.Node
 			return domain.Node{}, statusErr
 		}
 		item.Status = status
-	} else if item.Status != "disabled" {
-		item.Status = "draft"
 	}
 	if err := s.validateNodeBindingsTx(ctx, tx, item.MachineID, item.RoutePolicyID, item.AdminRoutePolicyID, item.MemberRoutePolicyID, item.KernelType); err != nil {
 		return domain.Node{}, err
+	}
+	if input.Status == nil {
+		if input.Endpoints != nil {
+			item.Endpoints = *input.Endpoints
+		}
+		if err := validateDraftPort(ctx, tx, item); err != nil {
+			return domain.Node{}, err
+		}
+		if originalStatus == "published" {
+			if err := captureNodeSnapshot(ctx, tx, nodeID, ""); err != nil {
+				return domain.Node{}, err
+			}
+		}
+		if err := saveNodeDraft(ctx, tx, item); err != nil {
+			return domain.Node{}, err
+		}
+		if err := tx.Commit(ctx); err != nil {
+			return domain.Node{}, err
+		}
+		return s.GetNode(ctx, nodeID)
 	}
 	command, err := tx.Exec(ctx, `
 		UPDATE nodes SET machine_id=$2,route_policy_id=$3,admin_route_policy_id=$4,member_route_policy_id=$5,name=$6,protocol=$7,listen_ip=$8,
@@ -703,37 +744,69 @@ func (s *Store) PublishNode(ctx context.Context, nodeID, adminID string) (domain
 	if err := lockResourceConsistencyTx(ctx, tx); err != nil {
 		return domain.Node{}, err
 	}
-	var item domain.Node
-	err = tx.QueryRow(ctx, `
-		UPDATE nodes SET current_revision=current_revision+1,status='published',updated_at=now()
-		WHERE id=$1 AND status <> 'archived'
-		RETURNING id,agent_id,machine_id,route_policy_id,admin_route_policy_id,member_route_policy_id,name,protocol,listen_ip,server_port,kernel_type,
-		          config,status,current_revision,applied_revision,last_report_at,last_error,created_at,updated_at`, nodeID,
-	).Scan(&item.ID, &item.AgentID, &item.MachineID, &item.RoutePolicyID, &item.AdminRoutePolicyID, &item.MemberRoutePolicyID, &item.Name, &item.Protocol,
-		&item.ListenIP, &item.ServerPort, &item.KernelType, &item.Config, &item.Status, &item.CurrentRevision,
-		&item.AppliedRevision, &item.LastReport, &item.LastError, &item.CreatedAt, &item.UpdatedAt)
-	if errors.Is(err, pgx.ErrNoRows) {
+	var locked string
+	if err := tx.QueryRow(ctx, `SELECT id FROM nodes WHERE id=$1 AND status<>'archived' FOR UPDATE`, nodeID).Scan(&locked); errors.Is(err, pgx.ErrNoRows) {
 		return domain.Node{}, ErrNotFound
+	} else if err != nil {
+		return domain.Node{}, err
 	}
+	item, err := runtimeNode(ctx, tx, nodeID)
 	if err != nil {
 		return domain.Node{}, err
+	}
+	originalMachine, originalStatus := item.MachineID, item.Status
+	if originalStatus == "disabled" {
+		return domain.Node{}, ErrConflict
+	}
+	if err := loadNodeDraft(ctx, tx, &item); err != nil {
+		return domain.Node{}, err
+	}
+	if originalStatus == "published" && !item.HasDraft {
+		return s.GetNode(ctx, nodeID)
 	}
 	if err := s.validateNodeBindingsTx(ctx, tx, item.MachineID, item.RoutePolicyID, item.AdminRoutePolicyID, item.MemberRoutePolicyID, item.KernelType); err != nil {
 		return domain.Node{}, err
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO node_revisions(id,node_id,revision,config,published_by) VALUES($1,$2,$3,$4,$5)`,
-		domain.MustID("nrv"), item.ID, item.CurrentRevision, item.Config, adminID)
-	if err != nil {
+	if err := validateDraftPort(ctx, tx, item); err != nil {
 		return domain.Node{}, err
 	}
-	payload, _ := json.Marshal(map[string]any{"node_id": item.AgentID, "config": item.Config})
-	_, err = tx.Exec(ctx, `
-		INSERT INTO control_changes(machine_id,node_id,event_type,revision,payload)
-		VALUES($1,$2,'node.spec.replace',$3,$4)`, item.MachineID, item.ID, item.CurrentRevision, payload)
+	_, err = tx.Exec(ctx, `UPDATE nodes SET machine_id=$2,route_policy_id=$3,admin_route_policy_id=$4,member_route_policy_id=$5,
+        name=$6,protocol=$7,listen_ip=$8,server_port=$9,kernel_type=$10,config=$11,status='published',
+        current_revision=current_revision+1,updated_at=now() WHERE id=$1`,
+		nodeID, item.MachineID, item.RoutePolicyID, item.AdminRoutePolicyID, item.MemberRoutePolicyID, item.Name, item.Protocol, item.ListenIP, item.ServerPort, item.KernelType, item.Config)
 	if err != nil {
+		return domain.Node{}, mapNodeError(err)
+	}
+	if _, err := replaceNodeEndpoints(ctx, tx, nodeID, item.Endpoints); err != nil {
 		return domain.Node{}, err
 	}
-	return item, tx.Commit(ctx)
+	if _, err := tx.Exec(ctx, `DELETE FROM node_drafts WHERE node_id=$1`, nodeID); err != nil {
+		return domain.Node{}, err
+	}
+	if err := captureNodeSnapshot(ctx, tx, nodeID, adminID); err != nil {
+		return domain.Node{}, err
+	}
+	item.CurrentRevision++
+	payload, _ := json.Marshal(map[string]any{"node_id": item.AgentID})
+	if _, err := tx.Exec(ctx, `INSERT INTO control_changes(machine_id,node_id,event_type,revision,payload)
+        VALUES($1,$2,'node.spec.replace',$3,$4)`, item.MachineID, nodeID, item.CurrentRevision, payload); err != nil {
+		return domain.Node{}, err
+	}
+	if originalMachine != item.MachineID || originalStatus != "published" {
+		for _, machineID := range []string{originalMachine, item.MachineID} {
+			if _, err := tx.Exec(ctx, `INSERT INTO control_changes(machine_id,node_id,event_type,revision,payload)
+                VALUES($1,$2,'machine.nodes.replace',$3,$4)`, machineID, nodeID, item.CurrentRevision, machineNodesReplacePayload(item.AgentID)); err != nil {
+				return domain.Node{}, err
+			}
+			if originalMachine == item.MachineID {
+				break
+			}
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return domain.Node{}, err
+	}
+	return s.GetNode(ctx, nodeID)
 }
 
 func (s *Store) ListAccessGroups(ctx context.Context) ([]domain.AccessGroup, error) {
@@ -1345,7 +1418,10 @@ func notifyRoutePolicyNodes(ctx context.Context, tx pgx.Tx, routeID string) erro
 	INSERT INTO control_changes(machine_id,node_id,event_type,revision,payload)
 	SELECT machine_id,id,'node.spec.replace',current_revision,jsonb_build_object('node_id',agent_id)
 	FROM changed`, routeID)
-	return err
+	if err != nil {
+		return err
+	}
+	return capturePublishedSnapshots(ctx, tx, routeID)
 }
 
 func (s *Store) ListOutbounds(ctx context.Context) ([]domain.Outbound, error) {
@@ -1591,7 +1667,10 @@ func notifyAllPublishedNodeSpecs(ctx context.Context, tx pgx.Tx) error {
 	INSERT INTO control_changes(machine_id,node_id,event_type,revision,payload)
 	SELECT machine_id,id,'node.spec.replace',current_revision,jsonb_build_object('node_id',agent_id)
 	FROM changed`)
-	return err
+	if err != nil {
+		return err
+	}
+	return capturePublishedSnapshots(ctx, tx, "")
 }
 
 func (s *Store) NotifyAllPublishedNodes(ctx context.Context) error {

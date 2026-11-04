@@ -39,6 +39,8 @@ func writeError(w http.ResponseWriter, r *http.Request, status int, code, messag
 
 func writeStoreError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
+	case errors.Is(err, store.ErrIncompleteNodeRevision):
+		writeError(w, r, http.StatusConflict, "NODE_REVISION_INCOMPLETE", "该历史版本没有完整配置快照，仅可查看，不能完整恢复", nil)
 	case errors.Is(err, store.ErrMachineHasNodes):
 		writeError(w, r, http.StatusConflict, "MACHINE_HAS_NODES", "请先删除或迁移该服务器下的节点", nil)
 	case errors.Is(err, store.ErrAccessGroupInUse):

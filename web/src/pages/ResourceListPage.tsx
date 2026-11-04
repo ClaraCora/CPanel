@@ -12,6 +12,9 @@ import type { Machine } from "../types";
 import type { Resource, ResourceDefinition } from "../resourceDefinitions";
 import { creationIntent } from "../mutations";
 
+const hasConfigVersion = (item: Resource): item is Resource & { config_version: number } => Number.isSafeInteger(item.config_version) && (item.config_version ?? 0) > 0;
+const versionConflict = (reason: unknown) => reason instanceof ApiError && ["EDIT_VERSION_CONFLICT", "CONFIG_VERSION_CONFLICT"].includes(reason.code);
+
 export function ResourceListPage<T extends Resource>({ title, description, endpoint, createLabel, columns, enabledStatus = "active", disabledStatus = "disabled", installable = false, upgradeable = false, identityResettable = false, subscriptionActions = false, portalActions = false, quickAccountCreation = false, deletable = false, identifierAction, protectedItem, refreshIntervalMs = 0, list }: ResourceDefinition<T>) {
 	deletable = deletable || ["/machines", "/access-groups", "/plans", "/route-policies", "/outbounds"].includes(endpoint);
 	if (endpoint === "/route-policies") enabledStatus = "published";
@@ -56,6 +59,7 @@ export function ResourceListPage<T extends Resource>({ title, description, endpo
   const [identityResetTarget, setIdentityResetTarget] = useState<T | null>(null);
   const [resettingIdentity, setResettingIdentity] = useState(false);
   const [quickCreating, setQuickCreating] = useState<"user" | "friend" | "">("");
+  const [mutationNotice, setMutationNotice] = useState("");
   const toast = useToast();
   const statusOptions = useMemo(() => Array.from(new Set(data.map((item) => item.status).filter(Boolean))), [data]);
   const categories = list?.categories ?? statusOptions.map((status) => ({ value: status, label: statusLabel(status), matches: (item: T) => item.status === status }));
@@ -73,17 +77,26 @@ export function ResourceListPage<T extends Resource>({ title, description, endpo
   function showCreate() { navigate(editorHref(base)); }
   function showEdit(item: T) { navigate(editorHref(base, item.id)); }
 
+  async function refreshAfterConflict() {
+    setStatusTarget(null); setDeleteTarget(null);
+    setMutationNotice("资源配置已变化。请检查重新加载后的列表，再次确认操作。");
+    await reload();
+  }
+
   async function toggleStatus(item: T) {
     if (locks.current.has("status")) return;
+    if (!hasConfigVersion(item)) { toast("服务未返回有效配置版本，请重新加载列表后再操作。", "error"); return; }
     locks.current.add("status");
+    setMutationNotice("");
     const nextStatus = item.status === disabledStatus ? enabledStatus : disabledStatus;
     setChangingStatus(item.id);
     try {
-      await api.patch(`${endpoint}/${item.id}`, { status: nextStatus });
+      await api.patch(`${endpoint}/${item.id}`, { status: nextStatus }, { configVersion: item.config_version });
       toast(nextStatus === disabledStatus ? `${title}已${disabledStatus === "paused" ? "暂停" : "停用"}` : `${title}已恢复`);
       setStatusTarget(null);
       await reload();
     } catch (reason) {
+      if (versionConflict(reason)) await refreshAfterConflict();
       toast(reason instanceof ApiError ? reason : requestErrorMessage(reason, "状态修改失败"), "error");
     } finally {
       locks.current.delete("status");
@@ -138,15 +151,19 @@ export function ResourceListPage<T extends Resource>({ title, description, endpo
 
   async function deleteResource() {
     if (!deleteTarget || locks.current.has("delete")) return;
+    if (!hasConfigVersion(deleteTarget)) { toast("服务未返回有效配置版本，请重新加载列表后再操作。", "error"); return; }
+    const target = deleteTarget;
     locks.current.add("delete");
+    setMutationNotice("");
     setDeleting(true);
     try {
-      await api.delete(`${endpoint}/${deleteTarget.id}`);
-      toast(subscriptionActions ? "账号已删除，原订阅链接已失效" : `${resourceName(deleteTarget)} 已删除`);
+      await api.delete(`${endpoint}/${target.id}`, { configVersion: target.config_version });
+      toast(subscriptionActions ? "账号已删除，原订阅链接已失效" : `${resourceName(target)} 已删除`);
       setDeleteTarget(null);
       await reload();
     } catch (reason) {
-      toast(requestErrorMessage(reason, `${title}删除失败，请重试`), "error");
+      if (versionConflict(reason)) await refreshAfterConflict();
+      toast(reason instanceof ApiError ? reason : requestErrorMessage(reason, `${title}删除失败，请重试`), "error");
     } finally {
       locks.current.delete("delete");
       setDeleting(false);
@@ -224,12 +241,14 @@ export function ResourceListPage<T extends Resource>({ title, description, endpo
 			{portalActions && !list && <button type="button" className="icon-button" aria-label={`进入 ${item.id} 的订阅页面`} title="进入订阅页面" disabled={openingPortal === item.id} onClick={() => void openPortal(item)}><SquareArrowOutUpRight size={16} /></button>}
             {upgradeable && !list && <button type="button" className={`icon-button ${agentUpgradeState(item) === "available" ? "icon-button--update" : ""}`} aria-label={`升级 ${resourceName(item)} 的 Agent`} title={upgradeStateLabel(item)} disabled={!canRequestUpgrade(item) || upgrading} onClick={() => setUpgradeTarget(item)}><RefreshCw size={16} /></button>}
             <button type="button" className={list ? "clear-row-edit" : "icon-button"} aria-label={`编辑 ${list ? resourceName(item) : item.id}`} title="编辑" onClick={() => showEdit(item)}>{list ? "编辑" : <Edit3 size={16} />}</button>
-            <RowMenu className={list ? "resource-menu" : undefined} label={`${item.id} 更多操作`}>{upgradeable && list && <button type="button" disabled={!canRequestUpgrade(item) || upgrading} title={upgradeStateLabel(item)} onClick={() => setUpgradeTarget(item)}><RefreshCw size={15} />{upgradeStateLabel(item)}</button>}<button type="button" onClick={() => showEdit(item)}><Edit3 size={15} />编辑</button>{identifierAction && <button type="button" disabled={copyingIdentifier === item.id} onClick={() => void copyIdentifier(item)}><Copy size={15} />复制 {identifierAction.label}</button>}{subscriptionActions && <button type="button" disabled={!canCopy || copying === item.id} onClick={() => void copySubscription(item)}><Link2 size={15} />{canCopy ? "复制订阅链接" : "完整令牌未保存"}</button>}{portalActions && <button type="button" disabled={openingPortal === item.id} onClick={() => void openPortal(item)}><SquareArrowOutUpRight size={15} />进入订阅页面</button>}{machines && <Link to={`/nodes?machine=${encodeURIComponent(item.id)}`}><Link2 size={15} />查看关联节点</Link>}{machines && <button type="button" onClick={() => void writeClipboard((item as unknown as Machine).host).then(() => toast("服务器地址已复制")).catch(() => toast("地址复制失败", "error"))}><Copy size={15} />复制服务器地址</button>}{installable && <button type="button" disabled={Boolean(installing)} onClick={() => void loadInstallation(item)}><Terminal size={15} />{installing === item.id ? "正在生成安装命令…" : "一键安装 Agent"}</button>}{identityResettable && <button type="button" onClick={() => setIdentityResetTarget(item)}><KeyRound size={15} />重置 Agent 身份</button>}{!protectedRow && <button type="button" disabled={changingStatus === item.id} onClick={() => setStatusTarget(item)}><Power size={15} />{item.status === disabledStatus ? "恢复启用" : disabledStatus === "paused" ? "暂停" : "停用"}</button>}{deletable && !protectedRow && <button type="button" className="menu-action--danger" onClick={() => setDeleteTarget(item)}><Trash2 size={15} />删除</button>}</RowMenu>
+            <RowMenu className={list ? "resource-menu" : undefined} label={`${item.id} 更多操作`}>{upgradeable && list && <button type="button" disabled={!canRequestUpgrade(item) || upgrading} title={upgradeStateLabel(item)} onClick={() => setUpgradeTarget(item)}><RefreshCw size={15} />{upgradeStateLabel(item)}</button>}<button type="button" onClick={() => showEdit(item)}><Edit3 size={15} />编辑</button>{identifierAction && <button type="button" disabled={copyingIdentifier === item.id} onClick={() => void copyIdentifier(item)}><Copy size={15} />复制 {identifierAction.label}</button>}{subscriptionActions && <button type="button" disabled={!canCopy || copying === item.id} onClick={() => void copySubscription(item)}><Link2 size={15} />{canCopy ? "复制订阅链接" : "完整令牌未保存"}</button>}{portalActions && <button type="button" disabled={openingPortal === item.id} onClick={() => void openPortal(item)}><SquareArrowOutUpRight size={15} />进入订阅页面</button>}{machines && <Link to={`/nodes?machine=${encodeURIComponent(item.id)}`}><Link2 size={15} />查看关联节点</Link>}{machines && <button type="button" onClick={() => void writeClipboard((item as unknown as Machine).host).then(() => toast("服务器地址已复制")).catch(() => toast("地址复制失败", "error"))}><Copy size={15} />复制服务器地址</button>}{installable && <button type="button" disabled={Boolean(installing)} onClick={() => void loadInstallation(item)}><Terminal size={15} />{installing === item.id ? "正在生成安装命令…" : "一键安装 Agent"}</button>}{identityResettable && <button type="button" onClick={() => setIdentityResetTarget(item)}><KeyRound size={15} />重置 Agent 身份</button>}{!protectedRow && <button type="button" disabled={Boolean(changingStatus) || deleting || !hasConfigVersion(item)} title={!hasConfigVersion(item) ? "缺少配置版本，请重新加载列表" : undefined} onClick={() => setStatusTarget({ ...item })}><Power size={15} />{item.status === disabledStatus ? "恢复启用" : disabledStatus === "paused" ? "暂停" : "停用"}</button>}{deletable && !protectedRow && <button type="button" className="menu-action--danger" disabled={Boolean(changingStatus) || deleting || !hasConfigVersion(item)} title={!hasConfigVersion(item) ? "缺少配置版本，请重新加载列表" : undefined} onClick={() => setDeleteTarget({ ...item })}><Trash2 size={15} />删除</button>}</RowMenu>
           </ResourceRowActions>;
   }
 
   return <div className={`page${list ? ` resource-page resource-page--${list.kind}` : ""}`}>
     <PageHeader title={title} description={description} actions={<>{quickAccountCreation && <><Button type="button" loading={quickCreating === "user"} disabled={Boolean(quickCreating)} onClick={() => void quickCreateAccount("user")}><UserPlus size={16} />{quickCreating === "user" ? "添加中…" : "一键添加用户"}</Button><Button type="button" loading={quickCreating === "friend"} disabled={Boolean(quickCreating)} onClick={() => void quickCreateAccount("friend")}><UsersRound size={16} />{quickCreating === "friend" ? "添加中…" : "一键添加朋友"}</Button></>}<Button type="button" variant="primary" disabled={Boolean(quickCreating)} onClick={showCreate}><Plus size={16} />{createLabel}</Button></>} />
+    {mutationNotice && <div className="form-alert" role="alert">{mutationNotice}</div>}
+    {!loading && !error && data.some((item) => !hasConfigVersion(item)) && <div className="form-alert" role="alert">部分资源缺少有效配置版本，暂时无法停用或删除。<Button disabled={Boolean(changingStatus) || deleting} onClick={() => void reload()}>重新加载列表</Button></div>}
     <ResourceListSurface enabled={Boolean(list)}>
     {list && <ResourceCategoryFilters label={`${title}分类筛选`} value={category} options={[{ value: "all", label: "全部", count: data.length }, ...categories.map((option) => ({ value: option.value, label: option.label, count: data.filter(option.matches).length }))]} onChange={setCategory} />}
     <div className="toolbar"><label className="search-box"><Search size={16} aria-hidden="true" /><span className="sr-only">搜索{title}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={list?.searchPlaceholder ?? `搜索${title}`} /></label>{statusOptions.length > 1 && (!list || list.categories) && <div className="toolbar__filters"><Filter size={15} aria-hidden="true" /><label className="sr-only" htmlFor={`${endpoint.slice(1)}-status-filter`}>按状态筛选{title}</label><select id={`${endpoint.slice(1)}-status-filter`} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">全部状态</option>{statusOptions.map((status) => <option value={status} key={status}>{statusLabel(status)}</option>)}</select></div>}{list?.filter && <label className="toolbar__filters"><span className="sr-only">{list.filter.label}</span><select value={detailFilter} onChange={(event) => setDetailFilter(event.target.value)}><option value="">{list.filter.allLabel}</option>{detailOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>}{refreshIntervalMs > 0 && <DataFreshness lastSuccessAt={lastSuccessAt} stale={stale} refreshing={refreshing} error={refreshError} />}{machines && <div className="machine-view-tools"><div className="view-switch" role="group" aria-label="服务器显示方式"><button type="button" aria-pressed={view === "cards"} aria-label="卡片视图" onClick={() => updateFilters({ view: "" })}><LayoutGrid size={16} /></button><button type="button" aria-pressed={view === "table"} aria-label="表格视图" onClick={() => updateFilters({ view: "table" })}><List size={16} /></button></div><button type="button" className="button button--ghost" aria-pressed={hideAddress} onClick={() => updateFilters({ hide_address: hideAddress ? "" : "1" })}>{hideAddress ? <EyeOff size={16} /> : <Eye size={16} />}{hideAddress ? "显示地址" : "隐藏地址"}</button></div>}<span className="toolbar__count">{filtered.length}{filtered.length !== data.length ? ` / ${data.length}` : ""} 条记录</span></div>

@@ -127,13 +127,16 @@ describe("paged search and recovery", () => {
     await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringContaining("page=1"), expect.anything()));
   });
 
-  it("maps a displayed Chinese audit operation to the server action", async () => {
+  it.each(["发布节点", "节点", "编辑", "恢复", "出站"])("sends Chinese audit search %s unchanged for server-side matching", async (query) => {
     history.replaceState({}, "", "/audit");
     vi.mocked(api.get).mockResolvedValue({ items: [], total: 0, has_more: false } as never);
     render(<AuditPage />);
-    fireEvent.change(screen.getByRole("textbox", { name: "搜索审计日志" }), { target: { value: "发布节点" } });
-    await waitFor(() => expect(api.get).toHaveBeenCalledWith(expect.stringContaining("q=node.publish"), expect.anything()));
-    expect(new URLSearchParams(location.search).get("q")).toBe("发布节点");
+    fireEvent.change(screen.getByRole("textbox", { name: "搜索审计日志" }), { target: { value: query } });
+    await waitFor(() => expect(vi.mocked(api.get).mock.calls.some(([path]) => new URL(path, location.origin).searchParams.get("q") === query)).toBe(true));
+    expect(new URLSearchParams(location.search).get("q")).toBe(query);
+    for (const label of ["恢复节点版本", "编辑套餐", "删除权限组", "编辑路由策略", "删除出站", "升级 Agent", "创建门户只读代入"]) {
+      expect(screen.getByRole("option", { name: label })).toBeTruthy();
+    }
   });
 });
 

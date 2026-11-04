@@ -345,17 +345,18 @@ func (s *Store) ListAuditEventsPage(ctx context.Context, page, pageSize int, que
 	case "resource_type":
 		sortSQL = "e.resource_type"
 	}
-	pattern := "%" + strings.TrimSpace(query) + "%"
+	query = strings.TrimSpace(query)
+	pattern := "%" + query + "%"
+	actions := matchingAuditActions(query)
+	const auditFilter = ` WHERE ($1='' OR e.action ILIKE $2 OR e.resource_type ILIKE $2 OR e.resource_id ILIKE $2 OR COALESCE(a.name,'') ILIKE $2 OR e.request_id ILIKE $2 OR e.action=ANY($3::text[]))`
 	var total int
-	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM audit_events e LEFT JOIN admins a ON a.id=e.admin_id
-		WHERE ($1='' OR e.action ILIKE $2 OR e.resource_type ILIKE $2 OR e.resource_id ILIKE $2 OR COALESCE(a.name,'') ILIKE $2 OR e.request_id ILIKE $2)`, query, pattern).Scan(&total); err != nil {
+	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM audit_events e LEFT JOIN admins a ON a.id=e.admin_id`+auditFilter, query, pattern, actions).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 	// sortSQL/orderSQL are selected exclusively from constants above.
 	rows, err := s.pool.Query(ctx, `SELECT e.id,e.admin_id,a.name,e.action,e.resource_type,e.resource_id,e.changes,
-		host(e.ip_address),e.request_id,e.created_at FROM audit_events e LEFT JOIN admins a ON a.id=e.admin_id
-		WHERE ($1='' OR e.action ILIKE $2 OR e.resource_type ILIKE $2 OR e.resource_id ILIKE $2 OR COALESCE(a.name,'') ILIKE $2 OR e.request_id ILIKE $2)
-		ORDER BY `+sortSQL+` `+orderSQL+`, e.id DESC LIMIT $3 OFFSET $4`, query, pattern, pageSize, (page-1)*pageSize)
+		host(e.ip_address),e.request_id,e.created_at FROM audit_events e LEFT JOIN admins a ON a.id=e.admin_id`+auditFilter+`
+		ORDER BY `+sortSQL+` `+orderSQL+`, e.id DESC LIMIT $4 OFFSET $5`, query, pattern, actions, pageSize, (page-1)*pageSize)
 	if err != nil {
 		return nil, 0, err
 	}

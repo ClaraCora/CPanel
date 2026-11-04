@@ -3,13 +3,12 @@ import { Copy, RefreshCw, Search } from "lucide-react";
 import { Button, DetailDialog, EmptyState, PageHeader, Pagination, TableSkeleton, formatDateWithYear, useToast } from "../components/ui";
 import { ResourceDate, ResourceListNote } from "../components/ResourceList";
 import { usePagedResource } from "../hooks";
+import { auditActionLabels as actions } from "../auditActions";
 
 type AuditEvent = { id: string; admin_id: string | null; admin_name: string | null; action: string; resource_type: string; resource_id: string; changes: Record<string, unknown>; ip_address: string | null; request_id: string; created_at: string };
-const actions: Record<string, string> = { "admin.login": "管理员登录", "admin.logout": "管理员退出", "admin.profile.update": "修改管理员资料", "admin.password.update": "修改管理员密码", "node.create": "创建节点", "node.update": "编辑节点", "node.publish": "发布节点", "machine.create": "添加服务器", "settings.update": "修改设置", "user.create": "添加账号" };
-const actionQuery = (query: string) => Object.entries(actions).find(([, label]) => label === query)?.[0] ?? query;
 
 export function AuditPage() {
-  const { data, loading, error, reload, query, setQuery, page, pageSize, total, hasMore, setPage } = usePagedResource<AuditEvent>("/audit-events", [], actionQuery);
+  const { data, loading, error, reload, query, setQuery, page, pageSize, total, hasMore, setPage } = usePagedResource<AuditEvent>("/audit-events");
   const [selected, setSelected] = useState<AuditEvent | null>(null);
   const toast = useToast();
   async function copyRequest(value: string) {

@@ -165,7 +165,7 @@ html:root:not([data-admin-surface])[data-theme] :is(.edu-app.edu-clear, .edu-log
 }
 
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
-  html:root[data-theme] .edu-app .edu-dialog-backdrop {
+  html:root[data-theme] :is(.edu-dialog-backdrop, .edu-theme-toggle) {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }

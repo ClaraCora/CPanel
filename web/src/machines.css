@@ -33,9 +33,9 @@
   border-color:var(--border);border-radius:4px;
 }
 .machine-install-dialog .detail-dialog__header {border-color:var(--border);}
-.machine-install-dialog .detail-dialog__header h2,.machine-install-dialog .machine-install section>label {font-family:Georgia,"Songti SC",serif;color:var(--foreground);}
+.machine-install-dialog .detail-dialog__header h2,.machine-install-dialog .machine-install section>label {font-family:var(--font-ui);color:var(--foreground);}
 .machine-install-dialog .machine-install section>label {font-size:16px;font-weight:600;}
-.machine-install-dialog .machine-install h3 {font:600 16px/1.4 Georgia,"Songti SC",serif;color:var(--foreground);}
+.machine-install-dialog .machine-install h3 {font:600 16px/1.4 var(--font-ui);color:var(--foreground);}
 .machine-install-dialog .machine-install :is(dt,label) {color:var(--secondary);}
 .machine-install-dialog .machine-install .code-editor {color:var(--foreground);border-color:var(--border);background:var(--panel);}
 .machine-install-dialog .machine-install aside {background:var(--panel-strong);border-radius:3px;}

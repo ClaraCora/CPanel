@@ -59,7 +59,7 @@
 }
 .admin-console .editor-review .form-section__heading h2,
 .admin-console .settings-review .settings-content header h2,
-.admin-console .editor-summary > h2 { font: 700 23px/1.45 "Songti SC","Noto Serif CJK SC",Georgia,serif; }
+.admin-console .editor-summary > h2 { font: 700 23px/1.45 var(--font-ui); }
 .admin-console .editor-review .form-section > .form-grid,
 .admin-console .settings-review .settings-form { grid-template-columns: minmax(0,1fr); gap: 0; padding: 0; }
 .admin-console .settings-review .settings-content > :is(.settings-form,.account-settings) { grid-column: 1; grid-row: 2; min-width: 0; }

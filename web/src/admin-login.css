@@ -4,7 +4,7 @@ html:root[data-admin-surface][data-theme] .admin-entry {
   min-height: 100dvh;
   color: var(--foreground);
   background: var(--surface);
-  font: inherit;
+  font-family: var(--font-ui);
   box-sizing: border-box;
 
   & *, & *::before, & *::after { box-sizing: border-box; }

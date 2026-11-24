@@ -281,3 +281,78 @@
   .admin-console button[aria-pressed="true"] { outline: 1px solid Highlight; outline-offset: -2px; }
   .admin-console :is(.admin-nav-item, button):focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
 }
+
+/* Joined sections share one outer contour. Their headers, rows and footers meet edge to edge. */
+.admin-console[data-admin-theme] :is(
+  .clear-list, .metric-band, .traffic-report, .overview-index, .traffic-ranking, .attention-list,
+  .machine-card, .plan-entry, .revision-history, .revision-content, .subscription-access,
+  .table-surface:not(.clear-list .table-surface), .operation-stack > .settings-content,
+  .editor-workspace .form-section, .editor-workspace .editor-section-nav, .editor-summary,
+  .node-picker, .missing-page
+),
+[data-console-layout="B"] .admin-console .page-header {
+  border-radius: var(--radius-card);
+}
+.admin-console[data-admin-theme] .editor-workspace .form-section__heading {
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+}
+.admin-console[data-admin-theme] :is(.revision-entry:last-child, .node-picker__list > label:last-child) {
+  border-end-start-radius: inherit;
+  border-end-end-radius: inherit;
+}
+.admin-console[data-admin-theme] :is(.node-picker__toolbar, .node-picker__list > label:first-child) {
+  border-start-start-radius: inherit;
+  border-start-end-radius: inherit;
+}
+
+/* Controls, input wells and menus use concentric corners where one sits inside another. */
+.admin-console[data-admin-theme] :is(
+  .button, .icon-button, .admin-brand__mark, .admin-nav-item, .admin-account, .skip-link,
+  .pagination button, .pagination__current, .history-tabs button, .row-menu__panel > :is(button, a),
+  .editor-workspace .editor-section-nav button, .route-geoip-presets button, .route-action-options button,
+  .ranking-period, .segmented-control, .subscription-access__view-switch, .view-switch, .empty-state__icon
+) {
+  border-radius: var(--radius-control);
+}
+.admin-console[data-admin-theme] :is(input, textarea, select):not([type="checkbox"], [type="radio"]),
+.admin-console[data-admin-theme] :is(
+  .editor-workspace .editor-actions, .node-picker__list, .machine-card .machine-metrics,
+  .machine-install aside, .fleet-target, .route-rule__header, .access-ip-detail__summary,
+  .audit-json, .revision-json > pre, .config-error, .form-error, .form-alert, .ranking-error, .inline-notice
+) {
+  border-radius: var(--radius-field);
+}
+.admin-console[data-admin-theme] :is(.ranking-period, .segmented-control, .subscription-access__view-switch) button,
+.admin-console[data-admin-theme] :is(.skeleton-row i, .protocol-selector__icon, .route-rule__index, .metric-summary > span) {
+  border-radius: var(--radius-detail);
+}
+.admin-console[data-admin-theme] :is(.settings-review .settings-nav, .editor-review .editor-section-nav, .resource-categories) button {
+  border-radius: var(--radius-detail) var(--radius-detail) 0 0;
+}
+.admin-console[data-admin-theme] :is(
+  .admin-demo-label, .status, .resource-node-chips span, .resource-categories button span,
+  .plan-lane h2 span, .subscription-access__count--merged, .machine-metric__track, .traffic-usage__track
+),
+.admin-console[data-admin-theme] :is(.machine-metric__track, .traffic-usage__track) > i {
+  border-radius: var(--radius-pill);
+}
+
+/* Preserve the meeting point of the two series while rounding the visible top of each stack. */
+.admin-console .traffic-chart__day { border-radius: var(--radius-control); }
+.admin-console .traffic-chart__stack {
+  border-radius: var(--radius-detail) var(--radius-detail) 0 0;
+  overflow: hidden;
+}
+.admin-console .traffic-chart__legend span::before { border-radius: var(--radius-detail); }
+
+/* A table inset in a form or detail window owns its corners. Tables joined to a list use its rim. */
+.admin-console[data-admin-theme] :is(.editor-form, .revision-content, .access-ip-detail) .table-scroll {
+  border-radius: var(--radius-field);
+}
+.admin-console[data-admin-theme] :is(.detail-dialog, .confirm-dialog) { border-radius: var(--radius-dialog); }
+.admin-console[data-admin-theme] .admin-navigation-drawer .detail-dialog {
+  border-radius: 0 var(--radius-dialog) var(--radius-dialog) 0;
+}
+.admin-console[data-admin-theme] :is(.row-menu__panel, .toast, .navigation-notice) {
+  border-radius: var(--radius-card);
+}

@@ -1,5 +1,6 @@
 /* Entry and portal materials apply before login and during reauthentication. */
 html:root[data-theme] :is(.admin-entry, .edu-login, .edu-boot, .edu-failure, .edu-app.edu-clear) {
+  font-family: var(--font-ui);
   color: var(--material-text);
   background-color: var(--material-canvas);
   background-image: var(--material-canvas-image);
@@ -24,7 +25,7 @@ html:root[data-admin-surface][data-theme] .admin-entry {
     background: var(--material-fill);
     border-color: var(--material-edge);
     border-top-color: color-mix(in srgb, var(--material-action) 45%, var(--material-panel));
-    border-radius: 18px;
+    border-radius: var(--radius-dialog);
     box-shadow: var(--material-shadow);
     -webkit-backdrop-filter: var(--material-filter);
     backdrop-filter: var(--material-filter);
@@ -33,9 +34,12 @@ html:root[data-admin-surface][data-theme] .admin-entry {
   & .input-with-icon input {
     background: var(--material-well);
     border-color: var(--material-control-line);
-    border-radius: 10px;
+    border-radius: var(--radius-field);
   }
 
+  & :is(button, input) { font-family: var(--font-ui); }
+  & :is(.brand__mark, .password-toggle, .button) { border-radius: var(--radius-control); }
+  & .form-alert { border-radius: var(--radius-field); }
   & .input-with-icon input:focus { border-color: var(--material-accent); }
   & .input-with-icon:focus-within > svg { color: var(--material-accent); }
   & .form-alert { color: var(--material-red); background: var(--material-red-well); border-color: var(--material-red); }
@@ -52,7 +56,7 @@ html:root[data-theme] :is(.admin-entry, .edu-login, .edu-boot, .edu-failure, .ed
     color: var(--material-on-action);
     background: var(--material-action) linear-gradient(165deg, rgb(255 255 255 / 9%), transparent 72%);
     border-color: var(--material-action);
-    border-radius: 10px;
+    border-radius: var(--radius-control);
     box-shadow: inset 0 1px 0 rgb(255 255 255 / 22%);
   }
 
@@ -98,17 +102,22 @@ html:root:not([data-admin-surface])[data-theme] :is(.edu-app.edu-clear, .edu-log
     box-shadow: var(--material-shadow);
   }
 
-  & :is(.edu-login__panel, .edu-dialog) { border-radius: 18px; }
+  & :is(.edu-login__panel, .edu-dialog) { border-radius: var(--radius-dialog); }
   & .edu-panel {
     background: var(--material-fill);
     border-color: var(--material-edge);
-    border-radius: 14px;
+    border-radius: var(--radius-card);
     box-shadow: var(--material-shadow);
   }
   & .edu-panel > header {
     background: linear-gradient(115deg, var(--material-elevated-fill), transparent);
     border-color: var(--edu-border);
   }
+  & :is(.edu-button, .edu-icon-button, .edu-password button, .edu-boot__mark, .edu-brand > span, .edu-login__brand > span) { border-radius: var(--radius-control); }
+  & :is(.edu-alert, .edu-delegation, .edu-readonly, .edu-notice) { border-radius: var(--radius-field); }
+  & :is(.edu-status, .edu-progress) { border-radius: var(--radius-pill); }
+  & .edu-protocol { border-radius: var(--radius-detail); }
+  & .edu-node:last-child { border-radius: 0 0 var(--radius-card) var(--radius-card); }
   & :is(.edu-login__brand, .edu-dialog footer, .edu-subscription__actions) { border-color: var(--edu-border); }
   & :is(.edu-icon-button, .edu-count, label, .edu-password button) { color: var(--edu-muted); }
   & :is(.edu-traffic dd, .edu-account-data dd) { color: var(--edu-text); }
@@ -117,7 +126,7 @@ html:root:not([data-admin-surface])[data-theme] :is(.edu-app.edu-clear, .edu-log
     color: var(--edu-text);
     background: var(--material-well);
     border-color: var(--material-control-line);
-    border-radius: 9px;
+    border-radius: var(--radius-field);
     caret-color: var(--material-accent);
   }
   & :is(input, textarea)::placeholder { color: var(--edu-muted); }
@@ -135,7 +144,7 @@ html:root:not([data-admin-surface])[data-theme] :is(.edu-app.edu-clear, .edu-log
     color: var(--material-accent);
     background: var(--material-active);
     border-color: var(--edu-border);
-    border-radius: 8px;
+    border-radius: var(--radius-control);
   }
   & .edu-button--secondary:hover:not(:disabled), & .edu-node:hover:not(:disabled) {
     color: var(--edu-text);

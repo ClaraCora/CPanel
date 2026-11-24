@@ -14,7 +14,7 @@
   min-height: 100vh;
   color: var(--edu-text);
   background: var(--edu-canvas);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+  font-family: var(--font-ui);
 }
 
 .edu-app { padding-bottom: 42px; }

@@ -12,7 +12,7 @@
 }
 html[data-admin-theme] { scrollbar-color: var(--border-strong) var(--surface); }
 html[data-admin-theme] body { margin: 0; min-width: 320px; background: var(--surface); color: var(--foreground); }
-.admin-console { min-height: 100dvh; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif; font-size: 14px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+.admin-console { min-height: 100dvh; font-family: var(--font-ui); font-size: 14px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
 .admin-console *, .admin-console *::before, .admin-console *::after { box-sizing: border-box; }
 .admin-console [hidden] { display: none !important; }
 .admin-console ::selection { color: var(--foreground); background: var(--active); }
@@ -22,7 +22,7 @@ html[data-admin-theme] body { margin: 0; min-width: 320px; background: var(--sur
 .admin-console h1 { font-size: 26px; line-height: 1.35; font-weight: 650; }
 .admin-console h2 { font-size: 18px; line-height: 1.5; font-weight: 600; }
 .admin-console h3 { font-size: 15px; font-weight: 600; }
-.admin-console a { color: inherit; text-decoration: none; text-underline-offset: 3px; }
+.admin-console a { color: inherit; text-decoration: none; }
 .admin-console :is(button, input, select, textarea) { font: inherit; letter-spacing: 0; }
 .admin-console button { cursor: pointer; }
 .admin-console :is(button, a, input, select, textarea):focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
@@ -48,7 +48,7 @@ html[data-admin-theme] body { margin: 0; min-width: 320px; background: var(--sur
 .admin-console .button--danger:hover:not(:disabled) { background: var(--danger-action-hover); border-color: var(--danger-action-hover); }
 .admin-console .icon-button { display: inline-grid; place-items: center; width: 36px; height: 36px; padding: 0; color: var(--secondary); background: transparent; border: 1px solid transparent; border-radius: 8px; box-shadow: none; }
 .admin-console .icon-button:hover:not(:disabled) { color: var(--foreground); background: var(--hover); border-color: var(--border); }
-.admin-console .mono, .admin-console :is(code, pre) { font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace; font-variant-numeric: tabular-nums; }
+.admin-console .mono, .admin-console :is(code, pre) { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .admin-console .mono { font-size: 13px; }
 .admin-console .field { display: flex; flex-direction: column; gap: 8px; min-width: 0; margin: 0; border: 0; padding: 0; }
 .admin-console .field__label { color: var(--foreground); font-size: 14px; font-weight: 500; }
@@ -69,8 +69,14 @@ html[data-admin-theme] body { margin: 0; min-width: 320px; background: var(--sur
 .admin-console .data-freshness { padding: 0; background: transparent; border: 0; border-radius: 0; }
 .admin-console .data-freshness--stale { color: var(--warning); }
 .admin-console :is(.cell-primary, .resource-name) { display: block; color: var(--foreground); font-weight: 500; overflow-wrap: anywhere; }
-.admin-console .resource-name:hover { color: var(--accent); }
-.admin-console a:is(.resource-name, .cell-primary, .clear-row-edit):hover { color: var(--accent); text-decoration: underline; }
+.admin-console :is(.resource-table-scroll td, .table-scroll td, .entitlement-context, .machine-card__location, .machine-row-list th, .plan-entry header div) a:not(.button),
+.admin-console a:is(.resource-name, .cell-primary, .clear-row-edit) {
+  border-radius: var(--radius-detail);
+}
+.admin-console :is(.resource-table-scroll td, .table-scroll td, .entitlement-context, .machine-card__location, .machine-row-list th, .plan-entry header div) a:not(.button):is(:hover, :focus-visible),
+.admin-console a:is(.resource-name, .cell-primary, .clear-row-edit):is(:hover, :focus-visible) {
+  color: var(--accent); background: var(--active);
+}
 .admin-console .resource-id { display: block; margin-top: 4px; overflow-wrap: anywhere; }
 .admin-console .empty-state { padding: 64px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; border: 0; background: transparent; color: var(--secondary); text-align: center; }
 .admin-console .empty-state strong { color: var(--foreground); font-size: 16px; font-weight: 500; }
@@ -233,7 +239,7 @@ html[data-admin-theme] body { margin: 0; min-width: 320px; background: var(--sur
 .admin-console .install-command { display: grid; gap: 20px; }
 .admin-console .install-command p { color: var(--secondary); }
 .admin-console .install-command footer { display: flex; justify-content: end; }
-.admin-console :is(.code-editor, .audit-json) { font-family: "Cascadia Mono", Consolas, monospace; font-size: 13px; line-height: 1.8; background: var(--surface); color: var(--foreground); white-space: pre-wrap; overflow-wrap: anywhere; }
+.admin-console :is(.code-editor, .audit-json) { font-family: var(--font-mono); font-size: 13px; line-height: 1.8; background: var(--surface); color: var(--foreground); white-space: pre-wrap; overflow-wrap: anywhere; }
 .admin-console .audit-json { padding: 20px; border: 1px solid var(--border); border-radius: 6px; }
 .admin-console .audit-detail { display: grid; gap: 16px; }
 .admin-console .operation-detail-list dt { color: var(--secondary); }
@@ -283,7 +289,7 @@ html[data-admin-theme] body { margin: 0; min-width: 320px; background: var(--sur
 .admin-console .machine-card__name { max-width: 100%; padding: 0; border: 0; color: var(--foreground); background: none; font-weight: 650; text-align: left; overflow-wrap: anywhere; }
 .admin-console .machine-card__name:hover, .admin-console .machine-card__location a { color: var(--accent); }
 .admin-console .machine-card__address, .admin-console .machine-card__location { color: var(--secondary); font-size: 12px; }
-.admin-console .machine-card__location a { text-decoration: underline; text-underline-offset: 3px; }
+.admin-console :is(.machine-card__location, .machine-row-list th) a { color: var(--accent); font-weight: 550; }
 .admin-console .machine-card .machine-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; min-width: 0; padding: 10px 12px; border-radius: 6px; background: var(--surface); }
 .admin-console .machine-card .machine-metric { grid-template-columns: minmax(0, 1fr); grid-template-areas: "label" "value" "track"; gap: 4px; min-width: 0; font-size: 12px; line-height: 1.3; }
 .admin-console .machine-card .machine-metric b { grid-area: label; }

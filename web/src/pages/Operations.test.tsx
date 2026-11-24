@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { StrictMode } from "react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { Profiler, StrictMode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderResource } from "../test/renderResource";
 import { api } from "../api";
@@ -80,9 +80,23 @@ describe("Clear A operations safeguards", () => {
   });
 
   it("retains a settings draft across category switches", async () => {
-    render(<SettingsPage admin={{ id: "adm", name: "管理", email: "admin@example.com", status: "active" }} onAdminChange={() => undefined} />);
+    let finishSiteRequest!: () => void;
+    const getWithMeta = vi.mocked(api.getWithMeta).getMockImplementation()!;
+    vi.mocked(api.getWithMeta).mockImplementation((path, signal) => {
+      if (path !== "/settings/site") return getWithMeta(path, signal);
+      return new Promise((resolve) => {
+        finishSiteRequest = () => resolve({ data: [{ key: "platform_name", value: "已保存的站点" }], meta: { config_version: 7 } } as never);
+      });
+    });
+    let firstEditableValue: string | undefined;
+    render(<Profiler id="settings" onRender={() => {
+      firstEditableValue ??= document.querySelector<HTMLInputElement>('input[aria-label="平台名称"]')?.value;
+    }}><SettingsPage admin={{ id: "adm", name: "管理", email: "admin@example.com", status: "active" }} onAdminChange={() => undefined} /></Profiler>);
     fireEvent.click(screen.getByRole("button", { name: "站点" }));
-    const input = await screen.findByLabelText("平台名称");
+    expect(screen.queryByLabelText("平台名称")).toBeNull();
+    await act(async () => finishSiteRequest());
+    expect(firstEditableValue).toBe("已保存的站点");
+    const input = screen.getByLabelText("平台名称");
     fireEvent.change(input, { target: { value: "未保存草稿" } });
     fireEvent.click(screen.getByRole("button", { name: "安全" }));
     fireEvent.click(screen.getByRole("button", { name: "站点" }));

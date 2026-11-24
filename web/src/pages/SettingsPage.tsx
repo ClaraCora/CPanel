@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ChevronDown, ChevronUp, Globe, Database, Server, Network, FileKey2, Eye, EyeOff, KeyRound, LockKeyhole, RefreshCw, Save, ScrollText, Send, ShieldCheck, UserRound } from "lucide-react";
 import { useSearchParams } from "wouter";
 import { ApiError, api } from "../api";
@@ -138,26 +138,40 @@ function AccountSettings({ admin, onAdminChange, review }: { admin: Admin; onAdm
 function SystemSettingForm({ section, review = false }: { section: SettingSection; review?: boolean }) {
   const fields = section.fields ?? [];
   const { data, loading, error, reload, configVersion } = useResource<Setting[]>(`/settings/${section.id}`, [], 0, true);
-  const [values, setValues] = useState<Record<string, string>>({});
+  const initial = useMemo(() => {
+    const stored = new Map(data.map((item) => [item.key, item.value]));
+    return Object.fromEntries(fields.map((field) => {
+      const value = stored.has(field.key) ? String(stored.get(field.key) ?? "") : field.defaultValue ?? "";
+      return [field.key, field.sensitive ? "" : value];
+    }));
+  }, [data, fields]);
+  const [draft, setDraft] = useState<Record<string, string> | null>(null);
+  const values = draft ?? initial;
+  const [discardAfterReload, setDiscardAfterReload] = useState(false);
+  useLayoutEffect(() => {
+    if (discardAfterReload && !loading && !error) {
+      setDraft(null);
+      setDiscardAfterReload(false);
+    }
+  }, [discardAfterReload, loading, error]);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [initial, setInitial] = useState<Record<string, string>>({});
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saveError, setSaveError] = useState("");
   const [saveFailure, setSaveFailure] = useState<unknown>(null);
   const locks = useRef(new Set<string>());
   const dirty = !sameFormValues(values, initial);
-  const dirtyRef = useRef(dirty); dirtyRef.current = dirty;
-  const replaceOnLoad = useRef(false);
   useUnsavedChanges(dirty, saving || testing);
   const toast = useToast();
-  useEffect(() => { if (dirtyRef.current && !replaceOnLoad.current) return; replaceOnLoad.current = false; const stored = new Map(data.map((item) => [item.key, item.value])); const next = Object.fromEntries(fields.map((field) => [field.key, field.sensitive && stored.has(field.key) ? "" : stored.has(field.key) ? String(stored.get(field.key) ?? "") : field.defaultValue ?? ""])); setValues(next); setInitial(next); }, [data, fields]);
-  function updateValue(key: string, value: string) { setValues((current) => ({ ...current, [key]: value })); setFieldErrors((current) => ({ ...current, [key]: "" })); }
+  function updateValue(key: string, value: string) {
+    setDraft((current) => ({ ...(current ?? initial), [key]: value }));
+    setFieldErrors((current) => ({ ...current, [key]: "" }));
+  }
 
   function generateKey(field: SettingField) {
     const bytes = crypto.getRandomValues(new Uint8Array(32));
     const value = btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
-    setValues((current) => ({ ...current, [field.key]: `cpa_${value}` }));
+    updateValue(field.key, `cpa_${value}`);
   }
 
   async function save(event: FormEvent) {
@@ -167,7 +181,13 @@ function SystemSettingForm({ section, review = false }: { section: SettingSectio
     locks.current.add("save"); setSaving(true); setSaveError(""); setFieldErrors({});
     const payload: Record<string, unknown> = {};
     fields.forEach((field) => { const raw = values[field.key] ?? ""; if (field.sensitive && !raw) return; payload[field.key] = field.type === "number" ? Number(raw || 0) : field.type === "toggle" ? raw === "true" : raw; });
-    try { await api.patch(`/settings/${section.id}`, { values: payload, sensitive_keys: fields.filter((field) => field.sensitive && values[field.key]).map((field) => field.key) }, { configVersion }); toast(`${section.label}设置已保存`); dirtyRef.current = false; const next = { ...values }; fields.filter((field) => field.sensitive).forEach((field) => { next[field.key] = ""; }); setValues(next); setInitial(next); setSaveFailure(null); await reload(); }
+    try {
+      await api.patch(`/settings/${section.id}`, { values: payload, sensitive_keys: fields.filter((field) => field.sensitive && values[field.key]).map((field) => field.key) }, { configVersion });
+      toast(`${section.label}设置已保存`);
+      setDraft(null);
+      setSaveFailure(null);
+      await reload();
+    }
     catch (reason) { if (reason instanceof ApiError) setFieldErrors(reason.fields); setSaveFailure(reason); setSaveError(reason instanceof ApiError ? reason.message : "设置保存失败，请检查网络后重试"); }
     finally { locks.current.delete("save"); setSaving(false); }
   }
@@ -187,7 +207,7 @@ function SystemSettingForm({ section, review = false }: { section: SettingSectio
   if (error) return <EmptyState title="设置加载失败" description={error} action={<Button onClick={() => void reload()}>重新加载</Button>} />;
   return <><form onSubmit={save} className="settings-form">
     {saveError && <RequestFailure message={saveError} error={saveFailure} />}
-    {(configVersion === undefined || (saveFailure instanceof ApiError && ["CONFIG_VERSION_CONFLICT", "EDIT_VERSION_CONFLICT"].includes(saveFailure.code))) && <VersionConflict version={configVersion} missing={configVersion === undefined} onReload={() => { replaceOnLoad.current = true; setSaveFailure(null); setSaveError(""); setFieldErrors({}); void reload(); }} />}
+    {(configVersion === undefined || (saveFailure instanceof ApiError && ["CONFIG_VERSION_CONFLICT", "EDIT_VERSION_CONFLICT"].includes(saveFailure.code))) && <VersionConflict version={configVersion} missing={configVersion === undefined} onReload={() => { setDiscardAfterReload(true); setSaveFailure(null); setSaveError(""); setFieldErrors({}); void reload(); }} />}
     <fieldset disabled={saving || testing} className="settings-fields">
     {fields.map((field) => <div className={field.type === "textarea" ? "setting-field setting-field--full" : "setting-field"} key={field.key}><Field group={field.generate || field.type === "toggle"} label={field.label} helper={field.helper} error={fieldErrors[field.key]}>{field.type === "toggle" ? <label className="settings-toggle"><input type="checkbox" aria-label={field.label} checked={(values[field.key] ?? "true") === "true"} onChange={(event) => updateValue(field.key, String(event.target.checked))} /><span>{(values[field.key] ?? "true") === "true" ? "启用" : "关闭"}</span></label> : field.type === "textarea" ? <textarea rows={4} value={values[field.key] ?? ""} onChange={(event) => updateValue(field.key, event.target.value)} /> : field.type === "select" ? <select value={values[field.key] ?? ""} onChange={(event) => updateValue(field.key, event.target.value)}>{field.options?.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select> : field.generate ? <div className="input-with-action"><input aria-label={field.label} type={field.type ?? "text"} min={field.min} max={field.max} value={values[field.key] ?? ""} autoComplete="new-password" placeholder="留空表示不修改" onChange={(event) => updateValue(field.key, event.target.value)} /><Button type="button" onClick={() => { generateKey(field); }}><RefreshCw size={15} />生成</Button></div> : <input aria-label={field.label} type={field.type ?? "text"} min={field.min} max={field.max} value={values[field.key] ?? ""} autoComplete={field.sensitive ? "new-password" : undefined} placeholder={field.sensitive ? "留空表示不修改" : undefined} onChange={(event) => updateValue(field.key, event.target.value)} />}</Field></div>)}
     </fieldset>

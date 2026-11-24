@@ -1,0 +1,283 @@
+/* The workspace shares its color system with the entry screens. Geometry stays in the component styles. */
+.admin-console[data-admin-theme] {
+  --surface: var(--material-canvas);
+  --panel: var(--material-panel);
+  --foreground: var(--material-text);
+  --secondary: var(--material-secondary);
+  --border: var(--material-line);
+  --border-strong: var(--material-control-line);
+  --success: var(--material-green);
+  --success-bg: var(--material-green-well);
+  --warning: var(--material-amber);
+  --warning-bg: var(--material-amber-well);
+  --danger: var(--material-red);
+  --danger-bg: var(--material-red-well);
+  --primary: var(--material-action);
+  --on-primary: var(--material-on-action);
+  --accent: var(--material-accent);
+  --active: var(--material-active);
+  --panel-strong: color-mix(in srgb, var(--surface) 90%, var(--primary));
+  --hover: color-mix(in srgb, var(--panel) 92%, var(--primary));
+  --primary-hover: color-mix(in srgb, var(--primary) 85%, #082e68);
+  --text: var(--foreground);
+  --muted: var(--panel-strong);
+  --info: var(--accent);
+  --info-bg: var(--active);
+  --focus: var(--accent);
+  --glass-sheet: var(--material-fill);
+  --glass-raised: var(--material-elevated-fill);
+  --glass-edge: var(--material-edge);
+  --glass-reflection: var(--material-reflection);
+  --glass-chrome: color-mix(in srgb, var(--panel) 78%, transparent);
+  --glass-well: color-mix(in srgb, var(--surface) 62%, transparent);
+  --glass-separator: color-mix(in srgb, var(--border) 76%, transparent);
+  --glass-highlight: inset 0 1px 0 var(--glass-reflection);
+  --glass-card-shadow: 0 2px 5px rgb(32 55 88 / 5%), 0 10px 28px -18px rgb(32 55 88 / 23%);
+  --glass-scrim: rgb(29 42 63 / 32%);
+  --glass-filter: none;
+  --glass-sheen: linear-gradient(145deg, rgb(255 255 255 / 26%), transparent 48%);
+  --glass-button-sheen: linear-gradient(180deg, rgb(255 255 255 / 9%), transparent 68%);
+  color: var(--foreground);
+  background-color: var(--surface);
+}
+
+.admin-console[data-admin-theme="dark"] {
+  --primary-hover: color-mix(in srgb, var(--primary) 83%, white);
+  --glass-chrome: color-mix(in srgb, var(--panel) 80%, transparent);
+  --glass-well: color-mix(in srgb, var(--surface) 64%, transparent);
+  --glass-card-shadow: 0 2px 6px rgb(3 9 17 / 16%), 0 11px 28px -17px rgb(3 9 17 / 55%);
+  --glass-scrim: rgb(4 9 17 / 55%);
+  --glass-sheen: linear-gradient(145deg, rgb(190 218 255 / 6%), transparent 55%);
+}
+
+.admin-console .admin-shell {
+  background-color: var(--surface);
+  background-image: var(--material-canvas-image);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+/* Blur is reserved for persistent chrome and overlays. Scrolling data rows use a painted surface. */
+.admin-console .admin-header {
+  background-color: var(--glass-chrome);
+  background-image: var(--glass-sheen);
+  border-color: var(--glass-edge);
+  box-shadow: var(--glass-highlight), 0 1px 5px rgb(23 45 77 / 5%);
+}
+.admin-console .admin-header :is(.admin-brand, .admin-header__tools, .admin-nav-children) { border-color: var(--glass-edge); }
+.admin-console .admin-nav-item.is-active {
+  color: var(--accent);
+  background-color: var(--active);
+  background-image: var(--glass-sheen);
+  box-shadow: var(--glass-highlight), inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.admin-console :is(.admin-brand__mark, .button--primary:not(:disabled), .button--danger:not(:disabled)) {
+  background-image: var(--glass-button-sheen);
+  box-shadow: var(--glass-highlight), 0 1px 3px rgb(18 41 72 / 13%);
+}
+
+.admin-console :is(.clear-list, .table-surface--standalone, .metric-band, .traffic-ranking, .attention-list,
+  .traffic-report, .overview-index, .plan-entry, .machine-card, .revision-content, .revision-history,
+  .subscription-access, .editor-summary, .node-picker, .missing-page),
+.admin-console .editor-workspace :is(.form-section, .editor-section-nav),
+.admin-console .operation-stack > .settings-content {
+  background-color: var(--glass-sheet);
+  background-image: var(--glass-sheen);
+  box-shadow: var(--glass-highlight), var(--glass-card-shadow);
+}
+.admin-console :is(.clear-list, .table-surface--standalone, .metric-band, .machine-card, .revision-content, .revision-history,
+  .traffic-ranking, .attention-list, .subscription-access, .node-picker, .missing-page) { border-color: var(--glass-edge); }
+.admin-console :is(.machine-grid, .plan-board) { background-color: var(--glass-well); }
+.admin-console .machine-comparison:not(.machine-row-list) { background-color: transparent; }
+.admin-console .machine-card .machine-metrics { background-color: var(--glass-well); box-shadow: var(--glass-highlight); }
+.admin-console :is(.toolbar, .resource-categories, .history-toolbar, .machine-comparison > header, .resource-list-footer,
+  .revision-json > pre, .overview-index, .history-summary, .fleet-target, .editor-summary, .detail-dialog__header) {
+  background-color: var(--glass-well);
+  border-color: var(--glass-separator);
+}
+.admin-console :is(.editor-workspace .form-section__heading, .editor-workspace .editor-actions) {
+  background-color: var(--glass-raised);
+  box-shadow: var(--glass-highlight);
+}
+.admin-console :is(.resource-table-scroll, .table-scroll) :is(th, td) { border-color: var(--glass-separator); }
+.admin-console .traffic-chart__stack i, .admin-console :is(.machine-metric__track, .traffic-usage__track) > i { background-image: var(--glass-button-sheen); }
+
+.admin-console :is(.button--secondary, .pagination button),
+.admin-console :is(input, textarea, select):where(:not([type="checkbox"], [type="radio"], [type="range"], [aria-invalid="true"], :disabled)) {
+  background-color: var(--glass-raised);
+  box-shadow: var(--glass-highlight);
+}
+.admin-console :is(.button--secondary:hover:not(:disabled), .pagination button:hover:not(:disabled)) { background-color: var(--hover); }
+.admin-console :is(.ranking-period, .segmented-control, .subscription-access__view-switch, .view-switch) {
+  background-color: var(--glass-well);
+  border-color: var(--glass-edge);
+}
+.admin-console :is(.ranking-period, .segmented-control, .subscription-access__view-switch, .view-switch) :is(.active, [aria-pressed="true"]) {
+  background-color: var(--active);
+  box-shadow: var(--glass-highlight);
+}
+.admin-console :is(.status, .retention-label, .admin-demo-label) { background-image: var(--glass-button-sheen); }
+.admin-console :is(.code-editor, .audit-json, .revision-json > pre) { background-color: var(--panel-strong); }
+.admin-console :is(.detail-backdrop, .confirm-backdrop) { background-color: var(--glass-scrim); }
+.admin-console :is(.row-menu__panel, .confirm-dialog, .detail-dialog, .toast),
+.admin-console .machine-install-dialog > .detail-dialog {
+  background-color: var(--glass-raised);
+  background-image: var(--glass-sheen);
+  border-color: var(--glass-edge);
+  box-shadow: var(--material-shadow);
+}
+
+/* Traffic reporting and the operational index. The selected day stays legible with an empty bar. */
+.admin-console .traffic-report { border-block-color: var(--border-strong); }
+.admin-console .traffic-chart__day[aria-pressed="true"] { background-color: var(--active); }
+.admin-console .overview-index details { border-color: var(--glass-separator); }
+.admin-console .overview-index details[open] summary, .admin-console .traffic-ranking tbody td:last-child strong {
+  color: var(--accent);
+}
+.admin-console .traffic-ranking h3, .admin-console .attention-row { border-color: var(--glass-separator); }
+
+/* Machines, fleet progress and the install command. Frozen table headings need an opaque fill. */
+.admin-console .machine-card__details dt, .admin-console .machine-card__location { color: var(--secondary); }
+.admin-console .machine-card__details dd { color: var(--foreground); }
+.admin-console .machine-card__protocol { color: var(--accent); }
+.admin-console .machine-row-list .table-scroll thead th,
+.admin-console .machine-row-list .table-scroll tbody th { background-color: var(--material-well); }
+.admin-console .fleet-target strong, .admin-console .fleet-counts strong { color: var(--accent); }
+.admin-console .fleet-items li { border-color: var(--glass-separator); }
+.admin-console .fleet-items .text-success { color: var(--success); }
+.admin-console .fleet-items .fleet-error { color: var(--danger); }
+.admin-console .fleet-dialog progress { accent-color: var(--accent); }
+.admin-console .machine-install-dialog .machine-install aside { background-color: var(--glass-well); }
+.admin-console .machine-install-dialog .machine-install .code-editor {
+  background-color: var(--material-well);
+  border-color: var(--border-strong);
+}
+
+/* Node publication and version comparison. Baseline and selected values have distinct surfaces. */
+.admin-console .version-pair > span:last-child b, .admin-console .resource-page--nodes .protocol-label { color: var(--accent); }
+.admin-console .config-group__heading, .admin-console .node-report { border-color: var(--glass-separator); }
+.admin-console .protocol-selector__summary:not(.protocol-selector__summary--unsupported) .protocol-selector__icon {
+  color: var(--accent);
+  background-color: var(--active);
+}
+.admin-console .protocol-selector__summary--unsupported .protocol-selector__icon {
+  color: var(--warning);
+  background-color: var(--warning-bg);
+}
+.admin-console .revision-entry { border-color: var(--glass-separator); }
+.admin-console .revision-entry.is-active {
+  background-color: var(--active);
+  box-shadow: inset 3px 0 var(--accent);
+}
+.admin-console .revision-compare, .admin-console .revision-count { color: var(--secondary); }
+.admin-console .revision-content td[data-label="所选版本"] { background-color: var(--active); }
+.admin-console .revision-json[open] summary { color: var(--accent); }
+.admin-console .revision-json > pre { background-color: var(--material-well); }
+
+/* Quotas, access rights and plan review. The status badges retain their own semantic colors. */
+.admin-console .traffic-usage__track { background-color: var(--material-line); }
+.admin-console .entitlement-context, .admin-console .plan-entry header { border-color: var(--glass-separator); }
+.admin-console .entitlement-context a, .admin-console .plan-table summary { color: var(--accent); }
+.admin-console .node-picker__toolbar { background-color: var(--glass-well); }
+.admin-console .node-picker__count strong { color: var(--accent); }
+.admin-console .node-picker__list > label.is-selected { background-color: var(--active); }
+.admin-console .plan-lane h2 span {
+  color: var(--accent);
+  background-color: var(--active);
+  box-shadow: var(--glass-highlight);
+}
+.admin-console .plan-table[open] > summary { background-color: var(--glass-well); }
+
+/* Policy builders share a protocol picker; rule sequence and the chosen action are ordinary data. */
+.admin-console .route-rule__header { background-color: var(--glass-well); }
+.admin-console .route-rule__index {
+  color: var(--accent);
+  background-color: var(--active);
+}
+.admin-console :is(.route-action-options, .route-geoip-presets) button[aria-pressed="true"] {
+  color: var(--accent);
+  background-color: var(--active);
+  border-color: var(--accent);
+}
+.admin-console .outbound-chain .config-group__heading { border-color: var(--border-strong); }
+
+/* Subscription requests and IP detail. HTTP result badges and lookup failures stay independent. */
+.admin-console .subscription-access__code, .admin-console .subscription-access__time > span { color: var(--secondary); }
+.admin-console .subscription-access__count--merged {
+  background-color: var(--active);
+  color: var(--accent);
+}
+.admin-console .access-ip-detail__summary { background-color: var(--glass-well); }
+.admin-console .access-ip-location__text > svg { color: var(--accent); }
+.admin-console .access-ip-location__error { color: var(--danger); }
+
+/* Each historical view keeps the same filters; metric keys and audit evidence use quieter surfaces. */
+.admin-console .history-tabs button[aria-pressed="true"] {
+  background-color: var(--active);
+  color: var(--accent);
+  box-shadow: var(--glass-highlight);
+}
+.admin-console .history-summary strong, .admin-console .retention-label svg { color: var(--accent); }
+.admin-console .metric-summary > span { background-color: var(--glass-well); }
+.admin-console .metric-summary b, .admin-console .audit-detail dt { color: var(--secondary); }
+.admin-console .audit-request code { color: var(--foreground); }
+.admin-console .audit-json { background-color: var(--material-well); border-color: var(--border); }
+
+/* Editor summaries and the eight settings sections share the same hierarchy across both themes. */
+.admin-console .editor-summary { border-top-color: var(--accent); }
+.admin-console .editor-summary section, .admin-console .settings-review .field { border-color: var(--glass-separator); }
+.admin-console .editor-workspace .editor-section-nav button[aria-current] { background-color: var(--active); color: var(--accent); }
+.admin-console .settings-review .settings-nav button[aria-pressed="true"] { border-bottom-color: var(--accent); }
+.admin-console .settings-review .account-form__heading > svg, .admin-console .settings-review .security-note > svg {
+  color: var(--accent);
+}
+.admin-console .settings-review .settings-toggle input { accent-color: var(--accent); }
+.admin-console .settings-review .settings-toggle:has(:checked) > span { color: var(--success); }
+.admin-console .settings-review :is(input[type="password"], textarea):where(:not(:disabled, [aria-invalid="true"])) {
+  background-color: var(--material-well);
+}
+.admin-console .settings-review .input-with-action .button, .admin-console .settings-form__actions .button--secondary {
+  border-color: var(--border-strong);
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .admin-console[data-admin-theme] { --glass-filter: var(--material-filter); }
+  .admin-console :is(.admin-header, .row-menu__panel, .confirm-dialog, .detail-dialog, .toast) {
+    -webkit-backdrop-filter: var(--glass-filter);
+    backdrop-filter: var(--glass-filter);
+  }
+}
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .admin-console[data-admin-theme] {
+    --glass-chrome: var(--panel);
+    --glass-sheet: var(--panel);
+    --glass-raised: var(--panel);
+    --glass-well: var(--material-well);
+    --glass-edge: var(--border);
+    --glass-separator: var(--border);
+  }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+  .admin-console[data-admin-theme] {
+    --glass-chrome: var(--panel);
+    --glass-sheet: var(--panel);
+    --glass-raised: var(--panel);
+    --glass-well: var(--panel-strong);
+    --glass-edge: var(--border);
+    --glass-separator: var(--border);
+    --glass-highlight: inset 0 0 transparent;
+    --glass-card-shadow: 0 0 transparent;
+    --glass-sheen: none;
+    --glass-button-sheen: none;
+    --glass-filter: none;
+  }
+  .admin-console .admin-shell { background-image: none; }
+}
+@media (prefers-contrast: more) {
+  .admin-console[data-admin-theme] { --border: var(--material-control-line); }
+}
+@media (forced-colors: active) {
+  .admin-console .admin-nav-item[aria-current="page"],
+  .admin-console button[aria-pressed="true"] { outline: 1px solid Highlight; outline-offset: -2px; }
+  .admin-console :is(.admin-nav-item, button):focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
+}

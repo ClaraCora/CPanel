@@ -23,6 +23,7 @@ import { OverviewPage } from "./pages/OverviewPage";
 import { SettingsPage, SubscriptionPage } from "./pages/SettingsPage";
 import { UserAccessIPsPage } from "./pages/UserAccessIPsPage";
 import type { Admin, Session } from "./types";
+import "./admin-material.css";
 
 export default function AuthenticatedApp({
   session,

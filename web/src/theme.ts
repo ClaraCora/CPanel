@@ -23,8 +23,7 @@ export function currentTheme(): Theme {
 export function applyTheme(theme: Theme, persist = false) {
   document.documentElement.dataset.theme = theme;
   document.documentElement.style.colorScheme = theme;
-  const surface = isPortal ? (theme === "dark" ? "#07090f" : "#f6f7f9")
-    : getComputedStyle(document.documentElement).getPropertyValue("--surface").trim();
+  const surface = getComputedStyle(document.documentElement).getPropertyValue("--material-canvas").trim();
   if (surface) document.querySelector('meta[name="theme-color"]')?.setAttribute("content", surface);
   if (persist) {
     try {

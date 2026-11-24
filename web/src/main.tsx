@@ -4,6 +4,8 @@ import App from "./App";
 import PortalApp from "./PortalApp";
 import "./public-surfaces.css";
 import "./admin-palette.css";
+import "./material.css";
+import "./public-material.css";
 import { initializeTheme, isPortal } from "./theme";
 
 initializeTheme();

@@ -1,0 +1,81 @@
+/* Paint tokens shared by the public and authenticated entry points. */
+html:root[data-theme] {
+  --material-canvas: #ecf1f7;
+  --material-panel: #fbfcff;
+  --material-text: #1c283c;
+  --material-secondary: #4b5b70;
+  --material-accent: #1759b4;
+  --material-action: #175bbd;
+  --material-on-action: #fff;
+  --material-active: #e3edfc;
+  --material-line: #c8d3e2;
+  --material-control-line: #8596ac;
+  --material-edge: rgb(255 255 255 / 84%);
+  --material-reflection: rgb(255 255 255 / 88%);
+  --material-shadow: 0 8px 24px -12px rgb(52 77 113 / 26%), inset 0 1px 0 var(--material-reflection);
+  --material-canvas-image:
+    radial-gradient(ellipse 72% 46rem at 0% 1%, rgb(171 212 248 / 48%), transparent 80%),
+    radial-gradient(ellipse 58% 35rem at 101% 12%, rgb(204 193 248 / 44%), transparent 83%),
+    linear-gradient(150deg, #edf3fb, #f4f5fb 56%, #e5eff1);
+  --material-tint: rgb(249 252 255 / 69%);
+  --material-elevated-tint: rgb(252 253 255 / 84%);
+  --material-fill: var(--material-panel);
+  --material-elevated-fill: var(--material-panel);
+  --material-filter: none;
+  --material-well: #f1f5fb;
+  --material-green: #166448;
+  --material-green-well: #e4f4ec;
+  --material-amber: #795016;
+  --material-amber-well: #fbf0d9;
+  --material-red: #a62e42;
+  --material-red-well: #ffedf1;
+}
+
+html:root[data-theme="dark"] {
+  --material-canvas: #131a25;
+  --material-panel: #202936;
+  --material-text: #edf2fc;
+  --material-secondary: #b3c1d4;
+  --material-accent: #9bc4ff;
+  --material-action: #a0c8ff;
+  --material-on-action: #10243d;
+  --material-active: #243953;
+  --material-line: #3d4b60;
+  --material-control-line: #71849c;
+  --material-edge: rgb(181 211 252 / 21%);
+  --material-reflection: rgb(216 235 255 / 14%);
+  --material-shadow: 0 9px 24px -12px rgb(1 5 13 / 62%), inset 0 1px 0 var(--material-reflection);
+  --material-canvas-image:
+    radial-gradient(ellipse 72% 46rem at 0% 1%, rgb(40 81 123 / 62%), transparent 79%),
+    radial-gradient(ellipse 58% 35rem at 101% 12%, rgb(71 56 103 / 51%), transparent 83%),
+    linear-gradient(150deg, #172333, #141b29 56%, #152528);
+  --material-tint: rgb(33 43 60 / 72%);
+  --material-elevated-tint: rgb(39 50 67 / 87%);
+  --material-well: #192331;
+  --material-green: #8be2b1;
+  --material-green-well: #203d33;
+  --material-amber: #f3cb87;
+  --material-amber-well: #403526;
+  --material-red: #ffa6b2;
+  --material-red-well: #432a35;
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  html:root[data-theme] {
+    --material-fill: var(--material-tint);
+    --material-elevated-fill: var(--material-elevated-tint);
+    --material-filter: saturate(132%) blur(17px);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+  html:root[data-theme] {
+    --material-fill: var(--material-panel);
+    --material-elevated-fill: var(--material-panel);
+    --material-filter: none;
+    --material-canvas-image: none;
+    --material-shadow: none;
+    --material-edge: var(--material-control-line);
+    --material-reflection: transparent;
+  }
+}

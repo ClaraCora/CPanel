@@ -220,7 +220,7 @@ Bot 回复使用 Telegram HTML 等宽表格。排行榜会使用 `G`、`T` 等�
 
 ## Development prerequisites
 
-- Go 1.26+
+- Go 1.27.4+
 - Node.js 24+
 - PostgreSQL 16+
 

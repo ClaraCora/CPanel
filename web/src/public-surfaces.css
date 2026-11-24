@@ -1118,13 +1118,14 @@ html:not([data-admin-theme]) {
 
 :where(html:not([data-admin-theme])) .login-brand { border-bottom-color: var(--border); }
 
-:where(html:not([data-admin-theme])) .login-brand strong { color: var(--foreground); }
+:where(html:not([data-admin-theme])) .login-brand strong { color: var(--foreground); font-size: 18px; line-height: 1.3; }
 
-:where(html:not([data-admin-theme])) .login-brand span { color: var(--secondary); }
+:where(html:not([data-admin-theme])) .login-brand span { color: var(--secondary); font-size: 12px; }
+:where(html:not([data-admin-theme])) .login-brand .brand__mark { margin: 0; font-size: 18px; font-weight: 700; color: var(--foreground); }
 
 :where(html:not([data-admin-theme])) .login-copy h1 { color: var(--foreground); }
 
-:where(html:not([data-admin-theme])) .login-copy p { color: var(--secondary); }
+:where(html:not([data-admin-theme])) .login-copy p { color: var(--secondary); font-size: 14px; line-height: 1.6; }
 
 :where(html:not([data-admin-theme])) .input-with-icon > svg { color: #718096; }
 
@@ -1132,7 +1133,7 @@ html:not([data-admin-theme]) {
 
 :where(html:not([data-admin-theme])) .password-toggle:hover { color: var(--primary); background: rgba(64, 217, 255, 0.08); }
 
-:where(html:not([data-admin-theme])) .login-panel footer { color: #718096; border-top-color: var(--border); }
+:where(html:not([data-admin-theme])) .login-panel footer { color: var(--secondary); border-top-color: var(--border); font-size: 12px; line-height: 1.6; }
 
 :where(html:not([data-admin-theme])) .boot-screen {
   position: relative;
@@ -1732,6 +1733,19 @@ html:not([data-admin-theme])[data-theme="dark"] .edu-theme-toggle:hover:not(:dis
   position: relative;
 }
 
+.edu-login .edu-login__brand { gap: 10px; padding-bottom: 20px; }
+.edu-login .edu-login__brand > span { height: 29px; width: 29px; font-size: 15px; }
+.edu-login .edu-login__brand strong { font-size: 17px; }
+.edu-login form { gap: 18px; }
+.edu-login form label { font-size: 13px; font-weight: 600; }
+.edu-login form input { min-height: 44px; font-size: 15px; font-weight: 400; }
+.edu-login .edu-password button { width: 44px; height: 100%; top: 0; }
+.edu-login .edu-password input { padding-right: 48px; }
+.edu-login form > .edu-button { min-height: 44px; font-size: 15px; }
+@media (max-width: 700px) {
+  .edu-login form input { font-size: 16px; }
+}
+
 :where(html:not([data-admin-theme])) .edu-login .edu-theme-toggle {
   position: absolute;
   top: 18px;
@@ -1854,7 +1868,7 @@ html:not([data-admin-theme])[data-theme="dark"] .edu-theme-toggle:hover:not(:dis
 
 :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-shell { width: min(1136px, calc(100% - 48px)); }
 
-:where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-heading { margin: 36px 0 26px; }
+:where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-heading { margin: 36px 0 26px; padding: 0; }
 
 :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-heading h1 { font-size: 28px; font-weight: 650; letter-spacing: 0; }
 
@@ -1874,7 +1888,7 @@ html:not([data-admin-theme])[data-theme="dark"] .edu-theme-toggle:hover:not(:dis
 
 :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-panel header p { font-size: 12px; line-height: 1.6; margin-top: 5px; }
 
-:where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-count { align-self: start; font-size: 11px; color: var(--edu-muted); }
+:where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-count { align-self: center; font-size: 12px; color: var(--edu-muted); font-variant-numeric: tabular-nums; }
 
 :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-subscription { padding: 24px; }
 
@@ -1892,6 +1906,8 @@ html:not([data-admin-theme])[data-theme="dark"] .edu-theme-toggle:hover:not(:dis
 
 :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-subscription__actions { gap: 12px; margin-top: 18px; padding-top: 18px; border-color: var(--edu-border); flex-wrap: wrap; }
 
+:where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-subscription__actions:empty { display: none; }
+
 :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-text-button { min-height: 36px; font-size: 11px; }
 
 :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-node { min-height: 95px; padding: 20px 24px; gap: 14px; border-bottom: 1px solid var(--edu-border); }
@@ -1902,7 +1918,7 @@ html:not([data-admin-theme])[data-theme="dark"] .edu-theme-toggle:hover:not(:dis
 
 :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-node__copy { flex: 1; }
 
-:where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-node__copy strong { font-size: 13px; font-weight: 600; }
+:where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-node__copy strong { font-size: 14px; font-weight: 650; }
 
 :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-node__copy small { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 8px; color: var(--edu-muted); font-size: 11px; }
 
@@ -1918,7 +1934,7 @@ html:not([data-admin-theme])[data-theme="dark"] .edu-theme-toggle:hover:not(:dis
 
 :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-traffic__amount { margin-top: 9px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 
-:where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-traffic__amount strong { font-size: 30px; font-weight: 650; letter-spacing: 0; }
+:where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-traffic__amount strong { font-variant-numeric: tabular-nums; font-size: 30px; font-weight: 650; letter-spacing: 0; }
 
 :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-traffic__amount span { font-size: 12px; color: var(--edu-muted); }
 
@@ -1962,7 +1978,8 @@ html:not([data-admin-theme])[data-theme="dark"] .edu-theme-toggle:hover:not(:dis
 
 :where(html:not([data-admin-theme])) .edu-app.edu-clear ::selection { background: #d5e7db; color: #172b20; }
 
-:where(html:not([data-admin-theme])) .edu-app.edu-clear :is(button, textarea):focus-visible { outline: 2px solid #345fc5; outline-offset: 3px; }
+:where(html:not([data-admin-theme])) .edu-app.edu-clear :is(button, a, input, textarea):focus-visible { outline: 2px solid var(--edu-focus, #345fc5); outline-offset: 3px; }
+:where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-node:focus-visible { outline-offset: -3px; }
 
 @media (max-width: 1100px) {
   :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-grid { gap: 20px; grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr); }
@@ -1978,23 +1995,23 @@ html:not([data-admin-theme])[data-theme="dark"] .edu-theme-toggle:hover:not(:dis
   :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-topbar__account > div { min-width: 0; max-width: 88px; }
   :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-topbar__account strong { max-width: 88px; }
   :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-shell { width: calc(100% - 32px); }
-  :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-heading { margin: 26px 0 23px; gap: 10px; }
+  :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-heading { margin: 22px 0 20px; gap: 10px; }
   :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-heading h1 { font-size: 26px; }
   :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-heading p { font-size: 12px; }
   :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-grid { grid-template-columns: minmax(0, 1fr); gap: 20px; }
   :where(html:not([data-admin-theme])) .edu-app.edu-clear :is(.edu-main-column, .edu-side-column) { gap: 20px; }
   :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-panel > header { padding: 19px 18px; flex-wrap: wrap; gap: 8px; min-height: 0; }
-  :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-panel header p { font-size: 11px; }
-  :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-count { margin-left: 0; }
+  :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-panel header p { font-size: 12px; }
+  :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-count { margin-left: auto; }
   :where(html:not([data-admin-theme])) .edu-app.edu-clear :is(.edu-subscription, .edu-traffic) { padding: 20px 18px; }
   :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-link-input { flex-wrap: wrap; }
   :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-link-input textarea { flex-basis: 100%; width: 100%; }
   :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-button, :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-icon-button, :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-text-button { min-height: 44px; }
   :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-subscription__actions { margin-top: 14px; padding-top: 14px; }
-  :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-node { padding: 18px; gap: 12px; }
-  :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-node__copy { flex-basis: calc(100% - 80px); }
-  :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-node__status { max-width: 100%; margin-left: 0; }
-  :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-node__action { min-height: 44px; margin-left: auto; }
+  :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-node { display: grid; grid-template-columns: minmax(0, 1fr) auto; min-height: 76px; padding: 13px 18px; gap: 3px 12px; }
+  :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-node__copy { grid-column: 1; grid-row: 1 / 3; }
+  :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-node__status { grid-column: 2; max-width: 8em; margin-left: auto; text-align: right; }
+  :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-node__action { grid-column: 2; margin-left: auto; padding: 3px 0; border: 0; color: var(--edu-muted); }
   :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-account-data { padding: 15px 18px; }
   :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-password-form { padding: 0 18px 20px; }
   :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-password-form input { min-height: 44px; }
@@ -2005,7 +2022,7 @@ html:not([data-admin-theme])[data-theme="dark"] .edu-theme-toggle:hover:not(:dis
 
 :where(html:not([data-admin-theme])) .edu-app.edu-clear { --edu-command: #20252c; --edu-command-text: #fff; }
 
-html:not([data-admin-theme])[data-theme="dark"] .edu-app.edu-clear { --edu-canvas: #10151f; --edu-panel: #171e2a; --edu-text: #edf2fa; --edu-muted: #a1afc2; --edu-border: #2c3749; --edu-soft: #1e2837; --edu-green: #83d9b1; --edu-command: #edf2fa; --edu-command-text: #172030; }
+html:not([data-admin-theme])[data-theme="dark"] .edu-app.edu-clear { --edu-focus: #94beff; --edu-canvas: #10151f; --edu-panel: #171e2a; --edu-text: #edf2fa; --edu-muted: #a1afc2; --edu-border: #2c3749; --edu-soft: #1e2837; --edu-green: #83d9b1; --edu-command: #edf2fa; --edu-command-text: #172030; }
 
 :where(html:not([data-admin-theme])) .edu-app.edu-clear .edu-node-list { display: block; padding: 0; }
 

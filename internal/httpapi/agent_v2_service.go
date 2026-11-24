@@ -24,9 +24,11 @@ const (
 )
 
 type agentV2SessionRecord struct {
-	session   *agentv2.Session
-	machine   domain.AgentMachine
-	expiresAt time.Time
+	session    *agentv2.Session
+	machine    domain.AgentMachine
+	expiresAt  time.Time
+	publicKey  ed25519.PublicKey
+	enrolledAt time.Time
 }
 
 type agentV2Service struct {
@@ -36,8 +38,9 @@ type agentV2Service struct {
 	identityMu sync.Mutex
 	identity   ed25519.PrivateKey
 
-	sessionsMu sync.RWMutex
-	sessions   map[string]agentV2SessionRecord
+	sessionsMu       sync.RWMutex
+	sessions         map[string]agentV2SessionRecord
+	nextSessionSweep time.Time
 
 	noncesMu sync.Mutex
 	nonces   map[string]time.Time
@@ -123,23 +126,17 @@ func (s *agentV2Service) acceptHandshake(ctx context.Context, request agentv2.Ha
 	if err := agentv2.ValidateHandshakeShape(request, now, agentV2HandshakeSkew); err != nil {
 		return agentv2.HandshakeResponse{}, err
 	}
-	machine, err := s.store.AgentMachineByID(ctx, request.MachineID)
-	if err != nil {
-		return agentv2.HandshakeResponse{}, err
-	}
 	claimedIdentity, err := agentv2.IdentityPublic(request)
 	if err != nil {
 		return agentv2.HandshakeResponse{}, err
 	}
 
-	enrolled := false
 	identity, identityErr := s.store.AgentIdentity(ctx, request.MachineID)
 	switch {
 	case identityErr == nil:
 		if identity.Status != "active" || !agentv2.VerifyIdentity(request, ed25519.PublicKey(identity.PublicKey)) {
 			return agentv2.HandshakeResponse{}, errors.New("Agent identity verification failed")
 		}
-		enrolled = true
 	case !errors.Is(identityErr, store.ErrNotFound):
 		return agentv2.HandshakeResponse{}, identityErr
 	default:
@@ -147,10 +144,10 @@ func (s *agentV2Service) acceptHandshake(ctx context.Context, request agentv2.Ha
 		if keyErr != nil || !agentv2.VerifyEnrollment(request, enrollmentKey) {
 			return agentv2.HandshakeResponse{}, errors.New("Agent enrollment verification failed")
 		}
-		if _, err := s.store.EnrollAgentIdentity(ctx, request.MachineID, claimedIdentity, enrollmentHash); err != nil {
+		identity.EnrolledAt, err = s.store.EnrollAgentIdentity(ctx, request.MachineID, claimedIdentity, enrollmentHash)
+		if err != nil {
 			return agentv2.HandshakeResponse{}, err
 		}
-		enrolled = true
 	}
 	if !s.reserveNonce(request.MachineID, request.Nonce, now) {
 		return agentv2.HandshakeResponse{}, errors.New("Agent handshake was replayed")
@@ -159,18 +156,34 @@ func (s *agentV2Service) acceptHandshake(ctx context.Context, request agentv2.Ha
 	if err != nil {
 		return agentv2.HandshakeResponse{}, err
 	}
-	response, session, err := agentv2.NewServerHandshake(request, panelIdentity, enrolled, now)
+	response, session, err := agentv2.NewServerHandshake(request, panelIdentity, true, now)
 	if err != nil {
 		return agentv2.HandshakeResponse{}, err
 	}
-	s.sessionsMu.Lock()
-	s.sessions[session.ID()] = agentV2SessionRecord{session: session, machine: machine, expiresAt: now.Add(agentV2SessionTTL)}
-	s.sessionsMu.Unlock()
-	if err := s.store.TouchAgentV2(ctx, request.MachineID); err != nil {
-		s.deleteSession(session.ID())
+	if err := s.store.TouchAgentV2(ctx, request.MachineID, claimedIdentity, identity.EnrolledAt); err != nil {
 		return agentv2.HandshakeResponse{}, err
 	}
+	s.rememberSession(session.ID(), agentV2SessionRecord{
+		session: session, machine: domain.AgentMachine{ID: request.MachineID}, expiresAt: now.Add(agentV2SessionTTL),
+		publicKey: claimedIdentity, enrolledAt: identity.EnrolledAt,
+	}, now)
 	return response, nil
+}
+
+// Agents normally reconnect with a new session ID and never revisit the expired
+// one. Sweep on admission so old sessions cannot accumulate across reconnects.
+func (s *agentV2Service) rememberSession(id string, record agentV2SessionRecord, now time.Time) {
+	s.sessionsMu.Lock()
+	defer s.sessionsMu.Unlock()
+	if !now.Before(s.nextSessionSweep) {
+		for key, old := range s.sessions {
+			if !now.Before(old.expiresAt) {
+				delete(s.sessions, key)
+			}
+		}
+		s.nextSessionSweep = now.Add(time.Minute)
+	}
+	s.sessions[id] = record
 }
 
 func (s *agentV2Service) enrollmentKey(ctx context.Context, machineID string) ([]byte, []byte, error) {
@@ -194,39 +207,25 @@ func (s *agentV2Service) sessionForEnvelope(ctx context.Context, envelope []byte
 	if err != nil {
 		return agentV2SessionRecord{}, err
 	}
-	s.sessionsMu.RLock()
-	record, ok := s.sessions[sessionID]
-	s.sessionsMu.RUnlock()
-	if !ok || now.After(record.expiresAt) {
-		if ok {
-			s.deleteSession(sessionID)
-		}
-		return agentV2SessionRecord{}, errors.New("encrypted Agent session is unavailable")
-	}
-	return s.validateSession(ctx, record, now)
+	return s.sessionByID(ctx, sessionID, now)
 }
 
 func (s *agentV2Service) sessionByID(ctx context.Context, sessionID string, now time.Time) (agentV2SessionRecord, error) {
 	s.sessionsMu.RLock()
 	record, ok := s.sessions[sessionID]
 	s.sessionsMu.RUnlock()
-	if !ok || now.After(record.expiresAt) {
+	if !ok || !now.Before(record.expiresAt) {
 		if ok {
 			s.deleteSession(sessionID)
 		}
 		return agentV2SessionRecord{}, errors.New("encrypted Agent session is unavailable")
 	}
-	return s.validateSession(ctx, record, now)
-}
-
-// validateSession re-checks the machine in the database instead of trusting
-// the snapshot captured at handshake time. This makes disabling, archiving,
-// or resetting a machine take effect for already-established V2 sessions.
-func (s *agentV2Service) validateSession(ctx context.Context, record agentV2SessionRecord, now time.Time) (agentV2SessionRecord, error) {
-	machine, err := s.store.AgentMachineByID(ctx, record.machine.ID)
+	// Re-read the enrollment as well as machine status. A reset may have
+	// committed on another panel process, even with the same key re-enrolled.
+	machine, err := s.store.AgentSessionMachine(ctx, record.machine.ID, record.publicKey, record.enrolledAt)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
-			s.deleteMachineSessions(record.machine.ID)
+			s.deleteSession(sessionID)
 		}
 		return agentV2SessionRecord{}, err
 	}

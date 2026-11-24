@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"cpanel/internal/auth"
 	"cpanel/internal/domain"
 	"github.com/coder/websocket"
 	"github.com/go-chi/chi/v5"
@@ -224,6 +225,8 @@ func (s *Server) handleAgentStream(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.CloseNow()
 	machine := currentAgent(r)
+	bearer := strings.TrimPrefix(strings.TrimSpace(r.Header.Get("Authorization")), "Bearer ")
+	tokenHash := auth.HashSecret(strings.TrimSpace(bearer))
 	cursor, err := s.store.LatestAgentCursor(r.Context(), machine.ID)
 	if err != nil {
 		_ = conn.Close(websocket.StatusInternalError, "cursor unavailable")
@@ -241,6 +244,13 @@ func (s *Server) handleAgentStream(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}()
+	stillAllowed := func() bool {
+		if s.store.LegacyAgentStreamAllowed(ctx, machine, tokenHash) {
+			return true
+		}
+		_ = conn.Close(websocket.StatusPolicyViolation, "")
+		return false
+	}
 	ready := map[string]any{"id": "evt_ready", "type": "agent.ready", "revision": 0, "occurred_at": time.Now().UTC(), "data": map[string]any{"cursor": cursor}}
 	if err := wsWriteJSON(ctx, conn, ready); err != nil {
 		return
@@ -259,6 +269,9 @@ func (s *Server) handleAgentStream(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		case <-keepaliveTicker.C:
+			if !stillAllowed() {
+				return
+			}
 			if err := wsWriteJSON(ctx, conn, map[string]string{"type": ""}); err != nil {
 				return
 			}
@@ -266,6 +279,9 @@ func (s *Server) handleAgentStream(w http.ResponseWriter, r *http.Request) {
 			items, err := s.store.AgentChanges(ctx, machine.ID, cursor, 200)
 			if err != nil {
 				_ = conn.Close(websocket.StatusInternalError, "change feed unavailable")
+				return
+			}
+			if len(items) > 0 && !stillAllowed() {
 				return
 			}
 			for _, item := range items {

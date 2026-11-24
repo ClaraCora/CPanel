@@ -19,7 +19,7 @@ type nodeApplicationData struct {
 
 // Application results share the authenticated, idempotent telemetry transport,
 // but ordinary metric/traffic reports can never acknowledge a configuration.
-func recordNodeApplication(ctx context.Context, tx pgx.Tx, machineID string, event telemetryEvent) error {
+func recordNodeApplication(ctx context.Context, tx pgx.Tx, machineID string, event TelemetryEvent) error {
 	var data nodeApplicationData
 	if err := json.Unmarshal(event.Data, &data); err != nil {
 		return fmt.Errorf("decode node application result: %w", err)

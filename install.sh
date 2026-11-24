@@ -72,7 +72,19 @@ case "$(uname -m)" in
 esac
 
 TMP_DIR=$(mktemp -d)
-trap 'rm -rf -- "$TMP_DIR"' EXIT
+UPGRADE_STAGE=""
+KEEP_BACKUP=false
+cleanup() {
+  rm -rf -- "$TMP_DIR"
+  if [ -n "$UPGRADE_STAGE" ] && [ "$KEEP_BACKUP" = false ]; then
+    rm -rf -- "$UPGRADE_STAGE"
+  fi
+}
+trap cleanup EXIT
+
+# Serialize publication of the binaries and cache across installer invocations.
+exec 9>/run/cpanel-installer.lock
+flock -n 9 || fail "another CPanel installation or upgrade is running"
 
 install_prerequisites() {
   if command -v curl >/dev/null 2>&1 && command -v openssl >/dev/null 2>&1 && command -v psql >/dev/null 2>&1 && id postgres >/dev/null 2>&1; then
@@ -190,7 +202,7 @@ download_verified() {
 }
 
 download_agent_artifacts() {
-  mkdir -p "$AGENT_ARTIFACT_DIR"
+  runuser -u cpanel -- mkdir -p "$AGENT_ARTIFACT_DIR"
   local filename release_tag base_url
   release_tag=$(component_release_tag corade "$AGENT_VERSION")
   base_url="https://github.com/${REPOSITORY}/releases/download/${release_tag}"
@@ -203,10 +215,21 @@ download_agent_artifacts() {
       log "Agent artifact ${filename} failed authenticated verification and was not cached"
       continue
     fi
-    install -m 644 "${TMP_DIR}/verified-${filename}" "${AGENT_ARTIFACT_DIR}/${filename}"
-    install -m 644 "${TMP_DIR}/${filename}.sha256" "${AGENT_ARTIFACT_DIR}/${filename}.sha256"
+    cache_agent_file "${TMP_DIR}/verified-${filename}" "${AGENT_ARTIFACT_DIR}/${filename}"
+    cache_agent_file "${TMP_DIR}/${filename}.sha256" "${AGENT_ARTIFACT_DIR}/${filename}.sha256"
   done
-  chown -R cpanel:cpanel "$AGENT_ARTIFACT_DIR"
+}
+
+cache_agent_file() {
+  # The live service may be serving the previous inode. Publish complete files
+  # by rename, and perform all writes to its writable directory as its own user.
+  runuser -u cpanel -- sh -ec '
+    pending=$(mktemp "${1}.new.XXXXXX")
+    trap '\''rm -f -- "$pending"'\'' EXIT
+    cat >"$pending"
+    chmod 644 "$pending"
+    mv -fT -- "$pending" "$1"
+  ' sh "$2" <"$1"
 }
 
 write_service() {
@@ -240,37 +263,83 @@ EOF
 }
 
 wait_until_ready() {
-  local health_url="http://127.0.0.1${LISTEN_ADDRESS}/ca/jk/jx"
-  if [[ "$LISTEN_ADDRESS" != :* ]]; then
-    local port="${LISTEN_ADDRESS##*:}"
-    health_url="http://127.0.0.1:${port}/ca/jk/jx"
-  fi
+  local address="$LISTEN_ADDRESS" pid last_pid="" host health_url source
+  local -a sources
   for _ in $(seq 1 30); do
-    if systemctl is-active --quiet "$SERVICE_NAME" && curl --fail --silent "$health_url" >/dev/null 2>&1; then
-      return
+    pid=$(systemctl show --property=MainPID --value "$SERVICE_NAME") || pid=""
+    if [[ "$pid" =~ ^[1-9][0-9]*$ && "$pid" != "$last_pid" && -r "/proc/$pid/environ" ]]; then
+      # Read only the listener setting, including effective unit/drop-in overrides.
+      address=$(sed -zn 's/^CPANEL_ADDR=//p' "/proc/$pid/environ" 2>/dev/null | tr -d '\0') || address="$LISTEN_ADDRESS"
+      address=${address:-127.0.0.1:8256}
+      last_pid="$pid"
+    fi
+    host=${address%:*}
+    case "$host" in
+      ''|0.0.0.0) host=127.0.0.1 ;;
+      '[::]') host='[::1]' ;;
+    esac
+    case "$host" in
+      \[*\]) sources=(::1) ;;
+      *[!0-9.]*) sources=(127.0.0.1 ::1) ;;
+      *) sources=(127.0.0.1) ;;
+    esac
+    health_url="http://${host}:${address##*:}/ca/jk/jx"
+    if systemctl is-active --quiet "$SERVICE_NAME"; then
+      # The endpoint accepts a loopback peer and Host, even on a specific bind.
+      for source in "${sources[@]}"; do
+        if [ "$(curl --noproxy '*' --silent --interface "$source" --header 'Host: localhost' \
+          --connect-timeout 1 --max-time 2 --output /dev/null --write-out '%{http_code}' "$health_url")" = 204 ]; then
+          return 0
+        fi
+      done
     fi
     sleep 1
   done
   journalctl -u "$SERVICE_NAME" -n 50 --no-pager >&2 || true
-  fail "CPanel did not become ready"
+  return 1
+}
+
+upgrade_panel() {
+  [ -f "$ENV_FILE" ] || fail "CPanel is not installed; run install first"
+  UPGRADE_STAGE=$(mktemp -d "${BINARY_PATH}.upgrade.XXXXXX")
+  download_verified "cpanel" "$VERSION" "cpanel-linux-${ARCH}" "${UPGRADE_STAGE}/new"
+  download_agent_artifacts
+  if [ ! -e "$SERVICE_FILE" ] && ! systemctl cat "$SERVICE_NAME" >/dev/null 2>&1; then
+    write_service
+    systemctl enable "$SERVICE_NAME" >/dev/null
+  fi
+  LISTEN_ADDRESS=$(sed -n 's/^CPANEL_ADDR=//p' "$ENV_FILE" | tail -n 1)
+  LISTEN_ADDRESS=${LISTEN_ADDRESS:-127.0.0.1:8256}
+  if [ -e "$BINARY_PATH" ]; then
+    ln -L -- "$BINARY_PATH" "${UPGRADE_STAGE}/previous" 2>/dev/null || cp -pL -- "$BINARY_PATH" "${UPGRADE_STAGE}/previous"
+    KEEP_BACKUP=true
+    log "previous executable saved at ${UPGRADE_STAGE}/previous"
+  fi
+  # Linux keeps the old process on its open executable until systemd restarts it.
+  mv -fT -- "${UPGRADE_STAGE}/new" "$BINARY_PATH"
+  if systemctl restart "$SERVICE_NAME" && wait_until_ready; then
+    KEEP_BACKUP=false
+    log "upgrade completed"
+    return 0
+  fi
+  [ -f "${UPGRADE_STAGE}/previous" ] || fail "upgrade failed; no previous executable was installed"
+  log "upgrade failed; restoring the previous executable against the current database"
+  # Keep the backup available if restarting the previous executable also fails.
+  ln "${UPGRADE_STAGE}/previous" "${UPGRADE_STAGE}/restore" 2>/dev/null || cp -p "${UPGRADE_STAGE}/previous" "${UPGRADE_STAGE}/restore"
+  mv -fT -- "${UPGRADE_STAGE}/restore" "$BINARY_PATH"
+  systemctl reset-failed "$SERVICE_NAME" >/dev/null 2>&1 || true
+  if systemctl restart "$SERVICE_NAME" && wait_until_ready; then
+    KEEP_BACKUP=false
+    fail "upgrade failed; previous executable restored and ready"
+  fi
+  fail "previous executable restored but readiness failed; backup: ${UPGRADE_STAGE}/previous"
 }
 
 install_prerequisites
 command -v sha256sum >/dev/null 2>&1 || fail "sha256sum is required"
 
 if [ "$ACTION" = "upgrade" ]; then
-  [ -f "$ENV_FILE" ] || fail "CPanel is not installed; run install first"
-  download_verified "cpanel" "$VERSION" "cpanel-linux-${ARCH}" "${BINARY_PATH}.new"
-  systemctl stop "$SERVICE_NAME" >/dev/null 2>&1 || true
-  mv "${BINARY_PATH}.new" "$BINARY_PATH"
-  download_agent_artifacts
-  write_service
-  systemctl enable "$SERVICE_NAME" >/dev/null
-  systemctl restart "$SERVICE_NAME"
-  LISTEN_ADDRESS=$(sed -n 's/^CPANEL_ADDR=//p' "$ENV_FILE" | tail -n 1)
-  LISTEN_ADDRESS=${LISTEN_ADDRESS:-127.0.0.1:8256}
-  wait_until_ready
-  log "upgrade completed"
+  upgrade_panel
   exit 0
 fi
 
@@ -283,6 +352,9 @@ if [ -z "$EXTERNAL_URL" ]; then
 fi
 [[ "$EXTERNAL_URL" =~ ^https?://[^[:space:]]+$ ]] || fail "external URL must start with http:// or https:// and contain no whitespace"
 
+# Verify the required executable before provisioning database credentials or
+# installing the environment file that marks a machine as already installed.
+download_verified "cpanel" "$VERSION" "cpanel-linux-${ARCH}" "${TMP_DIR}/cpanel"
 systemctl enable --now postgresql >/dev/null
 DB_PASSWORD=$(openssl rand -hex 24)
 ENCRYPTION_KEY=$(openssl rand -base64 32 | tr -d '\n')
@@ -322,7 +394,7 @@ CPANEL_AGENT_ARTIFACT_DIR=${AGENT_ARTIFACT_DIR}
 EOF
 install -m 640 -o root -g cpanel "${TMP_DIR}/cpanel.env" "$ENV_FILE"
 
-download_verified "cpanel" "$VERSION" "cpanel-linux-${ARCH}" "$BINARY_PATH"
+install -m 755 "${TMP_DIR}/cpanel" "$BINARY_PATH"
 download_agent_artifacts
 write_service
 
@@ -338,7 +410,7 @@ unset CPANEL_ADMIN_PASSWORD
 
 systemctl enable "$SERVICE_NAME" >/dev/null
 systemctl restart "$SERVICE_NAME"
-wait_until_ready
+wait_until_ready || fail "CPanel did not become ready"
 
 log "installation completed"
 log "panel: ${EXTERNAL_URL%/}"

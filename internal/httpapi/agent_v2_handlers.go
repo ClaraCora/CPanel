@@ -363,6 +363,18 @@ type agentV2TelemetryEvent struct {
 	Data       json.RawMessage `json:"sj"`
 }
 
+func agentV2TelemetryBatch(events []agentV2TelemetryEvent) store.TelemetryBatch {
+	batch := store.TelemetryBatch{Events: make([]store.TelemetryEvent, len(events))}
+	for i, event := range events {
+		batch.Events[i] = store.TelemetryEvent(event)
+		// The legacy JSON adapter represented an omitted payload as explicit null.
+		if event.Data == nil {
+			batch.Events[i].Data = json.RawMessage("null")
+		}
+	}
+	return batch
+}
+
 func (s *Server) handleAgentV2Telemetry(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		IdempotencyKey string                  `json:"mdj"`
@@ -375,19 +387,9 @@ func (s *Server) handleAgentV2Telemetry(w http.ResponseWriter, r *http.Request) 
 		writeAgentV2Error(w, r, http.StatusBadRequest, "mdj")
 		return
 	}
-	legacyEvents := make([]map[string]any, 0, len(input.Events))
-	for _, event := range input.Events {
-		legacyEvents = append(legacyEvents, map[string]any{
-			"type": event.Type, "node_id": event.NodeID, "occurred_at": event.OccurredAt, "data": event.Data,
-		})
-	}
-	payload, err := json.Marshal(map[string]any{"events": legacyEvents})
-	if err != nil {
-		writeAgentV2Error(w, r, http.StatusBadRequest, "gs")
-		return
-	}
+	batch := agentV2TelemetryBatch(input.Events)
 	machine := currentAgent(r)
-	created, err := s.store.RecordTelemetryBatch(r.Context(), machine.ID, input.IdempotencyKey, payload)
+	created, err := s.store.RecordTelemetryEvents(r.Context(), machine.ID, input.IdempotencyKey, batch)
 	if err != nil {
 		writeAgentV2StoreError(w, r, err)
 		return

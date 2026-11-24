@@ -8,8 +8,11 @@ import (
 
 func TestDecodeTelemetryBatch(t *testing.T) {
 	payload := json.RawMessage(`{"events":[{"type":"node.telemetry","node_id":12,"occurred_at":"2026-07-29T12:00:00Z","data":{"revision":7,"traffic":{"9":[100,200]}}}]}`)
-	batch, err := decodeTelemetryBatch(payload)
-	if err != nil {
+	var batch TelemetryBatch
+	if err := json.Unmarshal(payload, &batch); err != nil {
+		t.Fatal(err)
+	}
+	if err := batch.validate(); err != nil {
 		t.Fatal(err)
 	}
 	if len(batch.Events) != 1 || batch.Events[0].Type != "node.telemetry" || batch.Events[0].NodeID != 12 {
@@ -25,7 +28,7 @@ func TestDecodeTelemetryBatch(t *testing.T) {
 }
 
 func TestDecodeTelemetryBatchRejectsMissingEvents(t *testing.T) {
-	if _, err := decodeTelemetryBatch(json.RawMessage(`{}`)); err == nil {
+	if err := (TelemetryBatch{}).validate(); err == nil {
 		t.Fatal("expected missing events error")
 	}
 }

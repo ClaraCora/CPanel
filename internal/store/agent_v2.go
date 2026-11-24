@@ -53,56 +53,59 @@ func (s *Store) AgentIdentity(ctx context.Context, machineID string) (AgentIdent
 	return identity, err
 }
 
-func (s *Store) EnrollAgentIdentity(ctx context.Context, machineID string, publicKey ed25519.PublicKey, enrollmentHash []byte) (bool, error) {
+func (s *Store) EnrollAgentIdentity(ctx context.Context, machineID string, publicKey ed25519.PublicKey, enrollmentHash []byte) (time.Time, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
-		return false, err
+		return time.Time{}, err
 	}
 	defer tx.Rollback(ctx)
 
 	var machine string
 	if err := tx.QueryRow(ctx, `SELECT id FROM machines WHERE id=$1 AND status NOT IN ('disabled','archived') FOR UPDATE`, machineID).Scan(&machine); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return false, ErrNotFound
+			return time.Time{}, ErrNotFound
 		}
-		return false, err
+		return time.Time{}, err
 	}
 	consumed, err := tx.Exec(ctx, `DELETE FROM agent_enrollment_credentials WHERE machine_id=$1 AND token_hash=$2 AND expires_at>now()`, machineID, enrollmentHash)
 	if err != nil {
-		return false, err
+		return time.Time{}, err
 	}
 	if consumed.RowsAffected() != 1 {
-		return false, ErrNotFound
+		return time.Time{}, ErrNotFound
 	}
 
 	var existing []byte
+	var enrolledAt time.Time
 	err = tx.QueryRow(ctx, `SELECT public_key FROM agent_identities WHERE machine_id=$1 FOR UPDATE`, machineID).Scan(&existing)
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
-		if _, err := tx.Exec(ctx, `INSERT INTO agent_identities(machine_id,public_key) VALUES($1,$2)`, machineID, []byte(publicKey)); err != nil {
-			return false, mapError(err)
+		if err := tx.QueryRow(ctx, `INSERT INTO agent_identities(machine_id,public_key) VALUES($1,$2) RETURNING enrolled_at`, machineID, []byte(publicKey)).Scan(&enrolledAt); err != nil {
+			return time.Time{}, mapError(err)
 		}
 	case err != nil:
-		return false, err
+		return time.Time{}, err
 	default:
-		return false, ErrConflict
+		return time.Time{}, ErrConflict
 	}
 	if _, err := tx.Exec(ctx, `UPDATE machines SET agent_protocol='v2',updated_at=now() WHERE id=$1`, machineID); err != nil {
-		return false, err
+		return time.Time{}, err
 	}
 	if _, err := tx.Exec(ctx, `UPDATE machine_credentials SET revoked_at=now() WHERE machine_id=$1 AND revoked_at IS NULL`, machineID); err != nil {
-		return false, err
+		return time.Time{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return false, err
+		return time.Time{}, err
 	}
-	return true, nil
+	return enrolledAt, nil
 }
 
-func (s *Store) AgentMachineByID(ctx context.Context, machineID string) (domain.AgentMachine, error) {
+func (s *Store) AgentSessionMachine(ctx context.Context, machineID string, publicKey ed25519.PublicKey, enrolledAt time.Time) (domain.AgentMachine, error) {
 	var machine domain.AgentMachine
-	err := s.pool.QueryRow(ctx, `SELECT id,name,status,kernel_type,'v2',capabilities FROM machines
-		WHERE id=$1 AND status NOT IN ('disabled','archived')`, machineID).Scan(
+	err := s.pool.QueryRow(ctx, `SELECT m.id,m.name,m.status,m.kernel_type,'v2',m.capabilities
+		FROM machines m JOIN agent_identities i ON i.machine_id=m.id
+		WHERE m.id=$1 AND m.status NOT IN ('disabled','archived')
+		  AND i.status='active' AND i.public_key=$2 AND i.enrolled_at=$3`, machineID, []byte(publicKey), enrolledAt).Scan(
 		&machine.ID, &machine.Name, &machine.Status, &machine.KernelType, &machine.TokenID, &machine.Capabilities,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -111,13 +114,21 @@ func (s *Store) AgentMachineByID(ctx context.Context, machineID string) (domain.
 	return machine, err
 }
 
-func (s *Store) TouchAgentV2(ctx context.Context, machineID string) error {
-	_, err := s.pool.Exec(ctx, `UPDATE agent_identities SET last_seen_at=now() WHERE machine_id=$1 AND status='active'`, machineID)
-	if err != nil {
-		return err
+// Lock the machine before its identity, in the same order as registration and
+// reset. Both last-seen timestamps belong to one verified enrollment.
+func (s *Store) TouchAgentV2(ctx context.Context, machineID string, publicKey ed25519.PublicKey, enrolledAt time.Time) error {
+	tag, err := s.pool.Exec(ctx, `WITH available AS (
+		SELECT id FROM machines WHERE id=$1 AND status NOT IN ('disabled','archived') FOR NO KEY UPDATE
+	), seen AS (
+		UPDATE agent_identities i SET last_seen_at=now() FROM available m
+		WHERE i.machine_id=m.id AND i.status='active' AND i.public_key=$2 AND i.enrolled_at=$3
+		RETURNING i.machine_id
+	)
+	UPDATE machines m SET agent_protocol='v2',agent_v2_last_seen_at=now(),updated_at=now()
+	FROM seen WHERE m.id=seen.machine_id`, machineID, []byte(publicKey), enrolledAt)
+	if err == nil && tag.RowsAffected() == 0 {
+		return ErrNotFound
 	}
-	_, err = s.pool.Exec(ctx, `UPDATE machines SET agent_protocol='v2',agent_v2_last_seen_at=now(),updated_at=now()
-		WHERE id=$1 AND status NOT IN ('disabled','archived')`, machineID)
 	return err
 }
 

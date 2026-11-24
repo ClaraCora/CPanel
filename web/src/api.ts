@@ -1,8 +1,6 @@
-import { demoNodes, demoResource, demoSession } from "./mock";
 import { ApiError, adminSessionExpired, demoMode, getCsrfToken, notifyAdminSessionExpired, trackProtectedRequest } from "./auth";
 import { mutationHeaders, type MutationOptions } from "./mutations";
 import type { Envelope } from "./types";
-import { demoNodeRevisions, recordDemoNodeRevision, restoreDemoNodeRevision } from "./demoNodeHistory";
 
 export { ApiError, demoMode } from "./auth";
 
@@ -58,7 +56,7 @@ function wirePathname(path: string): string {
 }
 
 async function request<T>(path: string, init: RequestInit = {}, receiveMeta?: (meta: Envelope<T>["meta"]) => void): Promise<T> {
-  if (demoMode) { receiveMeta?.({ request_id: "demo", config_version: 1 }); return demoRequest<T>(path, init); }
+  if (demoMode) { receiveMeta?.({ request_id: "demo", config_version: 1 }); return (await import("./mock")).demoRequest<T>(path, init); }
   if (adminSessionExpired()) throw new ApiError(401, { code: "ADMIN_SESSION_INVALID", message: "请重新登录后继续操作；编辑内容仍保留在当前页面" });
   const headers = new Headers(init.headers);
   if (init.body) headers.set("Content-Type", "application/json");
@@ -75,14 +73,17 @@ async function request<T>(path: string, init: RequestInit = {}, receiveMeta?: (m
   }, requestTimeoutMs);
   try {
     const response = await fetch(`${base}${wirePath(path)}`, { ...init, headers, credentials: "same-origin", signal: controller.signal });
+    if (response.status === 401) {
+      // Keep this response readable while cancelling the other session requests.
+      untrack();
+      notifyAdminSessionExpired();
+    }
     const contentType = response.headers.get("content-type") ?? "";
     if (!contentType.includes("application/json")) {
-      if (response.status === 401) { untrack(); notifyAdminSessionExpired(); }
       throw new ApiError(response.status, { code: "INVALID_RESPONSE", message: response.ok ? "服务返回了无法识别的响应" : `服务请求失败（${response.status}）` }, response.headers.get("X-Request-ID") ?? "");
     }
     const payload = (await response.json()) as Envelope<T>;
     receiveMeta?.(payload.meta ?? { request_id: response.headers.get("X-Request-ID") || "" });
-    if (response.status === 401) { untrack(); notifyAdminSessionExpired(); }
     if (!response.ok || payload.error) {
       throw new ApiError(response.status, payload.error ?? { code: "REQUEST_FAILED", message: "请求失败，请稍后重试" }, payload.meta?.request_id || response.headers.get("X-Request-ID") || "");
     }
@@ -98,81 +99,6 @@ async function request<T>(path: string, init: RequestInit = {}, receiveMeta?: (m
     untrack();
     init.signal?.removeEventListener("abort", abortFromCaller);
   }
-}
-
-async function demoRequest<T>(path: string, init: RequestInit): Promise<T> {
-  await new Promise((resolve) => window.setTimeout(resolve, 120));
-  const method = init.method ?? "GET";
-  const cleanPath = path.split("?", 1)[0];
-  if (cleanPath === "/sessions" && method === "POST") return demoSession as T;
-  if (cleanPath === "/sessions/current" && method === "DELETE") return { logged_out: true } as T;
-  if (cleanPath === "/account/profile" && method === "PATCH") {
-    const input = JSON.parse(String(init.body));
-    demoSession.admin = { ...demoSession.admin, ...input };
-    return demoSession.admin as T;
-  }
-	if (cleanPath === "/account/password" && method === "PATCH") return { password_updated: true, other_sessions_revoked: 0 } as T;
-	if (cleanPath === "/settings/tgbot/test" && method === "POST") return { sent: true } as T;
-	if (cleanPath === "/user-access-ips/location" && method === "POST") {
-		const input = JSON.parse(String(init.body));
-		return { ip_address: input.ip_address, cached: false, location: { scope: "public", country_code: "CN", country: "中国", province: "广东省", city: "深圳", isp: "中国电信", resolved_at: new Date().toISOString() } } as T;
-	}
-	if (cleanPath.startsWith("/users/") && cleanPath.endsWith("/portal") && method === "POST") return { grant: "demo-portal-grant", expires_at: new Date(Date.now() + 90_000).toISOString() } as T;
-  const revisionMatch = cleanPath.match(/^\/nodes\/([^/]+)\/(revisions|restore)$/);
-  if (revisionMatch) {
-    const index = demoNodes.findIndex((node) => node.id === decodeURIComponent(revisionMatch[1]));
-    if (index < 0) throw new ApiError(404, { code: "NOT_FOUND", message: "节点不存在" });
-    const node = demoNodes[index];
-    if (method === "GET" && revisionMatch[2] === "revisions") return demoNodeRevisions(node) as T;
-    if (method === "POST" && revisionMatch[2] === "restore") {
-      if (new Headers(init.headers).get("If-Match") !== `"${node.config_version}"`) throw new ApiError(409, { code: "CONFIG_VERSION_CONFLICT", message: "配置已被修改，请重新加载后再恢复" });
-      const restored = restoreDemoNodeRevision(node, Number(JSON.parse(String(init.body)).revision));
-      if (!restored) throw new ApiError(409, { code: "NODE_REVISION_INCOMPLETE", message: "此版本缺少完整快照，只能查看" });
-      demoNodes[index] = restored;
-      return restored as T;
-    }
-  }
-	if (method === "GET") {
-		const viewMatch = path.match(/^\/history\?view=(traffic|machines|nodes|devices)/);
-		if (viewMatch) {
-			const history = demoResource("/history") as { traffic?: unknown[]; machine_metrics?: unknown[]; node_metrics?: unknown[]; devices?: unknown[] };
-			const source = viewMatch[1] === "traffic" ? history.traffic : viewMatch[1] === "machines" ? history.machine_metrics : viewMatch[1] === "nodes" ? history.node_metrics : history.devices;
-			const items = Array.isArray(source) ? source : [];
-			return { view: viewMatch[1], items, page: 1, page_size: items.length || 50, total: items.length, has_more: false } as T;
-		}
-		return demoResource(cleanPath) as T;
-	}
-  if (cleanPath === "/nodes" && method === "POST") {
-    const input = JSON.parse(String(init.body));
-    const item = { ...demoNodes[0], ...input, id: `nod_demo_${Date.now()}`, agent_id: Date.now() % 100000, machine_name: "演示服务器", status: "draft", current_revision: 0, applied_revision: 0, config_version: 1, has_draft: false, apply_status: "", apply_stage: "", last_error: "" };
-    demoNodes.unshift(item);
-    return item as T;
-  }
-  if (cleanPath.startsWith("/nodes/") && method === "PATCH") {
-    const id = cleanPath.split("/")[2];
-    const index = demoNodes.findIndex((item) => item.id === id);
-    if (index < 0) throw new ApiError(404, { code: "NOT_FOUND", message: "节点不存在" });
-    demoNodeRevisions(demoNodes[index]);
-    const input = JSON.parse(String(init.body));
-    demoNodes[index] = { ...demoNodes[index], ...input, status: input.status ?? (demoNodes[index].status === "published" ? "published" : "draft"), has_draft: !input.status, config_version: (demoNodes[index].config_version ?? 1) + 1, updated_at: new Date().toISOString() };
-    return demoNodes[index] as T;
-  }
-  if (cleanPath.endsWith("/publish") && method === "POST") {
-    const id = cleanPath.split("/")[2];
-    const item = demoNodes.find((node) => node.id === id)!;
-    if (!item) throw new ApiError(404, { code: "NOT_FOUND", message: "节点不存在" });
-    demoNodeRevisions(item);
-    item.status = "published";
-    item.current_revision += 1;
-    item.config_version = (item.config_version ?? 1) + 1;
-    item.has_draft = false;
-    item.apply_status = ""; item.apply_stage = ""; item.last_error = "";
-    recordDemoNodeRevision(item);
-    return item as T;
-  }
-  const resource = cleanPath.split("/")[1];
-  const input = init.body ? JSON.parse(String(init.body)) : {};
-  return { ...input, id: `${resource}_${Date.now()}`, status: "active", created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as T;
 }
 
 export const api = {

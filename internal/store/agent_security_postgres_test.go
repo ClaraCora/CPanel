@@ -141,10 +141,32 @@ func TestAgentCredentialsCannotCrossMachinesOrDowngradeV2Postgres(t *testing.T) 
 	if _, err := s.AuthenticateSharedAgent(ctx, "mch_legacy", shared); err != nil {
 		t.Fatalf("unmigrated legacy machine lost compatibility: %v", err)
 	}
+	if _, err := s.pool.Exec(ctx, `UPDATE settings SET value='true'::jsonb WHERE section='agent' AND key='allow_legacy_protocol'`); err != nil {
+		t.Fatal(err)
+	}
+	legacyMachine := domain.AgentMachine{ID: "mch_legacy", TokenID: "shared"}
+	if !s.LegacyAgentStreamAllowed(ctx, legacyMachine, shared) {
+		t.Fatal("active shared stream credential rejected")
+	}
+	individual, err := s.CreateMachineCredential(ctx, legacyMachine.ID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokenHash := auth.HashSecret(individual.Token)
+	individualMachine, err := s.AuthenticateAgent(ctx, tokenHash)
+	if err != nil || !s.LegacyAgentStreamAllowed(ctx, individualMachine, tokenHash) {
+		t.Fatalf("valid machine stream credential rejected: %v", err)
+	}
+	if _, err := s.pool.Exec(ctx, `UPDATE machine_credentials SET revoked_at=now() WHERE id=$1`, individualMachine.TokenID); err != nil {
+		t.Fatal(err)
+	}
+	if s.LegacyAgentStreamAllowed(ctx, individualMachine, tokenHash) {
+		t.Fatal("stream retained a revoked machine credential")
+	}
 	if _, err := s.pool.Exec(ctx, `UPDATE settings SET value='"invalid"'::jsonb WHERE section='agent' AND key='allow_legacy_protocol'`); err != nil {
 		t.Fatal(err)
 	}
-	if s.LegacyAgentAllowed(ctx) {
+	if s.LegacyAgentAllowed(ctx) || s.LegacyAgentStreamAllowed(ctx, legacyMachine, shared) {
 		t.Fatal("malformed legacy setting failed open")
 	}
 	if _, err := s.pool.Exec(ctx, `DELETE FROM settings WHERE section='agent' AND key='allow_legacy_protocol'`); err != nil {

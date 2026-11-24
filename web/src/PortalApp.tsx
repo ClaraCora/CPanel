@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState, type FormEvent } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from "react";
 import { Eye, EyeOff, TriangleAlert } from "lucide-react";
 import { ApiError, demoMode, portalSessionExpiredEvent } from "./auth";
 import { portalApi } from "./portalApi";
@@ -12,23 +12,33 @@ export default function PortalApp() {
   const [session, setSession] = useState<PortalSession | null>(null);
   const [checking, setChecking] = useState(!demoMode);
   const [entryError, setEntryError] = useState("");
+  const bootstrap = useRef<{ request: Promise<PortalSession>; delegated: boolean } | null>(null);
 
   useEffect(() => {
     let active = true;
-    const grant = new URLSearchParams(window.location.search).get("grant");
-    const bootstrap = grant ? portalApi.redeem(grant) : portalApi.current();
-    bootstrap.then((value) => {
+    // A grant is single-use. StrictMode can replay the effect while it is pending.
+    if (!bootstrap.current) {
+      const grant = new URLSearchParams(window.location.hash.slice(1)).get("grant")
+        || new URLSearchParams(window.location.search).get("grant");
+      if (grant) window.history.replaceState(null, "", "/edu");
+      bootstrap.current = { request: grant ? portalApi.redeem(grant) : portalApi.current(), delegated: Boolean(grant) };
+    }
+    const { request, delegated } = bootstrap.current;
+    request.then((value) => {
       if (!active) return;
       setSession(value);
-      if (grant) window.history.replaceState(null, "", "/edu");
     }).catch((reason) => {
       if (!active) return;
       setSession(null);
-      if (grant) {
+      if (delegated) {
         setEntryError(reason instanceof ApiError ? reason.message : "管理员授权已失效，请返回后台重新进入");
-        window.history.replaceState(null, "", "/edu");
       }
-    }).finally(() => { if (active) setChecking(false); });
+    }).finally(() => {
+      if (active) {
+        bootstrap.current = null;
+        setChecking(false);
+      }
+    });
     return () => { active = false; };
   }, []);
 

@@ -22,7 +22,7 @@ describe("admin API session handling", () => {
     expect(expired).toHaveBeenCalledTimes(1);
   });
 
-  it("reads a streamed 401 error and request ID before aborting other protected requests", async () => {
+  it("keeps the streamed 401 error and request ID readable after expiring the session", async () => {
     let signal: AbortSignal | null | undefined;
     vi.mocked(fetch).mockImplementation(async (_url, init) => {
       signal = init?.signal;
@@ -35,6 +35,15 @@ describe("admin API session handling", () => {
     });
     await expect(api.patch("/machines/mch", {})).rejects.toMatchObject({ status: 401, code: "ADMIN_SESSION_INVALID", requestId: "stream-request" });
     expect(signal?.aborted).toBe(false);
+  });
+
+  it("expires the session even if the 401 JSON body is incomplete", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response("{", { status: 401, headers: { "Content-Type": "application/json" } }));
+    const expired = vi.fn();
+    window.addEventListener(adminSessionExpiredEvent, expired, { once: true });
+    await expect(api.get("/overview")).rejects.toThrow();
+    expect(expired).toHaveBeenCalledTimes(1);
+    await expect(api.get("/overview")).rejects.toMatchObject({ status: 401 });
   });
 
   it("preserves metadata and sends idempotency and optimistic edit headers", async () => {

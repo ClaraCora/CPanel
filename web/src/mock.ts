@@ -1,3 +1,5 @@
+import { ApiError } from "./auth";
+import { demoNodeRevisions, recordDemoNodeRevision, restoreDemoNodeRevision } from "./demoNodeHistory";
 import type {
   AccessGroup,
   HistoricalData,
@@ -6,6 +8,8 @@ import type {
   Outbound,
   Overview,
   Plan,
+  PortalDashboard,
+  PortalSession,
   RoutePolicy,
   Session,
   Setting,
@@ -144,4 +148,97 @@ export function demoResource(path: string): unknown {
 // Demo records use the same optimistic edit contract as real resources.
 for (const records of [demoMachines, demoNodes, demoGroups, demoPlans, demoUsers, demoRoutes, demoOutbounds]) {
   for (const record of records) record.config_version ??= 1;
+}
+
+export const demoPortalSession: PortalSession = {
+  user: { id: "usr_1001", name: "li.ming", email: "li.ming@example.com", role: "user", status: "active" },
+  csrf_token: "csrf_portal_demo",
+  expires_at: new Date(Date.now() + 86_400_000).toISOString(),
+  read_only: false,
+};
+
+export const demoPortalDashboard: PortalDashboard = {
+  id: "usr_1001", name: "li.ming", role: "user", email: "li.ming@example.com", plan_name: "标准套餐", status: "active",
+  traffic_used_bytes: 1_792_000_000, traffic_limit_bytes: 1_099_511_627_776, traffic_reset_at: "2026-09-01T00:00:00+08:00", expires_at: "2030-12-31T16:00:00Z",
+  speed_limit_mbps: 0, device_limit: 0, subscription_url: "https://cpanel.example/ca/x/cps_demo_subscription_token",
+  nodes: [
+    { name: "Neburst-HK", entry_name: "香港入口", protocol: "vless", status: "online", uri: "vless://demo-user@hk.example.com:443?encryption=none&security=reality&type=tcp#Neburst-HK" },
+    { name: "V.PS-JP", entry_name: "东京入口", protocol: "vless", status: "online", uri: "vless://demo-user@jp.example.com:443?encryption=none&security=reality&type=tcp#V.PS-JP" },
+    { name: "BAGE-SG", entry_name: "新加坡入口", protocol: "shadowsocks", status: "online", uri: "ss://demo@sg.example.com:443#BAGE-SG" },
+  ],
+};
+
+export async function demoRequest<T>(path: string, init: RequestInit): Promise<T> {
+  await new Promise((resolve) => window.setTimeout(resolve, 120));
+  const method = init.method ?? "GET";
+  const cleanPath = path.split("?", 1)[0];
+  if (cleanPath === "/sessions" && method === "POST") return demoSession as T;
+  if (cleanPath === "/sessions/current" && method === "DELETE") return { logged_out: true } as T;
+  if (cleanPath === "/account/profile" && method === "PATCH") {
+    const input = JSON.parse(String(init.body));
+    demoSession.admin = { ...demoSession.admin, ...input };
+    return demoSession.admin as T;
+  }
+	if (cleanPath === "/account/password" && method === "PATCH") return { password_updated: true, other_sessions_revoked: 0 } as T;
+	if (cleanPath === "/settings/tgbot/test" && method === "POST") return { sent: true } as T;
+	if (cleanPath === "/user-access-ips/location" && method === "POST") {
+		const input = JSON.parse(String(init.body));
+		return { ip_address: input.ip_address, cached: false, location: { scope: "public", country_code: "CN", country: "中国", province: "广东省", city: "深圳", isp: "中国电信", resolved_at: new Date().toISOString() } } as T;
+	}
+	if (cleanPath.startsWith("/users/") && cleanPath.endsWith("/portal") && method === "POST") return { grant: "demo-portal-grant", expires_at: new Date(Date.now() + 90_000).toISOString() } as T;
+  const revisionMatch = cleanPath.match(/^\/nodes\/([^/]+)\/(revisions|restore)$/);
+  if (revisionMatch) {
+    const index = demoNodes.findIndex((node) => node.id === decodeURIComponent(revisionMatch[1]));
+    if (index < 0) throw new ApiError(404, { code: "NOT_FOUND", message: "节点不存在" });
+    const node = demoNodes[index];
+    if (method === "GET" && revisionMatch[2] === "revisions") return demoNodeRevisions(node) as T;
+    if (method === "POST" && revisionMatch[2] === "restore") {
+      if (new Headers(init.headers).get("If-Match") !== `"${node.config_version}"`) throw new ApiError(409, { code: "CONFIG_VERSION_CONFLICT", message: "配置已被修改，请重新加载后再恢复" });
+      const restored = restoreDemoNodeRevision(node, Number(JSON.parse(String(init.body)).revision));
+      if (!restored) throw new ApiError(409, { code: "NODE_REVISION_INCOMPLETE", message: "此版本缺少完整快照，只能查看" });
+      demoNodes[index] = restored;
+      return restored as T;
+    }
+  }
+	if (method === "GET") {
+		const viewMatch = path.match(/^\/history\?view=(traffic|machines|nodes|devices)/);
+		if (viewMatch) {
+			const history = demoResource("/history") as { traffic?: unknown[]; machine_metrics?: unknown[]; node_metrics?: unknown[]; devices?: unknown[] };
+			const source = viewMatch[1] === "traffic" ? history.traffic : viewMatch[1] === "machines" ? history.machine_metrics : viewMatch[1] === "nodes" ? history.node_metrics : history.devices;
+			const items = Array.isArray(source) ? source : [];
+			return { view: viewMatch[1], items, page: 1, page_size: items.length || 50, total: items.length, has_more: false } as T;
+		}
+		return demoResource(cleanPath) as T;
+	}
+  if (cleanPath === "/nodes" && method === "POST") {
+    const input = JSON.parse(String(init.body));
+    const item = { ...demoNodes[0], ...input, id: `nod_demo_${Date.now()}`, agent_id: Date.now() % 100000, machine_name: "演示服务器", status: "draft", current_revision: 0, applied_revision: 0, config_version: 1, has_draft: false, apply_status: "", apply_stage: "", last_error: "" };
+    demoNodes.unshift(item);
+    return item as T;
+  }
+  if (cleanPath.startsWith("/nodes/") && method === "PATCH") {
+    const id = cleanPath.split("/")[2];
+    const index = demoNodes.findIndex((item) => item.id === id);
+    if (index < 0) throw new ApiError(404, { code: "NOT_FOUND", message: "节点不存在" });
+    demoNodeRevisions(demoNodes[index]);
+    const input = JSON.parse(String(init.body));
+    demoNodes[index] = { ...demoNodes[index], ...input, status: input.status ?? (demoNodes[index].status === "published" ? "published" : "draft"), has_draft: !input.status, config_version: (demoNodes[index].config_version ?? 1) + 1, updated_at: new Date().toISOString() };
+    return demoNodes[index] as T;
+  }
+  if (cleanPath.endsWith("/publish") && method === "POST") {
+    const id = cleanPath.split("/")[2];
+    const item = demoNodes.find((node) => node.id === id)!;
+    if (!item) throw new ApiError(404, { code: "NOT_FOUND", message: "节点不存在" });
+    demoNodeRevisions(item);
+    item.status = "published";
+    item.current_revision += 1;
+    item.config_version = (item.config_version ?? 1) + 1;
+    item.has_draft = false;
+    item.apply_status = ""; item.apply_stage = ""; item.last_error = "";
+    recordDemoNodeRevision(item);
+    return item as T;
+  }
+  const resource = cleanPath.split("/")[1];
+  const input = init.body ? JSON.parse(String(init.body)) : {};
+  return { ...input, id: `${resource}_${Date.now()}`, status: "active", created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as T;
 }

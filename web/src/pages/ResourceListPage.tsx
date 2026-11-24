@@ -127,7 +127,7 @@ export function ResourceListPage<T extends Resource>({ title, description, endpo
 		try {
 			const result = await api.post<{ grant: string }>(`${endpoint}/${item.id}/portal`);
 			if (popup.closed) throw new Error("订阅窗口已关闭，请重新打开。");
-			popup.location.replace(`/edu?grant=${encodeURIComponent(result.grant)}`);
+			popup.location.replace(`/edu#grant=${encodeURIComponent(result.grant)}`);
 		} catch (reason) {
 			popup.close();
 			toast(reason instanceof ApiError ? reason : requestErrorMessage(reason, "订阅页面打开失败，请重试"), "error");

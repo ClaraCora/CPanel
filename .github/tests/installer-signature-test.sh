@@ -80,3 +80,6 @@ fixture; printf 'v9.8.6\n' >"${fixture_dir}/agent-version.txt"; reject corrupt-v
 fixture; cat "${fixture_dir}/release-manifest.sha256" >>"${test_root}/duplicate"; cat "${test_root}/duplicate" >>"${fixture_dir}/release-manifest.sha256"; sign_manifest; reject duplicate-entry
 fixture; printf '%064d  ../outside\n' 0 >>"${fixture_dir}/release-manifest.sha256"; sign_manifest; reject path-traversal
 echo 'Signed installer tests passed: valid assets, transport, trust anchor, version, tampering, missing/wrong signature, duplicate and traversal.'
+if grep -q '^upgrade_panel()' "$installer"; then
+  bash "$(dirname "$0")/panel-upgrade-test.sh" "$installer"
+fi

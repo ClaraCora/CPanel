@@ -1,10 +1,12 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import { StrictMode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderResource } from "../test/renderResource";
 import { api } from "../api";
 import { portalApi } from "../portalApi";
-import { demoOutbounds, demoRoutes, demoSettings } from "../mock";
-import PortalDashboardPage, { demoPortalDashboard } from "../PortalDashboardPage";
+import { demoPortalDashboard, demoOutbounds, demoRoutes, demoSettings } from "../mock";
+import PortalDashboardPage from "../PortalDashboardPage";
+import PortalApp from "../PortalApp";
 import { OutboundsPage, RoutesPage } from "./ResourcePages";
 import { SettingsPage, SubscriptionPage } from "./SettingsPage";
 
@@ -68,6 +70,20 @@ describe("Clear A operations safeguards", () => {
     fireEvent.click(screen.getByRole("button", { name: "安全" }));
     fireEvent.click(screen.getByRole("button", { name: "站点" }));
     expect((screen.getByLabelText("平台名称") as HTMLInputElement).value).toBe("未保存草稿");
+  });
+
+  it.each(["/edu#grant=single-use", "/edu?grant=single-use"])("redeems the grant in %s once across StrictMode effect replays", async (url) => {
+    history.replaceState({}, "", url);
+    const redeem = vi.spyOn(portalApi, "redeem").mockResolvedValue({
+      user: { id: "u", name: "user", email: null, role: "user", status: "active" },
+      csrf_token: "test", expires_at: "2030-01-01", read_only: true,
+    });
+    vi.spyOn(portalApi, "dashboard").mockResolvedValue(demoPortalDashboard);
+    render(<StrictMode><PortalApp /></StrictMode>);
+    expect(location.search).toBe("");
+    expect(location.hash).toBe("");
+    await screen.findByRole("heading", { name: "账户中心" });
+    expect(redeem).toHaveBeenCalledExactlyOnceWith("single-use");
   });
 
   it("keeps delegated portal access read only while retaining copy actions", async () => {

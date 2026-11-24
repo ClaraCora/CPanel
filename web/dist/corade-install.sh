@@ -23,7 +23,10 @@ HEALTH_PORT="65530"
 BINARY_SOURCE=""
 VERSION="latest"
 INIT_SYSTEM=""
-CLI_REPLACED=0
+SWITCHING=0
+LOCKED=0
+SWAP_DIR=""
+LOCK_DIR="/run/lock/corade-offline-upgrade.lock"
 RELEASE_PUBLIC_KEY_FILE=""
 
 usage() {
@@ -99,13 +102,6 @@ service_file_exists() {
   esac
 }
 
-service_stop() {
-  case "$INIT_SYSTEM" in
-    systemd) systemctl stop "$SYSTEMD_SERVICE_NAME" ;;
-    openrc) rc-service "$SERVICE_NAME" stop ;;
-  esac
-}
-
 service_reload_manager() {
   if [ "$INIT_SYSTEM" = "systemd" ]; then
     systemctl daemon-reload
@@ -149,13 +145,13 @@ case "$(uname -m)" in
   *) fail "unsupported architecture: $(uname -m)" ;;
 esac
 
+umask 077
 TMP_DIR=$(mktemp -d)
-trap 'rm -rf -- "$TMP_DIR"' EXIT HUP INT TERM
+trap 'rm -rf -- "$TMP_DIR"' EXIT
+trap 'exit 130' HUP INT TERM
 STAGED_BINARY="${TMP_DIR}/corade"
 STAGED_CLI="${TMP_DIR}/coradectl"
 STAGED_OPENRC_SERVICE="${TMP_DIR}/corade.openrc"
-PREVIOUS_BINARY="${TMP_DIR}/corade.previous"
-PREVIOUS_CLI="${TMP_DIR}/coradectl.previous"
 AGENT_ARTIFACT="corade-linux-${ARCH}"
 CLI_ARTIFACT="coradectl-linux-${ARCH}"
 
@@ -255,7 +251,7 @@ stage_artifacts() {
 service_is_healthy() {
   service_is_active || return 1
   if [ "$HEALTH_PORT" != "0" ]; then
-    curl --fail --silent "http://127.0.0.1:${HEALTH_PORT}/healthz" >/dev/null 2>&1 || return 1
+    curl --noproxy '*' --connect-timeout 1 --max-time 2 --fail --silent "http://127.0.0.1:${HEALTH_PORT}/healthz" >/dev/null 2>&1 || return 1
   fi
 }
 
@@ -279,58 +275,83 @@ copy_with_mode() {
   chmod "$mode" "$destination" || return 1
 }
 
-restore_previous_version() {
-  restored=0
-  if [ -f "$PREVIOUS_BINARY" ]; then
-    copy_with_mode "$PREVIOUS_BINARY" "$BINARY_PATH" 755
+acquire_install_lock() {
+  mkdir -p "$(dirname "$LOCK_DIR")"
+  mkdir "$LOCK_DIR" 2>/dev/null || fail "another Corade installation or upgrade may be running: $LOCK_DIR"
+  LOCKED=1
+  printf '%s\n' "$$" >"$LOCK_DIR/pid"
+}
+
+finish_install() {
+  code=$?
+  trap - EXIT
+  trap '' HUP INT TERM
+  set +e
+  if [ "$SWITCHING" = 1 ]; then
     restored=1
+    mv -f "$SWAP_DIR/corade.previous" "$BINARY_PATH" || restored=0
+    if [ -f "$SWAP_DIR/coradectl.previous" ]; then
+      mv -f "$SWAP_DIR/coradectl.previous" "$CLI_PATH" || restored=0
+    elif [ -f "$STAGED_CLI" ]; then
+      rm -f "$CLI_PATH" || restored=0
+    fi
+    if [ "$restored" = 1 ] && service_restart && wait_until_healthy; then
+      log "restored the previous Agent and verified its health"
+    else
+      log "automatic recovery incomplete; inspect the service logs and staging directory: $SWAP_DIR" >&2
+      SWAP_DIR=""
+    fi
+    code=1
   fi
-  if [ "$CLI_REPLACED" -eq 1 ] && [ -f "$PREVIOUS_CLI" ]; then
-    copy_with_mode "$PREVIOUS_CLI" "$CLI_PATH" 755 || return 1
-  fi
-  [ "$restored" -eq 1 ] || return 1
-  service_reload_manager || true
-  service_restart || return 1
-  wait_until_healthy
+  if [ -n "$SWAP_DIR" ]; then rm -rf -- "$SWAP_DIR"; fi
+  if [ "$LOCKED" = 1 ]; then rm -f "$LOCK_DIR/pid"; rmdir "$LOCK_DIR"; fi
+  rm -rf -- "$TMP_DIR"
+  exit "$code"
 }
 
 install_artifacts_and_restart() {
-  if [ -f "$BINARY_PATH" ]; then
-    cp "$BINARY_PATH" "$PREVIOUS_BINARY"
-  fi
-  if [ -f "$STAGED_CLI" ] && [ -f "$CLI_PATH" ]; then
-    cp "$CLI_PATH" "$PREVIOUS_CLI"
-  fi
-
-  service_stop >/dev/null 2>&1 || true
-  copy_with_mode "$STAGED_BINARY" "$BINARY_PATH" 755
+  # Stage on the destination filesystem so a full disk or failed copy cannot
+  # truncate a live executable. The running process keeps its original inode.
+  SWAP_DIR=$(mktemp -d "$(dirname "$BINARY_PATH")/.corade-install-XXXXXX")
+  copy_with_mode "$STAGED_BINARY" "$SWAP_DIR/corade" 755
   if [ -f "$STAGED_CLI" ]; then
-    copy_with_mode "$STAGED_CLI" "$CLI_PATH" 755
-    CLI_REPLACED=1
+    copy_with_mode "$STAGED_CLI" "$SWAP_DIR/coradectl" 755
+    if [ -f "$CLI_PATH" ]; then cp -p "$CLI_PATH" "$SWAP_DIR/coradectl.previous"; fi
   fi
-  service_reload_manager
-  service_enable >/dev/null
-  service_restart
-  if wait_until_healthy; then
+  if [ -f "$BINARY_PATH" ]; then
+    cp -p "$BINARY_PATH" "$SWAP_DIR/corade.previous"
+    SWITCHING=1
+  fi
+  mv -f "$SWAP_DIR/corade" "$BINARY_PATH"
+  if [ -f "$STAGED_CLI" ]; then mv -f "$SWAP_DIR/coradectl" "$CLI_PATH"; fi
+  if [ "$ACTION" = install ]; then
+    service_reload_manager
+    service_enable >/dev/null
+  fi
+  if service_restart && wait_until_healthy; then
+    SWITCHING=0
     return
   fi
-
   print_service_logs
-  if [ -f "$PREVIOUS_BINARY" ]; then
-    log "new Agent did not become healthy; restoring the previous version"
-    if restore_previous_version; then
-      fail "Agent did not become healthy; the previous version was restored"
-    fi
-    fail "Agent did not become healthy and automatic rollback failed"
-  fi
-  fail "Agent did not become healthy"
+  fail "new Agent did not become healthy"
 }
 
+trap finish_install EXIT
 if [ "$ACTION" = "upgrade" ]; then
   [ -f "$CONFIG_FILE" ] && [ -f "$ENV_FILE" ] && service_file_exists || fail "Corade is not installed; run install first"
-  HEALTH_PORT=$(awk '/^[[:space:]]*health_port:/ {print $2; exit}' "$CONFIG_FILE")
-  HEALTH_PORT=${HEALTH_PORT:-65530}
   stage_artifacts
+  acquire_install_lock
+  if [ -x "$STAGED_CLI" ]; then
+    HEALTH_PORT=$("$STAGED_CLI" config health-port --config "$CONFIG_FILE") || fail "cannot read the existing health configuration"
+  elif [ -x "$CLI_PATH" ] && HEALTH_PORT=$("$CLI_PATH" config health-port --config "$CONFIG_FILE"); then
+    :
+  else
+    # --binary also supports installations without coradectl.
+    HEALTH_PORT=$(awk '/^[[:space:]]*health_port:/ {print $2; exit}' "$CONFIG_FILE")
+  fi
+  HEALTH_PORT=${HEALTH_PORT:-0}
+  case "$HEALTH_PORT" in *[!0-9]*) fail "invalid configured health port" ;; esac
+  [ "$HEALTH_PORT" -le 65535 ] || fail "invalid configured health port"
   install_artifacts_and_restart
   log "upgrade completed"
   log "service manager: ${INIT_SYSTEM}"
@@ -350,9 +371,11 @@ if [ -n "$PANEL_PUBLIC_KEY" ]; then
 fi
 case "$COMMUNICATION_KEY" in *[!A-Za-z0-9_+/=-]*) fail "communication key contains unsupported characters" ;; esac
 case "$HEALTH_PORT" in *[!0-9]*|'') fail "health port must be a number" ;; esac
+[ "$HEALTH_PORT" -le 65535 ] || fail "health port must be between 0 and 65535"
 case "$KERNEL_TYPE" in singbox|xray) ;; *) fail "kernel must be singbox or xray" ;; esac
 
 stage_artifacts
+acquire_install_lock
 mkdir -p "$CONFIG_DIR"
 if [ -f "$CONFIG_FILE" ]; then
   cp "$CONFIG_FILE" "${CONFIG_FILE}.backup.$(date +%Y%m%d%H%M%S)"
@@ -409,7 +432,7 @@ EOF
 else
   mkdir -p "$OPENRC_LOG_DIR"
   chmod 750 "$OPENRC_LOG_DIR"
-  : > "$OPENRC_LOG_FILE"
+  : >> "$OPENRC_LOG_FILE"
   chmod 640 "$OPENRC_LOG_FILE"
   cat >"$STAGED_OPENRC_SERVICE" <<EOF
 #!/sbin/openrc-run

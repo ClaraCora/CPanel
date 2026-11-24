@@ -6,17 +6,6 @@ const requestTimeoutMs = 15_000;
 let csrfToken = "";
 const demoReadOnly = demoMode && new URLSearchParams(window.location.search).get("readonly") === "1";
 
-const demoSession: PortalSession = {
-  user: { id: "usr_1001", name: "li.ming", email: "li.ming@example.com", role: "user", status: "active" },
-  csrf_token: "csrf_portal_demo",
-  expires_at: new Date(Date.now() + 86_400_000).toISOString(),
-  read_only: false,
-};
-
-function demoPortalSession(): PortalSession {
-  return demoReadOnly ? { ...demoSession, read_only: true, delegated_by_name: "演示管理员" } : demoSession;
-}
-
 async function request<T>(path: string, init: RequestInit = {}, requiresSession = false): Promise<T> {
   if (demoMode) return demoRequest<T>(path, init);
   const headers = new Headers(init.headers);
@@ -62,15 +51,13 @@ function expirePortalSession() {
 
 async function demoRequest<T>(path: string, init: RequestInit): Promise<T> {
   await new Promise((resolve) => window.setTimeout(resolve, 120));
+  const { demoPortalDashboard, demoPortalSession } = await import("./mock");
   const method = init.method ?? "GET";
-  if (path === "/zl") {
-    const { demoPortalDashboard } = await import("./PortalDashboardPage");
-    return demoPortalDashboard as T;
-  }
+  if (path === "/zl") return demoPortalDashboard as T;
   if (path === "/tc") return { logged_out: true } as T;
   if (path === "/dy" && method === "POST") return { url: "https://example.invalid/ca/x/demo-renewed" } as T;
   if (path === "/mm" && method === "PATCH") return { password_updated: true, other_sessions_revoked: 0 } as T;
-  return demoPortalSession() as T;
+  return (demoReadOnly ? { ...demoPortalSession, read_only: true, delegated_by_name: "演示管理员" } : demoPortalSession) as T;
 }
 
 export const portalApi = {

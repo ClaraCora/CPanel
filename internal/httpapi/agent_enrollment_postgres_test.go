@@ -99,7 +99,7 @@ func TestAgentEnrollmentHandshakeLifecyclePostgres(t *testing.T) {
 		}
 		return h
 	}
-	accept := func(h *agentv2.ClientHandshake) {
+	accept := func(h *agentv2.ClientHandshake) string {
 		t.Helper()
 		response, err := service.acceptHandshake(ctx, h.Request, time.Now())
 		if err != nil {
@@ -108,13 +108,14 @@ func TestAgentEnrollmentHandshakeLifecyclePostgres(t *testing.T) {
 		if _, err := h.Complete(response, pin); err != nil {
 			t.Fatal(err)
 		}
+		return response.SessionID
 	}
 	token := issue("mch_handshake_a", time.Now().Add(time.Minute))
 	issue("mch_handshake_b", time.Now().Add(time.Minute))
 	if _, err := service.acceptHandshake(ctx, handshake("mch_handshake_b", token, false).Request, time.Now()); err == nil {
 		t.Fatal("machine A enrollment credential authenticated machine B")
 	}
-	accept(handshake("mch_handshake_a", token, false))
+	oldEnrollment := accept(handshake("mch_handshake_a", token, false))
 	if _, _, err := s.AgentEnrollmentCredential(ctx, "mch_handshake_a"); !errors.Is(err, store.ErrNotFound) {
 		t.Fatalf("one-use credential not consumed: %v", err)
 	}
@@ -122,7 +123,7 @@ func TestAgentEnrollmentHandshakeLifecyclePostgres(t *testing.T) {
 		t.Fatal("consumed enrollment proof accepted again")
 	}
 	connect := handshake("mch_handshake_a", "", true)
-	accept(connect)
+	beforeReset := accept(connect)
 	if _, err := service.acceptHandshake(ctx, connect.Request, time.Now()); err == nil {
 		t.Fatal("signed handshake replay accepted")
 	}
@@ -131,7 +132,10 @@ func TestAgentEnrollmentHandshakeLifecyclePostgres(t *testing.T) {
 	if err := s.ResetAgentIdentity(ctx, "mch_handshake_a"); err != nil {
 		t.Fatal(err)
 	}
-	service.deleteMachineSessions("mch_handshake_a")
+	// A different panel process resetting the database cannot clear this cache.
+	if _, err := service.sessionByID(ctx, beforeReset, time.Now()); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("reset session validation: %v", err)
+	}
 	if _, err := service.acceptHandshake(ctx, handshake("mch_handshake_a", token, false).Request, time.Now()); err == nil {
 		t.Fatal("reset revived a consumed bootstrap credential")
 	}
@@ -140,10 +144,27 @@ func TestAgentEnrollmentHandshakeLifecyclePostgres(t *testing.T) {
 		t.Fatal("expired registration accepted")
 	}
 	fresh := issue("mch_handshake_a", time.Now().Add(time.Minute))
-	accept(handshake("mch_handshake_a", fresh, false))
+	afterReset := accept(handshake("mch_handshake_a", fresh, false))
+	if _, err := service.sessionByID(ctx, oldEnrollment, time.Now()); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("old enrollment after re-registering the same key: %v", err)
+	}
+	if _, err := service.sessionByID(ctx, afterReset, time.Now()); err != nil {
+		t.Fatalf("fresh enrollment session: %v", err)
+	}
 	accept(handshake("mch_handshake_a", "", true))
 	identity, err := s.AgentIdentity(ctx, "mch_handshake_a")
 	if err != nil || !ed25519.PublicKey(identity.PublicKey).Equal(public) {
 		t.Fatalf("identity did not persist: %v", err)
+	}
+}
+
+func TestAgentSessionSweepKeepsActiveSessions(t *testing.T) {
+	service := newAgentV2Service(nil, nil)
+	now := time.Now()
+	service.rememberSession("old", agentV2SessionRecord{expiresAt: now.Add(agentV2SessionTTL)}, now)
+	service.rememberSession("active", agentV2SessionRecord{expiresAt: now.Add(2 * agentV2SessionTTL)}, now)
+	service.rememberSession("new", agentV2SessionRecord{expiresAt: now.Add(2 * agentV2SessionTTL)}, now.Add(agentV2SessionTTL))
+	if _, ok := service.sessions["old"]; ok || len(service.sessions) != 2 {
+		t.Fatalf("session cache after expiry: %v", service.sessions)
 	}
 }

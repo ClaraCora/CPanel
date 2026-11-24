@@ -44,3 +44,17 @@ func TestAgentNodeSpecPayloadKeepsIdentitySeparateFromSettings(t *testing.T) {
 		t.Fatalf("unexpected settings or intervals: %+v", decoded)
 	}
 }
+
+func TestAgentV2TelemetryBatchPreservesLegacyPayloads(t *testing.T) {
+	var events []agentV2TelemetryEvent
+	if err := json.Unmarshal([]byte(`[{"lx":"node.telemetry","jdbh":2,"fssj":"when","sj":{"traffic":{"1":[2,3]}}},{"lx":"ignored"}]`), &events); err != nil {
+		t.Fatal(err)
+	}
+	items := agentV2TelemetryBatch(events).Events
+	if len(items) != 2 || items[0].Type != "node.telemetry" || items[0].NodeID != 2 || items[0].OccurredAt != "when" || string(items[0].Data) != `{"traffic":{"1":[2,3]}}` {
+		t.Fatalf("unexpected events: %+v", items)
+	}
+	if string(items[1].Data) != "null" || agentV2TelemetryBatch(nil).Events == nil {
+		t.Fatal("missing event data or empty event list changed representation")
+	}
+}

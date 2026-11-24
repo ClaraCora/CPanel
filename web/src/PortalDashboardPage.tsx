@@ -5,17 +5,6 @@ import { portalApi } from "./portalApi";
 import { ThemeToggle } from "./components/ThemeToggle";
 import type { PortalDashboard, PortalSession } from "./types";
 
-export const demoPortalDashboard: PortalDashboard = {
-  id: "usr_1001", name: "li.ming", role: "user", email: "li.ming@example.com", plan_name: "标准套餐", status: "active",
-  traffic_used_bytes: 1_792_000_000, traffic_limit_bytes: 1_099_511_627_776, traffic_reset_at: "2026-09-01T00:00:00+08:00", expires_at: "2030-12-31T16:00:00Z",
-  speed_limit_mbps: 0, device_limit: 0, subscription_url: "https://cpanel.example/ca/x/cps_demo_subscription_token",
-  nodes: [
-    { name: "Neburst-HK", entry_name: "香港入口", protocol: "vless", status: "online", uri: "vless://demo-user@hk.example.com:443?encryption=none&security=reality&type=tcp#Neburst-HK" },
-    { name: "V.PS-JP", entry_name: "东京入口", protocol: "vless", status: "online", uri: "vless://demo-user@jp.example.com:443?encryption=none&security=reality&type=tcp#V.PS-JP" },
-    { name: "BAGE-SG", entry_name: "新加坡入口", protocol: "shadowsocks", status: "online", uri: "ss://demo@sg.example.com:443#BAGE-SG" },
-  ],
-};
-
 export default function PortalDashboardPage({ session, onLogout }: { session: PortalSession; onLogout: () => void }) {
   const [dashboard, setDashboard] = useState<PortalDashboard | null>(null);
   const [loading, setLoading] = useState(true);

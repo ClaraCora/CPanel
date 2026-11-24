@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Route } from "wouter";
 import { ApiError, api } from "../api";
 import { AdminNavigation } from "../components/AdminNavigation";
-import { demoMachines, demoNodes, demoPlans, demoUsers, demoUserAccessIPs, demoSettings } from "../mock";
+import { demoPortalDashboard, demoMachines, demoNodes, demoPlans, demoUsers, demoUserAccessIPs, demoSettings } from "../mock";
 import { MachinesPage, UsersPage } from "./ResourcePages";
 import { NodesPage } from "./NodesPage";
 import { UserAccessIPsPage } from "./UserAccessIPsPage";
@@ -11,7 +11,7 @@ import { AuditPage } from "./AuditPage";
 import { ToastProvider } from "../components/ui";
 import { agentUpgradeState, canRequestUpgrade, upgradeStateLabel } from "../resourceModel";
 import { SubscriptionPage } from "./SettingsPage";
-import PortalDashboardPage, { demoPortalDashboard } from "../PortalDashboardPage";
+import PortalDashboardPage from "../PortalDashboardPage";
 import { portalApi } from "../portalApi";
 
 beforeEach(() => {
@@ -200,7 +200,7 @@ describe("portal popup recovery", () => {
     expect(popup.opener).toBeNull();
     expect(replace).not.toHaveBeenCalled();
     await act(async () => resolve({ grant: "one-time-grant" }));
-    expect(replace).toHaveBeenCalledWith("/edu?grant=one-time-grant");
+    expect(replace).toHaveBeenCalledWith("/edu#grant=one-time-grant");
   });
 
   it("explains a blocked popup and does not issue an unused grant", async () => {

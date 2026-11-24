@@ -16,6 +16,14 @@ import (
 )
 
 func (s *Store) AuthenticateAgent(ctx context.Context, tokenHash []byte) (domain.AgentMachine, error) {
+	machine, err := s.lookupAgentCredential(ctx, tokenHash)
+	if err == nil {
+		_, _ = s.pool.Exec(ctx, "UPDATE machine_credentials SET last_used_at=now() WHERE id=$1", machine.TokenID)
+	}
+	return machine, err
+}
+
+func (s *Store) lookupAgentCredential(ctx context.Context, tokenHash []byte) (domain.AgentMachine, error) {
 	var machine domain.AgentMachine
 	err := s.pool.QueryRow(ctx, `
 		SELECT m.id,m.name,m.status,m.kernel_type,c.id,m.capabilities
@@ -28,11 +36,7 @@ func (s *Store) AuthenticateAgent(ctx context.Context, tokenHash []byte) (domain
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.AgentMachine{}, ErrNotFound
 	}
-	if err != nil {
-		return domain.AgentMachine{}, err
-	}
-	_, _ = s.pool.Exec(ctx, "UPDATE machine_credentials SET last_used_at=now() WHERE id=$1", machine.TokenID)
-	return machine, nil
+	return machine, err
 }
 
 func (s *Store) AuthenticateSharedAgent(ctx context.Context, machineID string, tokenHash []byte) (domain.AgentMachine, error) {
@@ -49,6 +53,20 @@ func (s *Store) AuthenticateSharedAgent(ctx context.Context, machineID string, t
 		return domain.AgentMachine{}, ErrNotFound
 	}
 	return machine, err
+}
+
+// Recheck the credential that opened a legacy stream before delivering another
+// response. A long-lived socket may outlive a token, machine or protocol change.
+func (s *Store) LegacyAgentStreamAllowed(ctx context.Context, original domain.AgentMachine, tokenHash []byte) bool {
+	if !s.LegacyAgentAllowed(ctx) {
+		return false
+	}
+	if original.TokenID == "shared" {
+		_, err := s.AuthenticateSharedAgent(ctx, original.ID, tokenHash)
+		return err == nil
+	}
+	machine, err := s.lookupAgentCredential(ctx, tokenHash)
+	return err == nil && machine.ID == original.ID && machine.TokenID == original.TokenID
 }
 
 func (s *Store) AgentNodes(ctx context.Context, machineID string) ([]domain.AgentNode, error) {
@@ -585,8 +603,15 @@ func normalizeAgentVersionForComparison(value string) string {
 }
 
 func (s *Store) RecordTelemetryBatch(ctx context.Context, machineID, idempotencyKey string, payload json.RawMessage) (bool, error) {
-	batch, err := decodeTelemetryBatch(payload)
-	if err != nil {
+	var batch TelemetryBatch
+	if err := json.Unmarshal(payload, &batch); err != nil {
+		return false, fmt.Errorf("decode telemetry batch: %w", err)
+	}
+	return s.RecordTelemetryEvents(ctx, machineID, idempotencyKey, batch)
+}
+
+func (s *Store) RecordTelemetryEvents(ctx context.Context, machineID, idempotencyKey string, batch TelemetryBatch) (bool, error) {
+	if err := batch.validate(); err != nil {
 		return false, err
 	}
 	trafficLocation := loadTrafficLocation(s.SettingString(ctx, "site", "timezone", "Asia/Shanghai"))
@@ -596,12 +621,11 @@ func (s *Store) RecordTelemetryBatch(ctx context.Context, machineID, idempotency
 		return false, err
 	}
 	defer tx.Rollback(ctx)
-	tag, err := tx.Exec(ctx, `INSERT INTO telemetry_batches(machine_id,idempotency_key)
-		VALUES($1,$2) ON CONFLICT DO NOTHING`, machineID, idempotencyKey)
-	if err != nil {
+	var created bool
+	if err := tx.QueryRow(ctx, `SELECT claim_telemetry_batch($1,$2)`, machineID, idempotencyKey).Scan(&created); err != nil {
 		return false, err
 	}
-	if tag.RowsAffected() == 0 {
+	if !created {
 		return false, nil
 	}
 	// Device snapshots are point-in-time reports. Expire entries only after the
@@ -636,7 +660,7 @@ func (s *Store) RecordTelemetryBatch(ctx context.Context, machineID, idempotency
 	return true, tx.Commit(ctx)
 }
 
-func lockTelemetryNodes(ctx context.Context, tx pgx.Tx, machineID string, batch telemetryBatch) error {
+func lockTelemetryNodes(ctx context.Context, tx pgx.Tx, machineID string, batch TelemetryBatch) error {
 	ids := make([]int64, 0, len(batch.Events))
 	for _, event := range batch.Events {
 		if event.NodeID > 0 {
@@ -663,7 +687,7 @@ func lockTelemetryNodes(ctx context.Context, tx pgx.Tx, machineID string, batch 
 	return rows.Err()
 }
 
-func lockTelemetryDeviceUsers(ctx context.Context, tx pgx.Tx, batch telemetryBatch) error {
+func lockTelemetryDeviceUsers(ctx context.Context, tx pgx.Tx, batch TelemetryBatch) error {
 	agentIDs := make(map[int64]bool)
 	for _, event := range batch.Events {
 		var reported map[string]bool
@@ -718,11 +742,11 @@ func lockTelemetryDeviceUsers(ctx context.Context, tx pgx.Tx, batch telemetryBat
 	return rows.Err()
 }
 
-type telemetryBatch struct {
-	Events []telemetryEvent `json:"events"`
+type TelemetryBatch struct {
+	Events []TelemetryEvent `json:"events"`
 }
 
-type telemetryEvent struct {
+type TelemetryEvent struct {
 	Type       string          `json:"type"`
 	NodeID     int64           `json:"node_id"`
 	OccurredAt string          `json:"occurred_at"`
@@ -743,23 +767,19 @@ type deviceUserReport struct {
 	Addresses []string
 }
 
-func decodeTelemetryBatch(payload json.RawMessage) (telemetryBatch, error) {
-	var batch telemetryBatch
-	if err := json.Unmarshal(payload, &batch); err != nil {
-		return telemetryBatch{}, fmt.Errorf("decode telemetry batch: %w", err)
-	}
+func (batch TelemetryBatch) validate() error {
 	if batch.Events == nil {
-		return telemetryBatch{}, fmt.Errorf("telemetry events are required")
+		return fmt.Errorf("telemetry events are required")
 	}
 	for index, event := range batch.Events {
 		if event.Type == "" {
-			return telemetryBatch{}, fmt.Errorf("telemetry event %d type is required", index)
+			return fmt.Errorf("telemetry event %d type is required", index)
 		}
 		if event.NodeID < 0 {
-			return telemetryBatch{}, fmt.Errorf("telemetry event %d node_id is invalid", index)
+			return fmt.Errorf("telemetry event %d node_id is invalid", index)
 		}
 	}
-	return batch, nil
+	return nil
 }
 
 const (
@@ -802,7 +822,7 @@ func telemetryDay(sampledAt time.Time, location *time.Location) string {
 	return sampledAt.In(location).Format(time.DateOnly)
 }
 
-func recordNodeTelemetry(ctx context.Context, tx pgx.Tx, machineID string, event telemetryEvent, trafficLocation *time.Location) error {
+func recordNodeTelemetry(ctx context.Context, tx pgx.Tx, machineID string, event TelemetryEvent, trafficLocation *time.Location) error {
 	if event.NodeID <= 0 {
 		return fmt.Errorf("node telemetry node_id is required")
 	}
@@ -839,7 +859,7 @@ func recordNodeTelemetry(ctx context.Context, tx pgx.Tx, machineID string, event
 	return nil
 }
 
-func recordNodeDevices(ctx context.Context, tx pgx.Tx, machineID string, event telemetryEvent, offlineThreshold time.Duration) error {
+func recordNodeDevices(ctx context.Context, tx pgx.Tx, machineID string, event TelemetryEvent, offlineThreshold time.Duration) error {
 	if event.NodeID <= 0 {
 		return fmt.Errorf("node devices node_id is required")
 	}

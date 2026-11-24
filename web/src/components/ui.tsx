@@ -286,28 +286,41 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
 export const useToast = () => useContext(ToastContext);
 
+// Lists format the same units and date styles for every row and on each poll.
+let byteFormatter: Intl.NumberFormat | undefined;
+let largeByteFormatter: Intl.NumberFormat | undefined;
+let shortDate: Intl.DateTimeFormat | undefined;
+let preciseDate: Intl.DateTimeFormat | undefined;
+let fullDate: Intl.DateTimeFormat | undefined;
+
 export function formatBytes(value: number) {
   if (!Number.isFinite(value) || value <= 0) return "0 B";
   const units = ["B", "KB", "MB", "GB", "TB", "PB"];
   const index = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
-  return `${(value / 1024 ** index).toLocaleString("zh-CN", { maximumFractionDigits: index > 2 ? 2 : 1 })} ${units[index]}`;
+  const formatter = index > 2
+    ? (largeByteFormatter ??= new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 }))
+    : (byteFormatter ??= new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 1 }));
+  return `${formatter.format(value / 1024 ** index)} ${units[index]}`;
 }
 
 export function formatDate(value: string | null | undefined) {
-  return formatDateValue(value, { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  shortDate ??= new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  return formatDateValue(value, shortDate);
 }
 
 export function formatPreciseDate(value: string | null | undefined) {
-  return formatDateValue(value, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
+  preciseDate ??= new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
+  return formatDateValue(value, preciseDate);
 }
 
 export function formatDateWithYear(value: string | null | undefined) {
-  return formatDateValue(value, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  fullDate ??= new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  return formatDateValue(value, fullDate);
 }
 
-function formatDateValue(value: string | null | undefined, options: Intl.DateTimeFormatOptions) {
+function formatDateValue(value: string | null | undefined, formatter: Intl.DateTimeFormat) {
   if (!value) return "从未";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "时间无效";
-  return new Intl.DateTimeFormat("zh-CN", options).format(date);
+  return formatter.format(date);
 }

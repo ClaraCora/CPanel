@@ -1,3 +1,4 @@
+import "../editor-layout.css";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   ArrowLeft,
@@ -263,7 +264,7 @@ function NodeEditor() {
       </div>
     );
   return (
-    <div className="page page--editor resource-page operations-page admin-node-editor">
+    <div className="page page--editor resource-page operations-page admin-node-editor editor-workspace">
       <div className="back-row">
         <Link to={returnTo}>
           <ArrowLeft size={16} />
@@ -282,6 +283,7 @@ function NodeEditor() {
         }
       />
       <div className="editor-layout node-editor-layout"><nav className="editor-section-nav" aria-label="节点编辑章节">
+        <h2 className="editor-index-title">编辑目录</h2>
         <button type="button" aria-current={activeSection === "node-endpoints" ? "location" : undefined} onClick={() => { setActiveSection("node-endpoints"); document.getElementById("node-endpoints")?.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" }); }}>节点入口</button>
         <button type="button" aria-current={activeSection === "node-basics" ? "location" : undefined} onClick={() => { setActiveSection("node-basics"); document.getElementById("node-basics")?.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" }); }}>基础信息</button>
         <button type="button" aria-current={activeSection === "node-listener" ? "location" : undefined} onClick={() => { setActiveSection("node-listener"); document.getElementById("node-listener")?.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" }); }}>协议与监听</button>

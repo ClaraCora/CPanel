@@ -1,10 +1,11 @@
-import { Redirect, Route, Switch } from "wouter";
+import { Link, Redirect, Route, Switch } from "wouter";
 import { demoMode } from "./auth";
 import { AdminNavigation } from "./components/AdminNavigation";
 import { AdminThemeProvider } from "./components/AdminTheme";
 import "./admin-console.css";
+import "./console-layout.css";
 import { AppShell } from "./components/AppShell";
-import { EmptyState, ToastProvider } from "./components/ui";
+import { ToastProvider } from "./components/ui";
 import {
   AccessGroupsPage,
   MachinesPage,
@@ -69,7 +70,12 @@ export default function AuthenticatedApp({
             <Route path="/audit" component={AuditPage} />
             <Route path="/404">
               <div className="page">
-                <EmptyState title="页面不存在" description="该地址没有对应的管理页面。" />
+                <section className="missing-page">
+                  <strong aria-hidden="true">404</strong>
+                  <div><h1>页面不存在</h1><p>该地址没有对应的管理页面。</p>
+                    <nav aria-label="可访问的页面"><Link to="/">返回总览</Link><Link to="/machines">服务器</Link><Link to="/nodes">节点</Link></nav>
+                  </div>
+                </section>
               </div>
             </Route>
             <Route>

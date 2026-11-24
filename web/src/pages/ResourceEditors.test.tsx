@@ -66,6 +66,17 @@ describe("standalone resource editors", () => {
     expect(new URLSearchParams(location.search).get("q")).toBe("标准");
   });
 
+  it("updates the account review without mirroring the portal password or subscription identity", async () => {
+    open(UsersPage, "/users", `/${demoUsers[0].id}/edit`);
+    const form = await screen.findByRole("form");
+    fireEvent.change(within(form).getByLabelText(/账号名称/), { target: { value: "当前草稿" } });
+    fireEvent.change(within(form).getByLabelText(/门户密码/), { target: { value: "private-portal-value" } });
+    const summary = screen.getByRole("complementary", { name: "配置摘要" });
+    expect(within(summary).getByText("当前草稿")).toBeTruthy();
+    expect(summary.innerHTML).not.toContain("private-portal-value");
+    expect(summary.innerHTML).not.toContain(demoUsers[0].uuid);
+  });
+
   it("creates a user without requiring the edit-only UUID", async () => {
     vi.spyOn(api, "post").mockResolvedValue(demoUsers[0]);
     open(UsersPage, "/users", "/new");

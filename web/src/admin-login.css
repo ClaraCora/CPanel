@@ -1,0 +1,30 @@
+/* Administrator sign-in is also used when an editing session expires. */
+html:root[data-theme] .login-page.admin-login-workspace {
+  --login-canvas: #f2f5fb; --login-panel: #fff; --login-ink: #182442; --login-muted: #54637e;
+  --login-line: #b7c3d6; --login-brand: #4855b8; --login-on-brand: #fff;
+  display: grid; place-items: center; min-height: 100dvh; padding: 48px 18px;
+  background: radial-gradient(ellipse at 100% 0,#e3e9fc,transparent 53%),var(--login-canvas);
+}
+html:root[data-theme=dark] .login-page.admin-login-workspace {
+  --login-canvas: #121829; --login-panel: #1c2438; --login-ink: #e7edfc; --login-muted: #b2bdd4;
+  --login-line: #51617b; --login-brand: #b4bcff; --login-on-brand: #1b224c;
+  background: radial-gradient(ellipse at 100% 0,#212f4c,transparent 53%),var(--login-canvas);
+}
+html:root[data-theme] :is(.login-page.admin-login-workspace) .login-panel {
+  width: min(100%,390px); min-height: 0; margin: 0; padding: 27px;
+  color: var(--login-ink); background: var(--login-panel); border: 1px solid var(--login-line);
+  border-top: 4px solid var(--login-brand); border-radius: 11px; box-shadow: 0 12px 36px #151e3b16;
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+html:root[data-theme] .login-page.admin-login-workspace .login-panel::before { display: none; }
+html:root[data-theme] .login-page.admin-login-workspace .login-copy { margin: 18px 0; }
+html:root[data-theme] .login-page.admin-login-workspace :is(.login-copy h1,.login-brand strong,.field__label) { color: var(--login-ink); }
+html:root[data-theme] .login-page.admin-login-workspace :is(.login-copy p,.login-panel footer,.login-brand div>span,.password-toggle,.input-with-icon>svg) { color: var(--login-muted); }
+html:root[data-theme] .login-page.admin-login-workspace :is(.login-brand,.login-panel footer) { border-color: var(--login-line); }
+html:root[data-theme] .login-page.admin-login-workspace .login-panel footer { text-align: start; }
+html:root[data-theme] .login-page.admin-login-workspace .input-with-icon input { border: 1px solid var(--login-line); color: var(--login-ink); background: var(--login-panel); box-shadow: none; }
+html:root[data-theme] .login-page.admin-login-workspace .input-with-icon input:focus { border-color: var(--login-brand); outline: 2px solid var(--login-brand); outline-offset: 1px; }
+html:root[data-theme] .login-page.admin-login-workspace :is(.button--primary,.brand__mark) { color: var(--login-on-brand); background: var(--login-brand); border-color: var(--login-brand); box-shadow: none; }
+@media(max-width: 440px) {
+  html:root[data-theme] .login-page.admin-login-workspace .login-panel { padding: 24px 20px; }
+}

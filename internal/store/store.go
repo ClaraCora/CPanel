@@ -30,6 +30,8 @@ var (
 	ErrMachineUnavailable           = errors.New("machine is unavailable")
 	ErrNodePortInUse                = errors.New("node port is already in use")
 	ErrAgentNotConnected            = errors.New("agent has not connected")
+	ErrAgentAlreadyNewer            = errors.New("installed Agent version is newer than target")
+	ErrAgentReleaseChanged          = errors.New("agent release has changed")
 	ErrAgentAlreadyLatest           = errors.New("agent is already latest")
 	ErrAgentUpgradePending          = errors.New("agent upgrade is pending")
 	ErrSubscriptionTokenUnavailable = errors.New("subscription token unavailable")

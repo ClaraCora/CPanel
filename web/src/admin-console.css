@@ -287,7 +287,7 @@ html[data-admin-theme] body { margin: 0; min-width: 320px; background: var(--sur
 .admin-console .operation-detail-list dt { color: var(--secondary); }
 .admin-console .operation-detail-list dd { margin: 0; overflow-wrap: anywhere; }
 .admin-console :is(.row-menu__panel, .confirm-dialog, .detail-dialog) { color: var(--foreground); background: var(--panel); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-overlay); backdrop-filter: none; }
-.admin-console .row-menu__panel { position: fixed; z-index: 220; min-width: 190px; max-width: min(320px, calc(100vw - 24px)); padding: 6px; }
+.admin-console .row-menu__panel { position: fixed; z-index: 220; max-height:calc(100dvh - 16px); overflow-y:auto; overscroll-behavior:contain; min-width: 190px; max-width: min(320px, calc(100vw - 24px)); padding: 6px; }
 .admin-console .row-menu__panel :is(button, a) { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 8px 10px; color: var(--foreground); background: transparent; border: 0; border-radius: 5px; box-shadow: none; font-size: 13px; text-align: left; }
 .admin-console .row-menu__panel :is(button, a):hover { background: var(--hover); }
 .admin-console .row-menu__panel .menu-action--danger { color: var(--danger); }

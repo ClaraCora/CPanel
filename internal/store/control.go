@@ -450,15 +450,38 @@ func (s *Store) RecordMachineHeartbeat(ctx context.Context, machine domain.Agent
 	if len(metrics) == 0 {
 		metrics = json.RawMessage(`{}`)
 	}
-	command, err := tx.Exec(ctx, `UPDATE machines SET status='online',agent_version=$2,kernel_type=$3,
+	var taskID, target, status string
+	err = tx.QueryRow(ctx, `UPDATE machines SET status='online',agent_version=$2,kernel_type=$3,
 		capabilities=$4,last_heartbeat_at=now(),updated_at=now()
-		WHERE id=$1 AND status NOT IN ('disabled','archived')`,
-		machine.ID, version, kernel, capabilities)
+		WHERE id=$1 AND status NOT IN ('disabled','archived')
+		RETURNING COALESCE(agent_upgrade_task_id,''),agent_upgrade_target_version,agent_upgrade_status`, machine.ID, version, kernel, capabilities).Scan(&taskID, &target, &status)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
 	if err != nil {
 		return err
 	}
-	if command.RowsAffected() == 0 {
-		return ErrNotFound
+	// A batch waits for a reported version. Re-enrollment or a manual update
+	// can bring an offline machine to the target before its first command.
+	if taskID != "" && (status == "queued" || status == "acknowledged" || status == "dispatched" || status == "timed_out") {
+		var verified, message string
+		switch {
+		case sameAgentVersion(version, target):
+			verified = "succeeded"
+		case installedAgentIsNewer(version, target):
+			verified = "failed"
+			message = newerAgentMessage
+		}
+		if verified != "" {
+			_, err = tx.Exec(ctx, `UPDATE machines SET agent_upgrade_status=$3,
+				agent_upgrade_completed_at=CASE WHEN $3='succeeded' THEN now() ELSE NULL END,
+				agent_upgrade_failed_at=CASE WHEN $3='failed' THEN now() ELSE NULL END,agent_upgrade_error=$4
+				WHERE id=$1 AND agent_upgrade_task_id=$2 AND EXISTS (
+					SELECT 1 FROM agent_upgrade_batch_items WHERE task_id=$2 AND status IN ('queued','dispatched','acknowledged','timed_out'))`, machine.ID, taskID, verified, message)
+			if err != nil {
+				return err
+			}
+		}
 	}
 	_, err = tx.Exec(ctx, `INSERT INTO machine_metrics(machine_id,sampled_at,metrics) VALUES($1,$2,$3)
 		ON CONFLICT(machine_id) DO UPDATE SET sampled_at=EXCLUDED.sampled_at,metrics=EXCLUDED.metrics`,
@@ -487,7 +510,7 @@ func (s *Store) ClaimMachineAgentUpgrade(ctx context.Context, machineID string) 
 }
 
 // ReportMachineAgentUpgrade records an explicit Agent acknowledgement/result.
-// A normal heartbeat never completes or clears an upgrade task by itself.
+// Repeated Agent acknowledgements and late version-validated results are safe.
 func (s *Store) ReportMachineAgentUpgrade(ctx context.Context, machineID, taskID, status, version, message string) (domain.AgentUpgradeTask, error) {
 	status = strings.ToLower(strings.TrimSpace(status))
 	if status != "acknowledged" && status != "succeeded" && status != "failed" && status != "timed_out" {

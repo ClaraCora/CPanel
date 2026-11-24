@@ -1,0 +1,104 @@
+/* The directory stays in document order ahead of the editable sections. */
+.admin-console .editor-workspace .editor-layout {
+  grid-template-columns: 168px minmax(0, 1fr);
+  gap: 16px;
+}
+.admin-console .editor-workspace .editor-section-nav {
+  padding: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel);
+}
+.admin-console .editor-index-title {
+  margin: 0 0 4px; padding: 6px 8px 10px; border-bottom: 1px solid var(--border);
+  color: var(--secondary); font-size: 12px;
+}
+.admin-console .editor-workspace .editor-fields { gap: 14px; }
+.admin-console .editor-workspace .editor-form { gap: 14px; max-width: none; }
+.admin-console .editor-workspace .form-section { min-width: 0; padding: 0 18px 16px; }
+.admin-console .editor-workspace .form-section__heading {
+  align-items: center; margin: 0 -18px 16px; padding: 11px 18px;
+  border-bottom: 1px solid var(--border); border-radius: 8px 8px 0 0; background: var(--panel-strong);
+}
+.admin-console .editor-workspace .form-section__heading h2 { font-size: 16px; }
+.admin-console .editor-workspace .form-grid { gap: 14px 16px; }
+.admin-console .editor-workspace .field { gap: 5px; }
+.admin-console .editor-workspace .editor-actions { padding: 10px 16px; border: 1px solid var(--border); border-radius: 8px; }
+
+@media (min-width: 1280px) {
+  .admin-console .editor-workspace.resource-editor-page .editor-fields { grid-template-columns: repeat(2,minmax(0,1fr)); align-items:start; }
+  .admin-console .editor-workspace .form-grid--three,
+  .admin-console .editor-workspace.admin-node-editor .form-section > .form-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .admin-console .editor-workspace .form-section:has([data-field-key=rules]) { grid-column: 1 / -1; }
+}
+
+.admin-console .editor-review .editor-layout,
+.admin-console .settings-review .settings-content:not([hidden]) {
+  display: grid; grid-template-columns: minmax(0,1fr) minmax(220px,28%); gap: 0 26px; align-items: start;
+}
+.admin-console .settings-review .settings-layout { grid-template-columns: minmax(0,1fr); gap: 12px; }
+.admin-console .editor-review .editor-section-nav,
+.admin-console .settings-review .settings-nav {
+  grid-column: 1 / -1; position: static; display: flex; flex-flow: row wrap;
+  gap: 5px 18px; align-items: center; padding: 0 0 12px; margin-bottom: 10px;
+  border: 0; border-bottom: 1px solid var(--border);
+}
+.admin-console .editor-review .editor-section-nav button,
+.admin-console .settings-review .settings-nav button {
+  width: auto; padding: 6px 0; flex: 0 0 auto;
+  border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent;
+}
+.admin-console .editor-review .editor-section-nav button[aria-current],
+.admin-console .settings-review .settings-nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+.admin-console .settings-review .settings-context { padding: 0; flex-basis: 100%; }
+.admin-console .editor-review .editor-form { width: 100%; max-width: none; min-width: 0; margin: 0; }
+.admin-console .editor-review .editor-fields { gap: 30px; }
+.admin-console .editor-review .form-section,
+.admin-console .settings-review .settings-content { padding: 0; border: 0; border-radius: 0; background: transparent; overflow: visible; box-shadow: none; }
+.admin-console .editor-review .form-section__heading,
+.admin-console .settings-review .settings-content > header {
+  grid-column: 1; padding: 7px 0 12px; margin: 0;
+  border-bottom: 2px solid var(--border-strong); background: transparent;
+}
+.admin-console .editor-review .form-section__heading h2,
+.admin-console .settings-review .settings-content header h2,
+.admin-console .editor-summary > h2 { font: 700 23px/1.45 "Songti SC","Noto Serif CJK SC",Georgia,serif; }
+.admin-console .editor-review .form-section > .form-grid,
+.admin-console .settings-review .settings-form { grid-template-columns: minmax(0,1fr); gap: 0; padding: 0; }
+.admin-console .settings-review .settings-content > :is(.settings-form,.account-settings) { grid-column: 1; grid-row: 2; min-width: 0; }
+.admin-console .editor-review .form-section > .form-grid > [data-field-key] > .field:not([role=group]),
+.admin-console .settings-review .field {
+  display: grid; grid-template-columns: minmax(108px,28%) minmax(0,1fr); align-items: start; gap: 5px 14px;
+  padding: 11px 0; border-bottom: 1px solid var(--border);
+}
+.admin-console .editor-review [data-field-key] > .field:not([role=group]) > :not(.field__label),
+.admin-console .settings-review .field > :not(.field__label) { grid-column: 2; min-width: 0; }
+.admin-console .editor-review [data-field-key] > .field:not([role=group]) > .field__label,
+.admin-console .settings-review .field > .field__label { grid-column: 1; grid-row: 1; padding-top: 7px; }
+.admin-console .settings-review .account-form__heading { margin: 18px 0 4px; }
+.admin-console .settings-review .settings-form footer { margin: 12px 0 20px; padding-top: 14px; }
+.admin-console .editor-review .editor-actions { position: static; padding: 14px 0; background: transparent; border-top: 2px solid var(--border-strong); }
+.admin-console .editor-summary {
+  position: sticky; top: 16px; grid-column: 2; grid-row: 2; min-width: 0; padding: 15px 18px;
+  border-top: 3px solid var(--foreground); background: var(--panel-strong);
+}
+.admin-console .settings-review .editor-summary { grid-row: 1 / span 2; }
+.admin-console .editor-summary section { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-strong); }
+.admin-console .editor-summary h3 { margin-bottom: 5px; font-size: 13px; color: var(--accent); }
+.admin-console .editor-summary dl { display: grid; grid-template-columns: minmax(66px,.85fr) minmax(0,1fr); gap: 5px 7px; margin: 0; font-size: 12px; }
+.admin-console .editor-summary dt { color: var(--secondary); overflow-wrap:anywhere; }
+.admin-console .editor-summary dd { margin: 0; text-align: end; overflow-wrap: anywhere; font-weight: 550; }
+
+@media (max-width: 900px) {
+  .admin-console .editor-workspace .editor-layout,
+  .admin-console .editor-review .editor-layout,
+  .admin-console .settings-review .settings-content:not([hidden]) { display: flex; flex-direction: column; align-items: stretch; gap: 14px; }
+  .admin-console .editor-workspace .editor-section-nav,
+  .admin-console .editor-review .editor-section-nav,
+  .admin-console .settings-review .settings-nav { position: static; display: flex; flex-direction: row; flex-wrap: wrap; gap: 4px 10px; }
+  .admin-console .editor-index-title { display: none; }
+  .admin-console .editor-summary { position: static; }
+}
+@media (max-width: 600px) {
+  .admin-console .editor-review .form-section > .form-grid > [data-field-key] > .field:not([role=group]),
+  .admin-console .settings-review .field { display: flex; flex-direction: column; align-items: stretch; }
+  .admin-console .editor-review .editor-section-nav button,
+  .admin-console .settings-review .settings-nav button { min-height: 44px; }
+}

@@ -79,6 +79,10 @@ func writeStoreError(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, r, http.StatusConflict, "AGENT_NOT_CONNECTED", "Agent 尚未连接，暂时无法下发升级任务", nil)
 	case errors.Is(err, store.ErrAgentAlreadyLatest):
 		writeError(w, r, http.StatusConflict, "AGENT_ALREADY_LATEST", "Agent 已是最新版本，无需升级", nil)
+	case errors.Is(err, store.ErrAgentAlreadyNewer):
+		writeError(w, r, http.StatusConflict, "AGENT_ALREADY_NEWER", "已安装版本高于目标版本，已停止升级", nil)
+	case errors.Is(err, store.ErrAgentReleaseChanged):
+		writeError(w, r, http.StatusConflict, "AGENT_RELEASE_CHANGED", "Agent 目标版本已更新，请刷新并重新确认", nil)
 	case errors.Is(err, store.ErrAgentUpgradePending):
 		writeError(w, r, http.StatusConflict, "AGENT_UPGRADE_PENDING", "Agent 升级任务正在处理，请等待下一次心跳", nil)
 	case errors.Is(err, store.ErrNotFound):

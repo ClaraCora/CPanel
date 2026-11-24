@@ -36,6 +36,11 @@ function wirePathname(path: string): string {
   if (segments[0] === "settings" && segments[1] === "subscription" && segments[2] === "access-log") return "/sz/dy/jl";
   if (segments[0] === "settings" && segments[1] === "tgbot" && segments[2] === "test") return "/sz/tg/cs";
   if (segments[0] === "settings") return `/sz/${settingPaths[segments[1]] ?? segments[1]}`;
+  if (segments[0] === "agent-upgrade-batches") {
+    if (segments[1] === "latest") return "/sjpc/zx";
+    if (!segments[1]) return "/sjpc";
+    return segments[2] === "machines" && segments[4] === "retry" ? `/sjpc/${segments[1]}/fwq/${segments[3]}/cs` : `/sjpc/${segments[1]}`;
+  }
   const resource = resourcePaths[segments[0]];
   if (!resource) return path;
   const tail = segments.slice(1);

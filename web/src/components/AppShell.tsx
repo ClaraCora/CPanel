@@ -12,15 +12,15 @@ const primary = [
   { to: "/nodes", label: "节点", icon: Boxes },
 ];
 const groups = [
-  { label: "账号与订阅", items: [
+  { label: "账号与订阅", icon: Users, items: [
     { to: "/users", label: "订阅账号", icon: Users },
     { to: "/plans", label: "套餐", icon: ShieldCheck },
     { to: "/access-groups", label: "权限组", icon: Group },
     { to: "/subscription", label: "订阅", icon: Rss },
     { to: "/access-ips", label: "访问 IP", icon: Fingerprint },
   ] },
-  { label: "流量策略", items: [{ to: "/routes", label: "路由策略", icon: Route }, { to: "/outbounds", label: "出站", icon: Waypoints }] },
-  { label: "系统", items: [{ to: "/history", label: "历史数据", icon: History }, { to: "/settings", label: "系统设置", icon: Settings }, { to: "/audit", label: "审计日志", icon: FileClock }] },
+  { label: "流量策略", icon: Route, items: [{ to: "/routes", label: "路由策略", icon: Route }, { to: "/outbounds", label: "出站", icon: Waypoints }] },
+  { label: "系统", icon: Settings, items: [{ to: "/history", label: "历史数据", icon: History }, { to: "/settings", label: "系统设置", icon: Settings }, { to: "/audit", label: "审计日志", icon: FileClock }] },
 ];
 
 export function AppShell({ admin, demo, onLogout, children }: { admin: Admin; demo: boolean; onLogout: () => void; children: ReactNode }) {
@@ -47,8 +47,9 @@ export function AppShell({ admin, demo, onLogout, children }: { admin: Admin; de
       <div className="admin-header__inner">
         <Link to="/" className="admin-brand" aria-label="CPanel 总览"><span className="admin-brand__mark">C</span><strong>CPanel</strong></Link>
         <nav className="admin-desktop-navigation" aria-label="主导航">
-          {primary.map((item) => <Link key={item.to} to={item.to} className={`admin-nav-item ${active(item.to) ? "is-active" : ""}`} aria-current={active(item.to) ? "page" : undefined}>{item.label}</Link>)}
-          {groups.map((group) => <RowMenu key={group.label} label={group.label} triggerClassName={`admin-nav-item ${group.items.some((item) => active(item.to)) ? "is-active" : ""}`} trigger={<>{group.label}<ChevronDown size={14} aria-hidden="true" /></>}>
+          <span className="workspace-nav-label" aria-hidden="true">工作区</span>
+          {primary.map((item) => <Link key={item.to} to={item.to} className={`admin-nav-item ${active(item.to) ? "is-active" : ""}`} aria-current={active(item.to) ? "page" : undefined}><item.icon className="nav-icon" size={17} aria-hidden="true" />{item.label}</Link>)}
+          {groups.map((group) => <RowMenu key={group.label} label={group.label} triggerClassName={`admin-nav-item ${group.items.some((item) => active(item.to)) ? "is-active" : ""}`} trigger={<><group.icon className="nav-icon" size={17} aria-hidden="true" />{group.label}<ChevronDown size={14} aria-hidden="true" /></>}>
             {group.items.map((item) => <Link key={item.to} to={item.to} aria-current={active(item.to) ? "page" : undefined}><item.icon size={16} aria-hidden="true" />{item.label}</Link>)}
           </RowMenu>)}
         </nav>

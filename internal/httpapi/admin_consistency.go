@@ -30,6 +30,9 @@ func consistencyRoute(r *http.Request) adminConsistencyRoute {
 	if len(parts) == 2 && parts[0] == "sz" && allowedSettingSections[settingSectionPaths[parts[1]]] {
 		return adminConsistencyRoute{section: settingSectionPaths[parts[1]], response: true}
 	}
+	if parts[0] == "sjpc" && r.Method == http.MethodPost && (len(parts) == 1 || len(parts) == 5 && parts[2] == "fwq" && parts[4] == "cs") {
+		return adminConsistencyRoute{intent: true}
+	}
 	resource := resources[parts[0]]
 	if resource == "" {
 		return adminConsistencyRoute{}

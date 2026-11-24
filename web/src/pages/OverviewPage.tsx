@@ -1,12 +1,9 @@
+import { OverviewTraffic } from "../components/OverviewTraffic";
 import {
   AlertTriangle,
   ArrowRight,
-  ArrowDownToLine,
-  ArrowUpFromLine,
   Boxes,
   LoaderCircle,
-  Server,
-  Users,
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
@@ -83,39 +80,7 @@ export function OverviewPage() {
         <TableSkeleton columns={4} rows={2} />
       ) : (
         <>
-          <section className="metric-band" aria-label="运行指标">
-            <Metric
-              icon={ArrowUpFromLine}
-              label="今日上传"
-              value={formatBytes(data.traffic_today_upload_bytes)}
-              detail="Agent 已确认流量"
-            />
-            <Metric
-              icon={ArrowDownToLine}
-              label="今日下载"
-              value={formatBytes(data.traffic_today_download_bytes)}
-              detail={`合计 ${formatBytes(data.traffic_today_bytes)}`}
-            />
-            <Metric
-              icon={Server}
-              label="服务器"
-              value={data.machines_total}
-              detail={`${data.machines_online} 在线 / ${data.machines_offline} 离线`}
-              tone={data.machines_offline ? "danger" : "success"}
-            />
-            <Metric
-              icon={Boxes}
-              label="节点"
-              value={data.nodes_total}
-              detail={`${data.nodes_published} 已发布`}
-            />
-            <Metric
-              icon={Users}
-              label="订阅账号"
-              value={data.admins_active + data.users_active + data.friends_active}
-              detail={`${data.admins_active} 管理员 / ${data.users_active} 用户 / ${data.friends_active} 朋友`}
-            />
-          </section>
+          <OverviewTraffic data={data} />
           <section className="ranking-section" aria-labelledby="traffic-ranking-title">
             <div className="section-heading">
               <div>
@@ -210,29 +175,4 @@ export function OverviewPage() {
 
 function TrafficRanking({ title, items, empty }: { title: string; items: TrafficRank[]; empty: string }) {
   return <div className="traffic-ranking"><h3>{title}</h3>{items.length === 0 ? <p className="ranking-empty">{empty}</p> : <div className="table-scroll"><table><thead><tr><th>#</th><th>名称</th><th>上传</th><th>下载</th><th>合计</th></tr></thead><tbody>{items.map((item, index) => <tr key={item.id}><td className="mono">{index + 1}</td><td><strong className="cell-primary">{item.name}</strong></td><td className="mono">{formatBytes(item.upload_bytes)}</td><td className="mono">{formatBytes(item.download_bytes)}</td><td className="mono"><strong>{formatBytes(item.total_bytes)}</strong></td></tr>)}</tbody></table></div>}</div>;
-}
-
-function Metric({
-  icon: Icon,
-  label,
-  value,
-  detail,
-  tone,
-}: {
-  icon: typeof Server;
-  label: string;
-  value: string | number;
-  detail: string;
-  tone?: string;
-}) {
-  return (
-    <div className="metric-item">
-      <Icon size={18} aria-hidden="true" />
-      <div>
-        <span>{label}</span>
-        <strong>{value}</strong>
-        <small className={tone ? `text-${tone}` : ""}>{detail}</small>
-      </div>
-    </div>
-  );
 }

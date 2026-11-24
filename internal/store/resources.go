@@ -29,20 +29,26 @@ func (s *Store) Overview(ctx context.Context, rankingPeriod string) (domain.Over
 			(SELECT count(*) FROM nodes WHERE status = 'published'),
 			(SELECT count(*) FROM users WHERE role='admin' AND status='active'),
 			(SELECT count(*) FROM users WHERE role='user' AND status='active'),
-			(SELECT count(*) FROM users WHERE role='friend' AND status='active'),
-			COALESCE((SELECT sum(upload_bytes) FROM traffic_daily WHERE day=$1::date), 0) +
-			  COALESCE((SELECT sum(upload_bytes) FROM imported_user_traffic_daily WHERE day=$1::date), 0),
-			COALESCE((SELECT sum(download_bytes) FROM traffic_daily WHERE day=$1::date), 0) +
-			  COALESCE((SELECT sum(download_bytes) FROM imported_user_traffic_daily WHERE day=$1::date), 0)
-	`, currentDay.Format(time.DateOnly)).Scan(
+			(SELECT count(*) FROM users WHERE role='friend' AND status='active')
+	`).Scan(
 		&overview.MachinesTotal, &overview.MachinesOnline, &overview.MachinesOffline,
 		&overview.NodesTotal, &overview.NodesPublished, &overview.AdminsActive, &overview.UsersActive,
-		&overview.FriendsActive, &overview.TrafficTodayUpload, &overview.TrafficTodayDownload,
+		&overview.FriendsActive,
 	)
 	if err != nil {
 		return overview, err
 	}
-	overview.TrafficToday = overview.TrafficTodayUpload + overview.TrafficTodayDownload
+	overview.TrafficDay = currentDay.Format(time.DateOnly)
+	overview.TrafficWeek, err = s.listDailyTraffic(ctx, 7, &overview.TrafficDay)
+	if err != nil {
+		return overview, err
+	}
+	if len(overview.TrafficWeek) > 0 && overview.TrafficWeek[0].Day.Format(time.DateOnly) == overview.TrafficDay {
+		today := overview.TrafficWeek[0]
+		overview.TrafficTodayUpload = today.UploadBytes
+		overview.TrafficTodayDownload = today.DownloadBytes
+		overview.TrafficToday = today.UploadBytes + today.DownloadBytes
+	}
 	overview.NodeTrafficRanking, err = s.trafficRanking(ctx, `WITH combined AS (
 		SELECT node_id,upload_bytes,download_bytes FROM traffic_daily
 		WHERE day >= $1::date + $2::int AND day < $1::date + $3::int
@@ -198,10 +204,15 @@ func (s *Store) RequestMachineAgentUpgrade(ctx context.Context, machineID, lates
 	var connected, pending bool
 	var currentVersion string
 	threshold := s.machineOfflineThreshold(ctx)
-	err := s.pool.QueryRow(ctx, `SELECT status='online' AND last_heartbeat_at IS NOT NULL
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return domain.AgentUpgradeTask{}, err
+	}
+	defer tx.Rollback(ctx)
+	err = tx.QueryRow(ctx, `SELECT status='online' AND last_heartbeat_at IS NOT NULL
 		AND last_heartbeat_at >= now() - ($2::bigint * interval '1 second'),
 		agent_version,agent_upgrade_task_id IS NOT NULL AND agent_upgrade_status IN ('queued','dispatched','acknowledged')
-		FROM machines WHERE id=$1 AND status NOT IN ('archived','disabled')`, machineID, int64(threshold/time.Second)).Scan(&connected, &currentVersion, &pending)
+		FROM machines WHERE id=$1 AND status NOT IN ('archived','disabled') FOR UPDATE`, machineID, int64(threshold/time.Second)).Scan(&connected, &currentVersion, &pending)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.AgentUpgradeTask{}, ErrNotFound
 	}
@@ -218,12 +229,10 @@ func (s *Store) RequestMachineAgentUpgrade(ctx context.Context, machineID, lates
 		return domain.AgentUpgradeTask{}, ErrAgentAlreadyLatest
 	}
 	task := domain.AgentUpgradeTask{ID: domain.MustID("upg"), MachineID: machineID, TargetVersion: strings.TrimSpace(latestVersion), Status: "queued"}
-	err = s.pool.QueryRow(ctx, `UPDATE machines SET agent_upgrade_task_id=$2,
-		agent_upgrade_requested_at=now(),agent_upgrade_dispatched_at=NULL,
-		agent_upgrade_target_version=$3,agent_upgrade_status='queued',
-		agent_upgrade_acknowledged_at=NULL,agent_upgrade_completed_at=NULL,
-		agent_upgrade_failed_at=NULL,agent_upgrade_error='',updated_at=now()
-		WHERE id=$1 RETURNING agent_upgrade_requested_at`, machineID, task.ID, task.TargetVersion).Scan(&task.RequestedAt)
+	err = tx.QueryRow(ctx, queueUpgradeSQL+" RETURNING agent_upgrade_requested_at", machineID, task.ID, task.TargetVersion).Scan(&task.RequestedAt)
+	if err == nil {
+		err = tx.Commit(ctx)
+	}
 	return task, err
 }
 

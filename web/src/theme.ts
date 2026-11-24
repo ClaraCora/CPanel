@@ -5,10 +5,6 @@ export type Theme = "dark" | "light";
 const storageKey = window.location.pathname === "/edu" || window.location.pathname === "/edu/" ? "cpanel.portal.theme" : "cpanel.theme";
 const changeEvent = "cpanel:theme-change";
 
-function fallbackTheme(): Theme {
-  return window.location.pathname === "/edu" || window.location.pathname === "/edu/" ? "light" : "dark";
-}
-
 function storedTheme(): Theme | null {
   try {
     const value = window.localStorage.getItem(storageKey);
@@ -20,7 +16,7 @@ function storedTheme(): Theme | null {
 
 export function currentTheme(): Theme {
   const applied = document.documentElement.dataset.theme;
-  return applied === "dark" || applied === "light" ? applied : storedTheme() ?? fallbackTheme();
+  return applied === "dark" || applied === "light" ? applied : storedTheme() ?? "light";
 }
 
 export function applyTheme(theme: Theme, persist = false) {
@@ -38,7 +34,7 @@ export function applyTheme(theme: Theme, persist = false) {
 }
 
 export function initializeTheme() {
-  applyTheme(storedTheme() ?? fallbackTheme());
+  applyTheme(storedTheme() ?? "light");
 }
 
 export function useTheme() {

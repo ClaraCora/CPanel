@@ -16,7 +16,7 @@ func (s *Store) HistoricalData(ctx context.Context) (domain.HistoricalData, erro
 		},
 	}
 	var err error
-	result.Traffic, err = s.listDailyTraffic(ctx, result.Retention.TrafficDays)
+	result.Traffic, err = s.listDailyTraffic(ctx, result.Retention.TrafficDays, nil)
 	if err != nil {
 		return result, err
 	}
@@ -38,15 +38,15 @@ func (s *Store) HistoricalData(ctx context.Context) (domain.HistoricalData, erro
 	return result, err
 }
 
-func (s *Store) listDailyTraffic(ctx context.Context, days int) ([]domain.DailyTraffic, error) {
+func (s *Store) listDailyTraffic(ctx context.Context, days int, endDay *string) ([]domain.DailyTraffic, error) {
 	rows, err := s.pool.Query(ctx, `WITH combined AS (
 		SELECT day,upload_bytes,download_bytes FROM traffic_daily
 		UNION ALL
 		SELECT day,upload_bytes,download_bytes FROM imported_user_traffic_daily
 	)
 	SELECT day,sum(upload_bytes),sum(download_bytes) FROM combined
-	WHERE day >= current_date - ($1::int - 1)
-	GROUP BY day ORDER BY day DESC`, days)
+	WHERE day >= COALESCE($2::date, current_date) - ($1::int - 1) AND ($2::date IS NULL OR day <= $2::date)
+	GROUP BY day ORDER BY day DESC`, days, endDay)
 	if err != nil {
 		return nil, err
 	}

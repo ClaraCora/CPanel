@@ -21,6 +21,10 @@ export function requestErrorMessage(reason: unknown, fallback: string) {
 }
 type AgentUpgradeState = "disconnected" | "pending" | "running" | "latest" | "available" | "unknown";
 export const latestAgentVersion = (item: Resource) => "latest_agent_version" in item && typeof item.latest_agent_version === "string" ? item.latest_agent_version : "";
+export function sameAgentVersion(current: string, target: string) {
+  const base = (value: string) => value.trim().toLowerCase().replace(/^corade-/, "").replace(/^v/, "").split("+", 1)[0];
+  return Boolean(base(current)) && base(current) === base(target);
+}
 export const agentUpgradeState = (item: Resource): AgentUpgradeState => {
   if (!("last_heartbeat_at" in item) || !item.last_heartbeat_at) return "disconnected";
   const status = "agent_upgrade_status" in item ? item.agent_upgrade_status : "";
@@ -32,7 +36,8 @@ export const agentUpgradeState = (item: Resource): AgentUpgradeState => {
   if (!status && "agent_upgrade_task_id" in item && item.agent_upgrade_task_id) return "agent_upgrade_dispatched_at" in item && item.agent_upgrade_dispatched_at ? "running" : "pending";
   const latest = latestAgentVersion(item);
   if (!latest || !("agent_version" in item) || typeof item.agent_version !== "string") return "unknown";
-  return item.agent_version.replace(/^v/i, "").toLowerCase() === latest.replace(/^v/i, "").toLowerCase() ? "latest" : "available";
+  if (sameAgentVersion(item.agent_version, latest)) return "latest";
+  return item.status === "online" ? "available" : "disconnected";
 };
 export const canRequestUpgrade = (item: Resource) => agentUpgradeState(item) === "available";
 export const upgradeStateLabel = (item: Resource) => {
@@ -42,7 +47,7 @@ export const upgradeStateLabel = (item: Resource) => {
     const label = labels[String(item.agent_upgrade_status)] || "升级状态未知";
     return label + (item.agent_upgrade_status === "failed" && "agent_upgrade_error" in item && item.agent_upgrade_error ? `：${item.agent_upgrade_error}` : "");
   }
-  return ({ disconnected: "Agent 尚未连接", pending: "等待下发", running: "已下发，等待 Agent 确认", latest: "Agent 已是最新版本", available: `更新至 ${latestAgentVersion(item)}`, unknown: "暂时无法检查最新版本" })[agentUpgradeState(item)];
+  return ({ disconnected: item.status === "offline" ? "离线，等待重新连接" : "Agent 尚未连接", pending: "等待下发", running: "已下发，等待 Agent 确认", latest: "Agent 已是最新版本", available: `更新至 ${latestAgentVersion(item)}`, unknown: "暂时无法检查最新版本" })[agentUpgradeState(item)];
 };
 export async function writeClipboard(value: string) {
   if (navigator.clipboard?.writeText) {
@@ -67,6 +72,6 @@ export function agentUpgradeLabel(machine: Machine) {
   if (machine.agent_upgrade_status === "failed") return `上次升级失败${machine.agent_upgrade_error ? `：${machine.agent_upgrade_error}` : ""}`;
   if (machine.agent_upgrade_status === "timed_out") return "上次升级超时，可重新下发";
   if (machine.agent_upgrade_status === "succeeded") return `已升级至 ${machine.agent_version || machine.agent_upgrade_target_version || "最新版本"}`;
-  return ({ disconnected: "尚未连接", pending: "升级任务等待心跳", running: "升级执行中", latest: "已是最新版本", unknown: "版本检查暂不可用" } as const)[state];
+  return ({ disconnected: machine.status === "offline" ? "离线，等待重新连接" : "尚未连接", pending: "升级任务等待心跳", running: "升级执行中", latest: "已是最新版本", unknown: "版本检查暂不可用" } as const)[state];
 }
 

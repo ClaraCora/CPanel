@@ -56,6 +56,23 @@ export function parseOutboundSettings(value: string): OutboundSettings {
   }
 }
 
+export function outboundTarget(protocol: string, settings: OutboundSettings): string {
+  const server = firstServer(settings, protocol);
+  let address = stringValue(server.address).trim();
+  if (address.includes(":") && !address.startsWith("[")) address = `[${address}]`;
+  const endpoint = protocol === "wireguard"
+    ? stringValue(firstObject(settings.peers).endpoint).trim()
+    : address && (server.port ? `${address}:${server.port}` : address);
+  if (!endpoint) return "";
+  // A proxy target is a host and optional port. Userinfo, paths and tokens are never copied into review.
+  if (/[\s/@?#\\]/.test(endpoint)) return "请核对连接地址";
+  try {
+    const parsed = new URL(`http://${endpoint}`);
+    // URL.host normalizes away a default HTTP port, which matters for this protocol-independent target.
+    return parsed.hostname && parsed.pathname === "/" ? endpoint : "请核对连接地址";
+  } catch { return "请核对连接地址"; }
+}
+
 export function validateOutboundSettingsValue(protocol: string, value: string): string {
   let settings: OutboundSettings;
   try {

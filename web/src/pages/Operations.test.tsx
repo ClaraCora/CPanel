@@ -49,6 +49,12 @@ describe("Clear A operations safeguards", () => {
     expect((within(dialog).getByLabelText(/服务器地址/) as HTMLInputElement).value).toBe("server-1.example.com");
     expect((within(dialog).getByLabelText(/服务器端口/) as HTMLInputElement).value).toBe("1081");
     expect((within(dialog).getByLabelText("上游出站") as HTMLSelectElement).value).toBe("tag-0");
+    const summary = screen.getByRole("complementary", { name: "配置摘要" });
+    expect(within(summary).getByText("server-1.example.com:1081")).toBeTruthy();
+    fireEvent.change(within(dialog).getByLabelText(/服务器地址/), { target: { value: "operator:private@server.example.com" } });
+    expect(within(summary).getByText("请核对连接地址")).toBeTruthy();
+    expect(summary.innerHTML).not.toContain("private");
+
   });
 
   it("retains unsaved subscription settings when collapsed and expanded", async () => {
@@ -60,6 +66,17 @@ describe("Clear A operations safeguards", () => {
     fireEvent.click(screen.getByRole("button", { name: "展开设置" }));
     expect((screen.getByLabelText("订阅基础地址") as HTMLInputElement).value).toBe("https://draft.example.com");
     expect((screen.getByRole("button", { name: "保存设置" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("reviews the live Agent configuration without exposing credentials or private URL components", async () => {
+    render(<SettingsPage admin={{ id: "adm", name: "管理", email: "admin@example.com", status: "active" }} onAdminChange={() => undefined} />);
+    fireEvent.click(screen.getByRole("button", { name: "Agent 接入" }));
+    fireEvent.change(await screen.findByLabelText("外部控制地址"), { target: { value: "https://operator:secret@example.com/private?token=query-secret#private-fragment" } });
+    fireEvent.change(screen.getByLabelText("统一通讯密钥", { selector: "input" }), { target: { value: "private-communication-key" } });
+    const summary = screen.getByRole("complementary", { name: "配置摘要" });
+    expect(within(summary).getByText("https://example.com")).toBeTruthy();
+    expect(within(summary).getByText("保存时更新")).toBeTruthy();
+    expect(summary.innerHTML).not.toMatch(/operator|private|secret/);
   });
 
   it("retains a settings draft across category switches", async () => {

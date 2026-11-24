@@ -1,0 +1,77 @@
+.admin-console .machine-comparison {min-width:0;background:var(--panel);}
+.machine-comparison>header,.fleet-target,.fleet-counts,.fleet-actions {display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.admin-console .machine-comparison>header {padding:14px 18px;}
+.machine-comparison h2 {margin:0;font-size:17px;}
+.machine-comparison>header>span,.machine-comparison small {color:var(--secondary);font-size:12px;}
+.machine-comparison__scroll {overflow:auto;max-width:100%;}
+.admin-console .machine-comparison table {width:100%;table-layout:auto;border-collapse:separate;border-spacing:0;}
+.admin-console .machine-comparison :is(th,td) {min-width:172px;max-width:255px;padding:9px 16px;background:var(--panel);border:0;border-top:1px solid var(--border);border-right:1px solid var(--border);text-align:left;font-size:13px;vertical-align:middle;white-space:normal;overflow-wrap:anywhere;}
+.admin-console .machine-comparison :is(th,td):last-child {border-right:0;}
+.admin-console .machine-comparison tr>th:first-child {position:sticky;left:0;z-index:1;width:134px;min-width:95px;background:var(--panel-strong);color:var(--secondary);}
+.admin-console .machine-comparison thead th {background:var(--panel-strong);}
+.machine-comparison small {display:block;margin-top:3px;}
+.machine-comparison thead button {padding:0;border:0;background:transparent;color:var(--foreground);font:inherit;font-weight:650;cursor:pointer;text-align:left;}
+.machine-comparison thead button:hover {color:var(--accent);}
+.machine-comparison .matrix-metric {display:flex;align-items:center;gap:8px;max-width:180px;}
+.machine-comparison .matrix-metric>span {order:-1;min-width:42px;font-variant-numeric:tabular-nums;}
+.machine-comparison .matrix-metric .machine-metric__track {width:100%;max-width:100px;height:4px;}
+.machine-comparison .clear-row-actions {justify-content:flex-start;}
+.admin-console .fleet-dialog > .detail-dialog {width:min(100%,520px);}
+.fleet-dialog .detail-dialog__body>p {margin:0 0 14px;}
+.fleet-target {padding:10px 14px;background:var(--panel-strong);border-radius:7px;}
+.fleet-target>span,.fleet-counts>span,.fleet-items small {color:var(--secondary);font-size:12px;}
+.fleet-counts {margin:15px 0 4px;font-size:14px;}
+.fleet-dialog progress {display:block;width:100%;height:8px;accent-color:var(--primary);}
+.fleet-items {list-style:none;margin:8px 0;padding:0;}
+.fleet-items li {display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border);padding:12px 0;font-size:13px;}
+.fleet-items li>div {min-width:0;flex:1;overflow-wrap:anywhere;}
+.fleet-items small {display:block;margin-top:3px;}
+.fleet-items .fleet-error {color:var(--danger);}
+.fleet-actions {justify-content:flex-end;padding-top:12px;}
+.admin-console .machine-install-dialog > .detail-dialog {
+  width:min(100%,960px);color:var(--install-ink);background:var(--install-paper);
+  border-color:var(--install-line);border-radius:4px;
+}
+.machine-install-dialog {
+  --install-paper:#fffdfa;--install-soft:#f2ebde;--install-ink:#302e28;--install-dim:#675f51;--install-line:#d8cfbf;
+}
+html[data-admin-theme="dark"] .machine-install-dialog {
+  --install-paper:#24231f;--install-soft:#302d25;--install-ink:#f1ebdc;--install-dim:#c9c0ad;--install-line:#514b3c;
+}
+.machine-install-dialog .detail-dialog__header {border-color:var(--install-line);}
+.machine-install-dialog .detail-dialog__header h2,.machine-install-dialog .machine-install section>label {font-family:Georgia,"Songti SC",serif;color:var(--install-ink);}
+.machine-install-dialog .machine-install section>label {font-size:16px;font-weight:600;}
+.machine-install-dialog .machine-install h3 {font:600 16px/1.4 Georgia,"Songti SC",serif;color:var(--install-ink);}
+.machine-install-dialog .machine-install :is(dt,label) {color:var(--install-dim);}
+.machine-install-dialog .machine-install .code-editor {color:var(--install-ink);border-color:var(--install-line);background:var(--install-paper);}
+.machine-install-dialog .machine-install .button--primary {color:var(--install-paper);background:var(--install-ink);border-color:var(--install-ink);}
+.machine-install-dialog .machine-install aside {background:var(--install-soft);border-radius:3px;}
+.machine-install-dialog .machine-install aside dd {border-bottom:1px solid var(--install-line);padding-bottom:8px;}
+
+.machine-install {display:grid;grid-template-columns:minmax(165px,0.8fr) minmax(0,2fr);gap:22px;}
+.machine-install aside {padding:14px;background:var(--panel-strong);border-radius:6px;}
+.machine-install h3,.machine-install dt,.machine-install label {font-size:12px;color:var(--secondary);}
+.machine-install h3 {margin:0 0 5px;}
+.machine-install dl {margin:18px 0 0;}
+.machine-install dd {margin:3px 0 12px;overflow-wrap:anywhere;}
+.machine-install section {min-width:0;}
+.machine-install .code-editor {width:100%;margin:5px 0 10px;}
+.machine-install footer {display:flex;justify-content:flex-end;}
+@media(max-width:640px){
+  .machine-install {grid-template-columns:1fr;gap:12px;}
+  .machine-install dl {display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+  .machine-install dd {margin:0 8px 0 0;}
+  .admin-console .machine-comparison :is(th,td) {padding:7px 9px;min-width:150px;}
+  .admin-console .machine-comparison tr>th:first-child {min-width:76px;}
+}
+.admin-console .machine-row-list table {table-layout:auto;min-width:745px;}
+.admin-console .machine-row-list :is(td,th) {min-width:0;max-width:none;padding:10px 9px;font-size:13px;}
+.admin-console .machine-row-list tr>th:first-child {width:19%;min-width:150px;}
+.machine-row-list tbody th button {appearance:none;padding:0;border:0;background:transparent;color:var(--foreground);font:inherit;font-weight:650;text-align:left;cursor:pointer;}
+.admin-console .machine-row-list .matrix-metric {flex-direction:column;align-items:flex-start;gap:4px;min-width:45px;}
+.machine-row-list .matrix-metric .machine-metric__track {min-width:40px;max-width:64px;}
+.admin-console .machine-row-list tbody th {font-size:14px;}
+.machine-row-list td:has(.clear-row-actions) {min-width:98px;}
+@media(max-width:640px) {
+  .admin-console .machine-row-list tr>th:first-child {min-width:132px;}
+}

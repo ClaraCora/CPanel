@@ -16,7 +16,8 @@ func (s *Server) prefetchAgentRelease(next http.Handler) http.Handler {
 		parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/ca/ht/"), "/")
 		list := r.Method == http.MethodGet && len(parts) == 1 && parts[0] == "fwq"
 		upgrade := r.Method == http.MethodPost && len(parts) == 3 && parts[0] == "fwq" && parts[1] != "" && parts[2] == "sj"
-		if list || upgrade {
+		batch := r.Method == http.MethodPost && parts[0] == "sjpc" && (len(parts) == 1 || (len(parts) == 5 && parts[2] == "fwq" && parts[4] == "cs"))
+		if list || upgrade || batch {
 			version := s.agentRelease.Latest(r.Context())
 			ctx := context.WithValue(r.Context(), prefetchedAgentReleaseKey{}, version)
 			r = r.WithContext(ctx)

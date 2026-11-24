@@ -375,19 +375,21 @@ type Outbound struct {
 }
 
 type Overview struct {
-	MachinesTotal        int           `json:"machines_total"`
-	MachinesOnline       int           `json:"machines_online"`
-	MachinesOffline      int           `json:"machines_offline"`
-	NodesTotal           int           `json:"nodes_total"`
-	NodesPublished       int           `json:"nodes_published"`
-	AdminsActive         int           `json:"admins_active"`
-	UsersActive          int           `json:"users_active"`
-	FriendsActive        int           `json:"friends_active"`
-	TrafficToday         int64         `json:"traffic_today_bytes"`
-	TrafficTodayUpload   int64         `json:"traffic_today_upload_bytes"`
-	TrafficTodayDownload int64         `json:"traffic_today_download_bytes"`
-	NodeTrafficRanking   []TrafficRank `json:"node_traffic_ranking"`
-	UserTrafficRanking   []TrafficRank `json:"user_traffic_ranking"`
+	TrafficDay           string         `json:"traffic_day"`
+	TrafficWeek          []DailyTraffic `json:"traffic_week"`
+	MachinesTotal        int            `json:"machines_total"`
+	MachinesOnline       int            `json:"machines_online"`
+	MachinesOffline      int            `json:"machines_offline"`
+	NodesTotal           int            `json:"nodes_total"`
+	NodesPublished       int            `json:"nodes_published"`
+	AdminsActive         int            `json:"admins_active"`
+	UsersActive          int            `json:"users_active"`
+	FriendsActive        int            `json:"friends_active"`
+	TrafficToday         int64          `json:"traffic_today_bytes"`
+	TrafficTodayUpload   int64          `json:"traffic_today_upload_bytes"`
+	TrafficTodayDownload int64          `json:"traffic_today_download_bytes"`
+	NodeTrafficRanking   []TrafficRank  `json:"node_traffic_ranking"`
+	UserTrafficRanking   []TrafficRank  `json:"user_traffic_ranking"`
 }
 
 type TrafficRank struct {

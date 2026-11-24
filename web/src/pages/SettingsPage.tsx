@@ -3,6 +3,8 @@ import { ChevronDown, ChevronUp, Globe, Database, Server, Network, FileKey2, Eye
 import { useSearchParams } from "wouter";
 import { ApiError, api } from "../api";
 import { Button, EmptyState, Field, PageHeader, Pagination, RequestFailure, TableSkeleton, formatPreciseDate, useToast } from "../components/ui";
+import "../editor-layout.css";
+import { ConfigSummary, type SummaryGroup } from "../components/ConfigSummary";
 import { VersionConflict } from "../components/VersionConflict";
 import { useUnsavedChanges } from "../components/AdminNavigation";
 import { sameFormValues } from "../resourceModel";
@@ -26,12 +28,44 @@ const sections: SettingSection[] = [
   { id: "retention", label: "数据保留", description: "在线设备、流量和审计日志保留时间；服务器与节点指标仅保留最新值", fields: [{ key: "devices_days", label: "在线设备保留天数", type: "number", defaultValue: "30" }, { key: "traffic_days", label: "流量明细保留天数", type: "number", defaultValue: "90" }, { key: "audit_days", label: "审计日志保留天数", type: "number", defaultValue: "180" }, { key: "subscription_access_days", label: "订阅拉取记录保留天数", type: "number", defaultValue: "30" }] },
 ];
 
+// Review only administrative display fields. Signed URLs and credentials never enter the summary.
+const reviewFields: Record<string, string[]> = {
+  site: ["platform_name", "site_url", "timezone", "default_language"],
+  agent: ["external_url", "communication_key", "heartbeat_seconds", "offline_threshold_seconds", "fallback_pull_seconds", "max_message_bytes", "allow_legacy_protocol"],
+  security: ["session_ttl_minutes", "password_min_length", "max_login_failures", "trusted_proxy_cidrs"],
+  node_defaults: ["default_kernel", "listen_ip", "telemetry_seconds", "certificate_mode"],
+  certificate: ["acme_email", "dns_provider", "dns_api_token", "http01_port"],
+  tgbot: ["enabled", "bot_token", "daily_report_enabled", "daily_report_time"],
+  retention: ["devices_days", "traffic_days", "audit_days", "subscription_access_days"],
+};
+
+function settingReview(section: SettingSection, values: Record<string, string>): SummaryGroup[] {
+  const rows: [string, string][] = [];
+  for (const field of section.fields ?? []) {
+    if (!reviewFields[section.id]?.includes(field.key)) continue;
+    const value = values[field.key] || "";
+    let display = value;
+    if (field.sensitive) display = value ? "保存时更新" : "保持原设置";
+    else if (field.type === "toggle") display = value === "true" ? "启用" : "关闭";
+    else if (field.type === "select") display = field.options?.find((option) => option.value === value)?.label || value;
+    else if (field.type === "textarea") display = `${value.split(/\r?\n/).filter((line) => line.trim()).length} 项`;
+    else if (value && (field.key === "site_url" || field.key === "external_url")) {
+      try {
+        const url = new URL(value);
+        display = ["http:", "https:"].includes(url.protocol) ? url.origin : "请核对地址";
+      } catch { display = "请核对地址"; }
+    }
+    rows.push([field.label, display]);
+  }
+  return [{ title: section.label, rows }];
+}
+
 export function SettingsPage({ admin, onAdminChange }: { admin: Admin; onAdminChange: (admin: Admin) => void }) {
   const [params, setParams] = useSearchParams();
   const active = sections.some((item) => item.id === params.get("section")) ? params.get("section")! : "account";
   const setActive = (value: string) => setParams((current) => { const next = new URLSearchParams(current); next.set("section", value); return next; }, { replace: true });
   const icons = [UserRound, Globe, Server, ShieldCheck, Network, FileKey2, Send, Database];
-  return <div className="page resource-page operations-page admin-settings"><PageHeader title="系统设置" description="维护管理员账户、站点与运行参数" /><div className="settings-layout"><nav className="settings-nav" aria-label="设置分区">{sections.map((item, index) => { const Icon = icons[index]; return <button type="button" aria-pressed={item.id === active} className={item.id === active ? "active" : ""} onClick={() => setActive(item.id)} key={item.id}><Icon size={16} /><strong>{item.label}</strong></button>; })}<p className="settings-context">修改配置后，请保存当前分区。切换分类会保留未保存的输入。</p></nav><div className="settings-panels">{sections.map((section) => <section className="settings-content" key={section.id} hidden={section.id !== active}><header><div><h2>{section.label}</h2><p>{section.description}</p></div>{section.fields?.some((field) => field.sensitive) && <span className="security-note"><KeyRound size={15} />敏感值加密存储</span>}</header>{section.id === "account" ? <AccountSettings admin={admin} onAdminChange={onAdminChange} /> : <SystemSettingForm section={section} />}</section>)}</div></div><ResourceListNote>所有变更都会记录到审计日志；敏感值留空时保留原值。</ResourceListNote></div>;
+  return <div className="page resource-page operations-page admin-settings settings-review"><PageHeader title="系统设置" description="维护管理员账户、站点与运行参数" /><div className="settings-layout"><nav className="settings-nav" aria-label="设置分区">{sections.map((item, index) => { const Icon = icons[index]; return <button type="button" aria-pressed={item.id === active} className={item.id === active ? "active" : ""} onClick={() => setActive(item.id)} key={item.id}><Icon size={16} /><strong>{item.label}</strong></button>; })}<p className="settings-context">修改配置后，请保存当前分区。切换分类会保留未保存的输入。</p></nav><div className="settings-panels">{sections.map((section) => <section className="settings-content" key={section.id} hidden={section.id !== active}><header><div><h2>{section.label}</h2><p>{section.description}</p></div>{section.fields?.some((field) => field.sensitive) && <span className="security-note"><KeyRound size={15} />敏感值加密存储</span>}</header>{section.id === "account" ? <AccountSettings admin={admin} onAdminChange={onAdminChange} review={section.id === active} /> : <SystemSettingForm section={section} review={section.id === active} />}</section>)}</div></div><ResourceListNote>所有变更都会记录到审计日志；敏感值留空时保留原值。</ResourceListNote></div>;
 }
 
 export function SubscriptionPage() {
@@ -39,7 +73,7 @@ export function SubscriptionPage() {
   return <div className="page resource-page operations-page admin-subscription"><PageHeader title="订阅" description="管理订阅输出、访问策略与客户端拉取记录" /><div className="operation-stack"><section className="settings-content"><header><div><h2>{subscriptionSection.label}</h2><p>{subscriptionSection.description}</p></div><Button type="button" aria-expanded={expanded} aria-controls="subscription-settings" onClick={() => setExpanded((value) => !value)}>{expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}{expanded ? "收起设置" : "展开设置"}</Button></header><div id="subscription-settings" hidden={!expanded}><SystemSettingForm section={subscriptionSection} /></div></section><SubscriptionAccessLog /></div></div>;
 }
 
-function AccountSettings({ admin, onAdminChange }: { admin: Admin; onAdminChange: (admin: Admin) => void }) {
+function AccountSettings({ admin, onAdminChange, review }: { admin: Admin; onAdminChange: (admin: Admin) => void; review: boolean }) {
   const { data: securitySettings } = useResource<Setting[]>("/settings/security", []);
   const [profile, setProfile] = useState({ name: admin.name, email: admin.email });
   const [password, setPassword] = useState({ current_password: "", new_password: "", confirm_password: "" });
@@ -95,10 +129,13 @@ function AccountSettings({ admin, onAdminChange }: { admin: Admin; onAdminChange
   }
 
   const passwordType = showPassword ? "text" : "password";
-  return <div className="account-settings"><form className="settings-form account-form" onSubmit={saveProfile}><fieldset disabled={profileSaving} className="settings-fields"><div className="account-form__heading"><UserRound size={18} /><div><h3>账户资料</h3><p>用于登录后台、管理员菜单和审计记录。</p></div></div><Field label="管理员名称" required error={profileErrors.name}><input value={profile.name} onChange={(event) => setProfile((current) => ({ ...current, name: event.target.value }))} autoComplete="name" /></Field><Field label="登录邮箱" required error={profileErrors.email}><input type="email" value={profile.email} onChange={(event) => setProfile((current) => ({ ...current, email: event.target.value }))} autoComplete="username" /></Field><footer><span><ShieldCheck size={15} />修改会写入管理员审计日志</span><Button type="submit" variant="primary" loading={profileSaving}><Save size={16} />保存账户资料</Button></footer></fieldset></form><form className="settings-form account-form account-form--password" onSubmit={savePassword}><fieldset disabled={passwordSaving} className="settings-fields"><div className="account-form__heading"><LockKeyhole size={18} /><div><h3>修改密码</h3><p>修改前必须验证当前密码，新密码至少 {passwordMinimum} 个字符。</p></div><button type="button" className="icon-button account-password-toggle" aria-label={showPassword ? "隐藏密码" : "显示密码"} title={showPassword ? "隐藏密码" : "显示密码"} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></div><Field label="当前密码" required error={passwordErrors.current_password}><input type={passwordType} autoComplete="current-password" value={password.current_password} onChange={(event) => setPassword((current) => ({ ...current, current_password: event.target.value }))} /></Field><Field label="新密码" required error={passwordErrors.new_password}><input type={passwordType} minLength={passwordMinimum} autoComplete="new-password" value={password.new_password} onChange={(event) => setPassword((current) => ({ ...current, new_password: event.target.value }))} /></Field><Field label="确认新密码" required error={passwordErrors.confirm_password}><input type={passwordType} minLength={passwordMinimum} autoComplete="new-password" value={password.confirm_password} onChange={(event) => setPassword((current) => ({ ...current, confirm_password: event.target.value }))} /></Field><footer><span><ShieldCheck size={15} />保存后当前设备保持登录，其他会话将退出</span><Button type="submit" variant="primary" loading={passwordSaving}><KeyRound size={16} />更新密码</Button></footer></fieldset></form></div>;
+  return <><div className="account-settings"><form className="settings-form account-form" onSubmit={saveProfile}><fieldset disabled={profileSaving} className="settings-fields"><div className="account-form__heading"><UserRound size={18} /><div><h3>账户资料</h3><p>用于登录后台、管理员菜单和审计记录。</p></div></div><Field label="管理员名称" required error={profileErrors.name}><input value={profile.name} onChange={(event) => setProfile((current) => ({ ...current, name: event.target.value }))} autoComplete="name" /></Field><Field label="登录邮箱" required error={profileErrors.email}><input type="email" value={profile.email} onChange={(event) => setProfile((current) => ({ ...current, email: event.target.value }))} autoComplete="username" /></Field><footer><span><ShieldCheck size={15} />修改会写入管理员审计日志</span><Button type="submit" variant="primary" loading={profileSaving}><Save size={16} />保存账户资料</Button></footer></fieldset></form><form className="settings-form account-form account-form--password" onSubmit={savePassword}><fieldset disabled={passwordSaving} className="settings-fields"><div className="account-form__heading"><LockKeyhole size={18} /><div><h3>修改密码</h3><p>修改前必须验证当前密码，新密码至少 {passwordMinimum} 个字符。</p></div><button type="button" className="icon-button account-password-toggle" aria-label={showPassword ? "隐藏密码" : "显示密码"} title={showPassword ? "隐藏密码" : "显示密码"} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></div><Field label="当前密码" required error={passwordErrors.current_password}><input type={passwordType} autoComplete="current-password" value={password.current_password} onChange={(event) => setPassword((current) => ({ ...current, current_password: event.target.value }))} /></Field><Field label="新密码" required error={passwordErrors.new_password}><input type={passwordType} minLength={passwordMinimum} autoComplete="new-password" value={password.new_password} onChange={(event) => setPassword((current) => ({ ...current, new_password: event.target.value }))} /></Field><Field label="确认新密码" required error={passwordErrors.confirm_password}><input type={passwordType} minLength={passwordMinimum} autoComplete="new-password" value={password.confirm_password} onChange={(event) => setPassword((current) => ({ ...current, confirm_password: event.target.value }))} /></Field><footer><span><ShieldCheck size={15} />保存后当前设备保持登录，其他会话将退出</span><Button type="submit" variant="primary" loading={passwordSaving}><KeyRound size={16} />更新密码</Button></footer></fieldset></form></div>
+    {review && <ConfigSummary groups={[{ title: "登录身份", rows: [["管理员名称", profile.name], ["登录邮箱", profile.email]] },
+      { title: "密码保护", rows: [["长度要求", `至少 ${passwordMinimum} 个字符`], ["密码修改", password.new_password ? "待提交" : "未修改"]] }]} />}
+  </>;
 }
 
-function SystemSettingForm({ section }: { section: SettingSection }) {
+function SystemSettingForm({ section, review = false }: { section: SettingSection; review?: boolean }) {
   const fields = section.fields ?? [];
   const { data, loading, error, reload, configVersion } = useResource<Setting[]>(`/settings/${section.id}`, [], 0, true);
   const [values, setValues] = useState<Record<string, string>>({});
@@ -148,14 +185,16 @@ function SystemSettingForm({ section }: { section: SettingSection }) {
 
   if (loading) return <div className="settings-loading"><TableSkeleton columns={2} rows={5} /></div>;
   if (error) return <EmptyState title="设置加载失败" description={error} action={<Button onClick={() => void reload()}>重新加载</Button>} />;
-  return <form onSubmit={save} className="settings-form">
+  return <><form onSubmit={save} className="settings-form">
     {saveError && <RequestFailure message={saveError} error={saveFailure} />}
     {(configVersion === undefined || (saveFailure instanceof ApiError && ["CONFIG_VERSION_CONFLICT", "EDIT_VERSION_CONFLICT"].includes(saveFailure.code))) && <VersionConflict version={configVersion} missing={configVersion === undefined} onReload={() => { replaceOnLoad.current = true; setSaveFailure(null); setSaveError(""); setFieldErrors({}); void reload(); }} />}
     <fieldset disabled={saving || testing} className="settings-fields">
     {fields.map((field) => <div className={field.type === "textarea" ? "setting-field setting-field--full" : "setting-field"} key={field.key}><Field group={field.generate || field.type === "toggle"} label={field.label} helper={field.helper} error={fieldErrors[field.key]}>{field.type === "toggle" ? <label className="settings-toggle"><input type="checkbox" aria-label={field.label} checked={(values[field.key] ?? "true") === "true"} onChange={(event) => updateValue(field.key, String(event.target.checked))} /><span>{(values[field.key] ?? "true") === "true" ? "启用" : "关闭"}</span></label> : field.type === "textarea" ? <textarea rows={4} value={values[field.key] ?? ""} onChange={(event) => updateValue(field.key, event.target.value)} /> : field.type === "select" ? <select value={values[field.key] ?? ""} onChange={(event) => updateValue(field.key, event.target.value)}>{field.options?.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select> : field.generate ? <div className="input-with-action"><input aria-label={field.label} type={field.type ?? "text"} min={field.min} max={field.max} value={values[field.key] ?? ""} autoComplete="new-password" placeholder="留空表示不修改" onChange={(event) => updateValue(field.key, event.target.value)} /><Button type="button" onClick={() => { generateKey(field); }}><RefreshCw size={15} />生成</Button></div> : <input aria-label={field.label} type={field.type ?? "text"} min={field.min} max={field.max} value={values[field.key] ?? ""} autoComplete={field.sensitive ? "new-password" : undefined} placeholder={field.sensitive ? "留空表示不修改" : undefined} onChange={(event) => updateValue(field.key, event.target.value)} />}</Field></div>)}
     </fieldset>
     <footer><span><ShieldCheck size={15} />{dirty ? "有未保存修改" : "已保存 · 修改会写入管理员审计日志"}</span><div className="settings-form__actions">{section.id === "tgbot" && <Button type="button" loading={testing} disabled={saving || dirty} title={dirty ? "请先保存 TG Bot 设置" : undefined} onClick={() => void sendTestMessage()}><Send size={16} />发送测试消息</Button>}<Button type="submit" variant="primary" loading={saving} disabled={testing || !dirty}><Save size={16} />保存设置</Button></div></footer>
-  </form>;
+  </form>
+    {review && <ConfigSummary groups={settingReview(section, values)} />}
+  </>;
 }
 
 const accessOutcome = {

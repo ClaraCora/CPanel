@@ -1,0 +1,132 @@
+/* The admin theme is also set on the document for dialogs and native form controls. */
+html[data-console-layout="A"][data-admin-theme="light"] {
+  --surface: #f2f5fb; --panel: #fff; --panel-strong: #f0f3fa; --foreground: #182442; --secondary: #54637e;
+  --border: #d7deec; --border-strong: #aebad0; --primary: #4855b8; --primary-hover: #3542a1; --accent: #3948ad; --active: #e9edff;
+}
+html[data-console-layout="A"][data-admin-theme="dark"] {
+  --surface: #141927; --panel: #1c2335; --panel-strong: #252e43; --foreground: #e6ecfc; --secondary: #b0bcd3;
+  --border: #37435c; --border-strong: #677793; --primary: #5263ba; --primary-hover: #6274c5; --accent: #b6bfff; --active: #303b60;
+}
+html[data-console-layout="B"][data-admin-theme="dark"] {
+  --surface: #0e1917; --panel: #15231f; --panel-strong: #1c2e28; --foreground: #e4f2e8; --secondary: #b0c0b6;
+  --border: #34483f; --border-strong: #587365; --primary: #a1deb7; --primary-hover: #beeacb; --accent: #a1deb7; --active: #28453a;
+  --command-ink: #10251b;
+}
+html[data-console-layout="B"][data-admin-theme="light"] {
+  --surface: #edf4ef; --panel: #fff; --panel-strong: #e4eee8; --foreground: #182a20; --secondary: #4c6656;
+  --border: #c6d6cd; --border-strong: #829e8d; --primary: #296746; --primary-hover: #20563a; --accent: #276141; --active: #d8ecdf;
+}
+html[data-console-layout="C"][data-admin-theme="light"] {
+  --surface: #f8f5ef; --panel: #fffdfa; --panel-strong: #f3ede2; --foreground: #292a24; --secondary: #686459;
+  --border: #d6cdbf; --border-strong: #aea592; --primary: #303129; --primary-hover: #44443b; --accent: #964023; --active: #f5e5d9;
+}
+html[data-console-layout="C"][data-admin-theme="dark"] {
+  --surface: #201f1b; --panel: #292822; --panel-strong: #34322b; --foreground: #f4ede0; --secondary: #c4b9a7;
+  --border: #49463b; --border-strong: #87806c; --primary: #e0d3bc; --primary-hover: #f2e7d3; --accent: #f1a887; --active: #4b3629;
+  --command-ink: #25241e;
+}
+html[data-console-layout] .admin-console {
+  --surface: inherit; --panel: inherit; --panel-strong: inherit; --foreground: inherit; --text: var(--foreground);
+  --secondary: inherit; --border: inherit; --border-strong: inherit; --primary: inherit; --primary-hover: inherit;
+  --accent: inherit; --active: inherit; --muted: var(--panel-strong); --hover: var(--panel-strong); --focus: var(--accent);
+}
+html[data-console-layout] .admin-console :is(.button--primary,.admin-brand__mark) { color: var(--command-ink, white); }
+.admin-console .missing-page {
+  max-width: 940px; margin-top: clamp(24px,5vw,55px); padding: clamp(20px,4vw,40px); display: grid;
+  grid-template-columns: minmax(0,.8fr) minmax(0,1fr); align-items: center; gap: 20px; background: var(--panel); border: 1px solid var(--border);
+}
+.missing-page > strong { font-size: clamp(64px,11vw,155px); line-height: 1.1; letter-spacing: -.04em; }
+.missing-page p { color: var(--secondary); }
+.missing-page nav { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 24px; }
+.admin-console .missing-page a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+[data-console-layout="A"] .admin-console .page-header h1 { font-size: clamp(26px,3vw,32px); }
+[data-console-layout="A"] .admin-console .admin-demo-banner { border-bottom: 1px solid var(--border); padding: 12px 0; }
+[data-console-layout="A"] .admin-console :is(.clear-list,.form-section,.settings-content,.subscription-access,.table-surface:not(.clear-list .table-surface)) { border-radius: 11px; }
+[data-console-layout="A"] .admin-console :is(.clear-list, .revision-layout, .audit-log, .table-scroll) th { background: var(--panel-strong); color: var(--secondary); }
+.workspace-nav-label { display: none; }
+@media (min-width: 1050px) {
+  [data-console-layout="A"] .workspace-nav-label { display: block; margin: 0 0 6px 12px; color: var(--secondary); font-size: 12px; }
+  [data-console-layout="A"] .admin-desktop-navigation > button[aria-haspopup]:first-of-type { margin-top: 12px; }
+  [data-console-layout="A"] .admin-shell { padding-left: 184px; }
+  [data-console-layout="A"] .admin-header { position: fixed; inset: 0 auto 0 0; width: 184px; height: 100dvh; overflow: auto; border: 0; border-right: 1px solid var(--border); }
+  [data-console-layout="A"] .admin-header__inner { flex-direction: column; align-items: stretch; gap: 0; min-height: 100%; height: auto; padding: 24px 12px 12px; }
+  [data-console-layout="A"] .admin-brand { padding: 0 10px 24px; border-bottom: 1px solid var(--border); font-size: 22px; }
+  [data-console-layout="A"] .admin-desktop-navigation { flex-direction: column; align-items: stretch; height: auto; padding: 22px 0; gap: 5px; }
+  [data-console-layout="A"] .admin-nav-item { justify-content: flex-start; gap: 10px; height: 40px; padding: 0 12px; border: 0; border-radius: 8px; }
+  [data-console-layout="A"] .admin-nav-item.is-active { background: var(--active); font-weight: 700; }
+  [data-console-layout="A"] .admin-nav-item svg:not(.nav-icon) { margin-left: auto; width: 12px; }
+  [data-console-layout="A"] .admin-header__tools { margin: auto 0 0; display: grid; grid-template-columns: 1fr auto; gap: 4px; border-top: 1px solid var(--border); padding-top: 12px; }
+  [data-console-layout="A"] .admin-demo-label { justify-self: start; }
+  [data-console-layout="A"] .admin-account { grid-column: 1 / -1; grid-row: 2; }
+  [data-console-layout="A"] .admin-account > svg { margin-left: auto; }
+  [data-console-layout="A"] .admin-main { width: auto; max-width: 1530px; padding: 0 clamp(24px,2.4vw,42px) 44px; }
+  [data-console-layout="A"] .page { padding-top: 22px; }
+}
+[data-console-layout="B"] .admin-console .page-header { border: 1px solid var(--border); border-left: 4px solid var(--accent); padding: 18px 21px; background: var(--panel-strong); border-radius: 4px; }
+[data-console-layout="B"] .admin-nav-item { height: 36px; border: 1px solid transparent; border-radius: 4px; }
+[data-console-layout="B"] .admin-nav-item.is-active { background: var(--active); border-color: var(--border-strong); }
+[data-console-layout="B"] .admin-console .admin-brand__mark { background: var(--active); color: var(--accent); border: 1px solid var(--border-strong); }
+@media (min-width: 1050px) {
+  [data-console-layout="B"] :is(.admin-header,.admin-header__inner) { height: 57px; }
+  [data-console-layout="B"] .admin-main { width: min(100% - 72px,1528px); }
+}
+[data-console-layout="C"] .admin-console { --report-serif: Georgia, "Songti SC", "Noto Serif CJK SC", serif; }
+[data-console-layout="C"] .admin-header { background: var(--surface); }
+[data-console-layout="C"] .admin-brand { font: 700 28px var(--report-serif); }
+[data-console-layout="C"] .admin-brand__mark { border-radius: 3px; background: var(--accent); color: var(--surface); }
+[data-console-layout="C"] .nav-icon { display: none; }
+[data-console-layout="C"] .page-header { padding-bottom: 19px; margin-bottom: 24px; border-bottom: 2px solid var(--foreground); }
+[data-console-layout="C"] .admin-console :is(.page-header h1,.section-heading h2,.traffic-ranking h3,.settings-content h2,.form-section h2) { font-family: var(--report-serif); }
+[data-console-layout="C"] .admin-console .page-header h1 { font-size: clamp(30px,3.1vw,47px); }
+[data-console-layout="C"] .admin-console :is(.button,.icon-button,.traffic-ranking,.attention-list) { border-radius: 3px; }
+@media (min-width: 1100px) {
+  [data-console-layout="C"] .admin-header { position: relative; height: auto; border-color: var(--border-strong); }
+  [data-console-layout="C"] .admin-main, [data-console-layout="C"] .admin-header__inner { width: min(100% - 80px,1410px); }
+  [data-console-layout="C"] .admin-header__inner { display: grid; grid-template-columns: 1fr auto; grid-template-rows: 63px 45px; height: auto; gap: 0; padding: 0; }
+  [data-console-layout="C"] .admin-brand { grid-area: 1/1; justify-self: start; }
+  [data-console-layout="C"] .admin-header__tools { grid-area: 1/2; }
+  [data-console-layout="C"] .admin-desktop-navigation { grid-area: 2/1/3/-1; gap: 24px; border-top: 1px solid var(--border); }
+  [data-console-layout="C"] .admin-nav-item { height: 45px; padding-inline: 2px; }
+}
+.admin-console .overview-report { display: grid; grid-template-columns: minmax(0,2fr) minmax(220px,.8fr); gap: 20px; margin-bottom: 24px; }
+.overview-report h2 { margin: 0; font-size: 16px; }
+.traffic-report { padding: 18px 5px; background: var(--panel); border-block: 2px solid var(--foreground); }
+.traffic-report p, .overview-index p { margin: 5px 0; color: var(--secondary); font-size: 13px; }
+.traffic-report__total { display: block; font: 700 clamp(36px,4.4vw,56px)/1.15 var(--report-serif); font-variant-numeric: tabular-nums; }
+.traffic-chart { display: grid; grid-template-columns: 55px 1fr; gap: 6px; margin: 16px 8px 10px 0; }
+.traffic-chart__axis { display: flex; flex-direction: column; justify-content: space-between; padding-bottom: 22px; }
+.traffic-chart__axis, .traffic-chart__day small { font: 12px/1.35 ui-monospace, monospace; color: var(--secondary); }
+.traffic-chart__days { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); border-top: 1px solid var(--border); }
+.traffic-chart__plot { height: 138px; display: flex; flex-direction: column; align-items: center; justify-content: end; background: repeating-linear-gradient(to top, var(--border) 0 1px, transparent 1px 46px); }
+.traffic-chart__day { padding: 0; background: transparent; border: 0; color: var(--secondary); text-align: center; cursor: pointer; }
+.traffic-chart__day:is(:hover,[aria-pressed="true"]) small { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.traffic-chart__day small { display: block; margin-top: 5px; }
+.traffic-chart__stack { width: clamp(15px,4vw,40px); display: flex; flex-direction: column-reverse; min-height: 1px; }
+.traffic-chart__stack i:first-child,.traffic-chart__legend span:first-child::before { background: var(--accent); }
+.traffic-chart__stack i:last-child,.traffic-chart__legend span:nth-child(2)::before { background: var(--border-strong); }
+.traffic-chart__legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--secondary); }
+.traffic-chart__legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; margin-right: 5px; }
+.overview-index { align-self: start; padding: 20px; background: var(--panel-strong); }
+.overview-index details { border-bottom: 1px solid var(--border); padding: 15px 0; }
+.overview-index summary, .plan-table summary { cursor: pointer; }
+.overview-index summary b { float: right; font-size: 23px; line-height: 1.1; }
+.plan-board { padding: 20px; background: var(--surface); display: grid; grid-template-columns: repeat(auto-fit,minmax(min(280px,100%),1fr)); gap: 20px; }
+.plan-lane { min-width: 0; }
+.plan-lane h2 { margin: 0 0 14px; padding: 10px 0 0; border-top: 3px solid var(--accent); font-size: 15px; }
+.plan-lane h2 span { margin-left: 4px; padding: 2px 6px; color: var(--accent); background: var(--active); font-size: 12px; }
+.plan-lane__items { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit,minmax(min(300px,100%),1fr)); }
+.plan-entry { padding: 16px; background: var(--panel); border: 1px solid var(--border); border-inline-start: 4px solid var(--accent); min-width: 0; overflow-wrap: anywhere; }
+.plan-entry header { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 9px; }
+.plan-entry header .cell-primary { font-size: 17px; }
+.plan-entry header > a { flex-shrink: 0; font-size: 13px; }
+.plan-entry header a { color: var(--accent); text-decoration: underline; }
+.plan-entry dl { display: grid; gap: 8px; margin: 12px 0 0; }
+.plan-entry dl > div { display: grid; grid-template-columns: minmax(55px,.65fr) minmax(0,1.35fr); gap: 8px; }
+.plan-entry dt { color: var(--secondary); font-size: 12px; }
+.plan-entry dd { margin: 0; font-variant-numeric: tabular-nums; }
+.plan-table summary { padding: 10px 16px; color: var(--secondary); }
+@media (max-width: 800px) {
+  .admin-console .overview-report { grid-template-columns: minmax(0,1fr); gap: 14px; }
+  .admin-console .missing-page { grid-template-columns: 1fr; }
+  .plan-board { padding: 14px; }
+}

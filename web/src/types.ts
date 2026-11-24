@@ -13,6 +13,23 @@ export interface Session {
   expires_at?: string;
 }
 
+export type FleetStatus = "waiting_online" | "queued" | "dispatched" | "acknowledged" | "succeeded" | "already_current" | "failed" | "timed_out";
+export interface FleetItem {
+  machine_id: string;
+  machine_name: string;
+  agent_version: string;
+  status: FleetStatus;
+  task_id?: string;
+  error?: string;
+  updated_at: string;
+}
+export interface FleetBatch {
+  id: string;
+  target_version: string;
+  created_at: string;
+  items: FleetItem[];
+}
+
 export interface Machine {
   config_version?: number;
   id: string;
@@ -236,6 +253,8 @@ export interface Outbound {
 }
 
 export interface Overview {
+  traffic_day?: string;
+  traffic_week?: DailyTraffic[];
   machines_total: number;
   machines_online: number;
   machines_offline: number;

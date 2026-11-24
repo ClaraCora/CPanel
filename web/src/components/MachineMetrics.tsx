@@ -2,11 +2,20 @@ import type { Machine } from "../types";
 import { formatPreciseDate } from "./ui";
 
 export function MachineMetrics({ machine }: { machine: Machine }) {
-  const memory = usagePercent(machine.metrics?.mem?.used, machine.metrics?.mem?.total);
-  const disk = usagePercent(machine.metrics?.disk?.used, machine.metrics?.disk?.total);
+  const values = machineMetricValues(machine);
   return <div className="machine-metrics" title={`采样时间 ${formatPreciseDate(machine.metrics_sampled_at)}`}>
-    {[["CPU", machine.metrics_sampled_at ? machine.metrics?.cpu : undefined], ["内存", machine.metrics_sampled_at ? memory : undefined], ["磁盘", machine.metrics_sampled_at ? disk : undefined]].map(([label, value]) => <span className="machine-metric" key={label}><b>{label}</b><i className="machine-metric__track" aria-hidden="true"><i style={{ width: `${typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0}%` }} /></i><span>{formatPercent(typeof value === "number" ? value : undefined)}</span></span>)}
+    {["CPU", "内存", "磁盘"].map((label, i) => <span className="machine-metric" key={label}><b>{label}</b><MetricValue value={values[i]} /></span>)}
   </div>;
+}
+
+export function machineMetricValues(machine: Machine) {
+  if (!machine.metrics_sampled_at) return [undefined, undefined, undefined];
+  return [machine.metrics?.cpu, usagePercent(machine.metrics?.mem?.used, machine.metrics?.mem?.total), usagePercent(machine.metrics?.disk?.used, machine.metrics?.disk?.total)];
+}
+
+export function MetricValue({ value }: { value: number | undefined }) {
+  const width = typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
+  return <><i className="machine-metric__track" aria-hidden="true"><i style={{ width: `${width}%` }} /></i><span>{formatPercent(value)}</span></>;
 }
 
 function usagePercent(used?: number, total?: number) {

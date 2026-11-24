@@ -1,3 +1,4 @@
+import { demoFleet } from "./demoFleet";
 import { ApiError } from "./auth";
 import { demoNodeRevisions, recordDemoNodeRevision, restoreDemoNodeRevision } from "./demoNodeHistory";
 import type {
@@ -26,9 +27,9 @@ export const demoSession: Session = {
 };
 
 export const demoMachines: Machine[] = [
-  { id: "mch_hk01", name: "香港边缘 01", region: "香港", host: "hk01.example.net", labels: { tier: "edge" }, status: "online", agent_version: "v2.0.0", latest_agent_version: "v2.0.0", kernel_type: "singbox", last_heartbeat_at: now, metrics: { cpu: 18.4, mem: { total: 17179869184, used: 7214202880 }, disk: { total: 107374182400, used: 42949672960 } }, metrics_sampled_at: now, node_count: 3, created_at: now, updated_at: now },
-  { id: "mch_sg02", name: "新加坡边缘 02", region: "新加坡", host: "sg02.example.net", labels: { tier: "edge" }, status: "online", agent_version: "v2.0.0", latest_agent_version: "v2.0.0", kernel_type: "singbox", last_heartbeat_at: now, metrics: { cpu: 32.1, mem: { total: 8589934592, used: 3865470566 }, disk: { total: 53687091200, used: 21474836480 } }, metrics_sampled_at: now, node_count: 2, created_at: now, updated_at: now },
-  { id: "mch_jp01", name: "日本边缘 01", region: "日本", host: "jp01.example.net", labels: {}, status: "offline", agent_version: "v1.9.0", latest_agent_version: "v2.0.0", kernel_type: "xray", last_heartbeat_at: "2026-07-29T05:18:00Z", metrics: {}, metrics_sampled_at: "2026-07-29T05:18:00Z", node_count: 1, created_at: now, updated_at: now },
+  { id: "mch_hk01", name: "香港边缘 01", region: "香港", host: "hk01.example.net", labels: { tier: "edge" }, status: "online", agent_version: "v2.0.0", latest_agent_version: "v2.0.12", kernel_type: "singbox", last_heartbeat_at: now, metrics: { cpu: 18.4, mem: { total: 17179869184, used: 7214202880 }, disk: { total: 107374182400, used: 42949672960 } }, metrics_sampled_at: now, node_count: 3, created_at: now, updated_at: now },
+  { id: "mch_sg02", name: "新加坡边缘 02", region: "新加坡", host: "sg02.example.net", labels: { tier: "edge" }, status: "online", agent_version: "v2.0.0", latest_agent_version: "v2.0.12", kernel_type: "singbox", last_heartbeat_at: now, metrics: { cpu: 32.1, mem: { total: 8589934592, used: 3865470566 }, disk: { total: 53687091200, used: 21474836480 } }, metrics_sampled_at: now, node_count: 2, created_at: now, updated_at: now },
+  { id: "mch_jp01", name: "日本边缘 01", region: "日本", host: "jp01.example.net", labels: {}, status: "offline", agent_version: "v1.9.0", latest_agent_version: "v2.0.12", kernel_type: "xray", last_heartbeat_at: "2026-07-29T05:18:00Z", metrics: {}, metrics_sampled_at: "2026-07-29T05:18:00Z", node_count: 1, created_at: now, updated_at: now },
 ];
 
 export const demoRoutes: RoutePolicy[] = [
@@ -62,7 +63,8 @@ export const demoOutbounds: Outbound[] = [
   { id: "out_sg", name: "新加坡代理", tag: "sg-proxy", protocol: "vless", settings: { vnext: [{ address: "10.4.2.12", port: 443, users: [{ id: "c6b6f019-0523-43ab-980b-30a251bac363", encryption: "none" }] }] }, proxy_tag: "", kernel_support: ["xray"], status: "active", created_at: now, updated_at: now },
 ];
 
-export const demoOverview: Overview = { machines_total: 3, machines_online: 2, machines_offline: 1, nodes_total: 4, nodes_published: 2, admins_active: 1, users_active: 1284, friends_active: 28, traffic_today_bytes: 7237010223104, traffic_today_upload_bytes: 1546188226560, traffic_today_download_bytes: 5690821996544, node_traffic_ranking: [{ id: "nod_1042", name: "香港 VLESS 主入口", upload_bytes: 824633720832, download_bytes: 2748779069440, total_bytes: 3573412790272 }], user_traffic_ranking: [{ id: "usr_1001", name: "li.ming", upload_bytes: 5368709120, download_bytes: 7516192768, total_bytes: 12884901888 }] };
+const demoTrafficDay = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Shanghai" });
+export const demoOverview: Overview = { traffic_day: demoTrafficDay, traffic_week: [{ day: demoTrafficDay, upload_bytes: 1546188226560, download_bytes: 5690821996544 }], machines_total: 3, machines_online: 2, machines_offline: 1, nodes_total: 4, nodes_published: 2, admins_active: 1, users_active: 1284, friends_active: 28, traffic_today_bytes: 7237010223104, traffic_today_upload_bytes: 1546188226560, traffic_today_download_bytes: 5690821996544, node_traffic_ranking: [{ id: "nod_1042", name: "香港 VLESS 主入口", upload_bytes: 824633720832, download_bytes: 2748779069440, total_bytes: 3573412790272 }], user_traffic_ranking: [{ id: "usr_1001", name: "li.ming", upload_bytes: 5368709120, download_bytes: 7516192768, total_bytes: 12884901888 }] };
 
 export const demoHistory: HistoricalData = {
   retention: { devices_days: 30, traffic_days: 90 },
@@ -172,6 +174,12 @@ export async function demoRequest<T>(path: string, init: RequestInit): Promise<T
   await new Promise((resolve) => window.setTimeout(resolve, 120));
   const method = init.method ?? "GET";
   const cleanPath = path.split("?", 1)[0];
+  if (/^\/machines\/[^/]+\/installation$/.test(cleanPath) && method === "POST") {
+    const machineID = cleanPath.split("/")[2];
+    return { command: `# 演示安装命令
+corade-install --machine-id ${machineID} --control-url https://panel.example.invalid`, expires_at: new Date(Date.now() + 1_800_000).toISOString() } as T;
+  }
+  if (cleanPath.startsWith("/agent-upgrade-batches")) return demoFleet(cleanPath, init, demoMachines) as T;
   if (cleanPath === "/sessions" && method === "POST") return demoSession as T;
   if (cleanPath === "/sessions/current" && method === "DELETE") return { logged_out: true } as T;
   if (cleanPath === "/account/profile" && method === "PATCH") {

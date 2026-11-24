@@ -102,15 +102,16 @@ export function RowMenu({ label, children, className = "", trigger, triggerClass
     const anchor = anchorRef.current.getBoundingClientRect();
     const panel = panelRef.current.getBoundingClientRect();
     const left = Math.max(8, Math.min(anchor.right - panel.width, window.innerWidth - panel.width - 8));
+    const above = anchor.top - panel.height - 4;
     const below = anchor.bottom + 4;
-    const top = below + panel.height <= window.innerHeight - 8 ? below : Math.max(8, anchor.top - panel.height - 4);
+    const top = below + panel.height <= window.innerHeight - 8 ? below : Math.max(8, Math.min(above, window.innerHeight - panel.height - 8));
     setPosition({ left, top });
   }, []);
 
   useLayoutEffect(() => { if (open) place(); }, [open, place]);
   useEffect(() => {
     if (!open) return;
-    const frame = window.requestAnimationFrame(() => panelRef.current?.querySelector<HTMLElement>("button:not(:disabled), a[href]")?.focus());
+    const frame = window.requestAnimationFrame(() => panelRef.current?.querySelector<HTMLElement>("button:not(:disabled), a[href]")?.focus({ preventScroll: true }));
     return () => window.cancelAnimationFrame(frame);
   }, [open]);
   useEffect(() => {
@@ -119,18 +120,30 @@ export function RowMenu({ label, children, className = "", trigger, triggerClass
       const target = event.target as Node;
       if (!anchorRef.current?.contains(target) && !panelRef.current?.contains(target)) close();
     };
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") { close(); anchorRef.current?.focus(); } };
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") { close(); anchorRef.current?.focus({ preventScroll: true }); } };
     document.addEventListener("pointerdown", onPointer);
     document.addEventListener("keydown", onKey);
-    window.addEventListener("resize", close);
-    window.addEventListener("scroll", close, true);
+    let frame = 0;
+    function onScroll(event: Event) {
+      if (event.target instanceof Node && panelRef.current?.contains(event.target)) return;
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        const anchor = anchorRef.current?.getBoundingClientRect();
+        if (!anchor || anchor.bottom < 0 || anchor.top >= window.innerHeight || anchor.right < 0 || anchor.left >= window.innerWidth) close();
+        else place();
+      });
+    }
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", onScroll, true);
     return () => {
       document.removeEventListener("pointerdown", onPointer);
       document.removeEventListener("keydown", onKey);
-      window.removeEventListener("resize", close);
-      window.removeEventListener("scroll", close, true);
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", onScroll, true);
     };
-  }, [close, open]);
+  }, [close, open, place]);
 
   function navigateMenu(event: ReactKeyboardEvent<HTMLDivElement>) {
     if (!panelRef.current) return;
@@ -148,7 +161,7 @@ export function RowMenu({ label, children, className = "", trigger, triggerClass
     <button ref={anchorRef} type="button" className={triggerClassName || "icon-button"} aria-label={label} title={trigger ? undefined : "更多操作"} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuID : undefined} onClick={() => { setPosition(null); setOpen((value) => !value); }}>
       {trigger ?? <MoreHorizontalIcon />}
     </button>
-    {open && createPortal(<div ref={panelRef} id={menuID} role="menu" aria-label={label} className={`row-menu__panel row-menu__panel--portal ${className}`.trim()} style={{ left: position?.left ?? 0, top: position?.top ?? 0, visibility: position ? "visible" : "hidden" }} onKeyDown={navigateMenu} onClick={(event) => { if ((event.target as Element).closest("button, a")) { anchorRef.current?.focus(); close(); } }}>{Children.map(children, (child) => isValidElement<Record<string, unknown>>(child) ? cloneElement(child, { role: "menuitem" }) : child)}</div>, overlayRoot())}
+    {open && createPortal(<div ref={panelRef} id={menuID} role="menu" aria-label={label} className={`row-menu__panel row-menu__panel--portal ${className}`.trim()} style={{ left: position?.left ?? 0, top: position?.top ?? 0, visibility: position ? "visible" : "hidden" }} onKeyDown={navigateMenu} onClick={(event) => { if ((event.target as Element).closest("button, a")) { anchorRef.current?.focus({ preventScroll: true }); close(); } }}>{Children.map(children, (child) => isValidElement<Record<string, unknown>>(child) ? cloneElement(child, { role: "menuitem" }) : child)}</div>, overlayRoot())}
   </>;
 }
 

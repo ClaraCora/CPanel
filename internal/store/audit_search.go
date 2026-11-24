@@ -16,6 +16,8 @@ var auditActionLabels = map[string]string{
 	"machine.update":               "编辑服务器",
 	"machine.delete":               "删除服务器",
 	"machine.agent_identity_reset": "重置 Agent 身份",
+	"machine.agent_upgrade_batch":  "批量升级 Agent",
+	"machine.agent_upgrade_retry":  "重试批量升级",
 	"machine.agent_upgrade":        "升级 Agent",
 	"machine_credential.create":    "创建服务器凭据",
 	"agent_enrollment.create":      "生成 Agent 安装凭据",

@@ -1,19 +1,30 @@
 import { createContext, useContext, useLayoutEffect, useState, type ReactNode } from "react";
+import { useLocation } from "wouter";
 import { Moon, Sun } from "lucide-react";
 import type { Theme } from "../theme";
 
 const AdminThemeContext = createContext<{ theme: Theme; toggle: () => void }>({ theme: "light", toggle: () => undefined });
 
-function readPreference(): Theme {
+function readPreference(): Theme | null {
   try {
-    return localStorage.getItem("cpanel.theme") === "dark" ? "dark" : "light";
+    const value = localStorage.getItem("cpanel.theme");
+    return value === "dark" || value === "light" ? value : null;
   } catch {
-    return "light";
+    return null;
   }
 }
 
 export function AdminThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(readPreference);
+  const [location] = useLocation();
+  const path = location.replace(/\/+$/, "") || "/";
+  const layout = path === "/plans" ? "B"
+    : path === "/" || path === "/settings" || /^\/(users|plans|outbounds)\/(new|[^/]+\/edit)$/.test(path) ? "C" : "A";
+  const [preference, setPreference] = useState(readPreference);
+  const theme = preference ?? (layout === "B" ? "dark" : "light");
+  useLayoutEffect(() => {
+    document.documentElement.dataset.consoleLayout = layout;
+    return () => { delete document.documentElement.dataset.consoleLayout; };
+  }, [layout]);
   useLayoutEffect(() => {
     const previous = document.documentElement.style.colorScheme;
     document.documentElement.dataset.adminTheme = theme;
@@ -23,7 +34,7 @@ export function AdminThemeProvider({ children }: { children: ReactNode }) {
   function toggle() {
     const next = theme === "dark" ? "light" : "dark";
     try { localStorage.setItem("cpanel.theme", next); } catch { /* Preferences are optional. */ }
-    setTheme(next);
+    setPreference(next);
   }
   return <AdminThemeContext.Provider value={{ theme, toggle }}><div className="admin-console" data-admin-theme={theme}>{children}<div id="admin-overlays" /></div></AdminThemeContext.Provider>;
 }

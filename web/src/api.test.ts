@@ -56,4 +56,16 @@ describe("admin API session handling", () => {
     await api.delete("/nodes/node", { configVersion: 12 });
     expect(new Headers(vi.mocked(fetch).mock.calls.at(-1)?.[1]?.headers).get("If-Match")).toBe('"12"');
   });
+  it("uses authenticated fleet routes for create, restore, progress and single-machine retries", async () => {
+    vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify({ data: {} }), { headers: { "Content-Type": "application/json" } }));
+    await api.post("/agent-upgrade-batches", { target_version: "v2.1" }, { idempotencyKey: "create-fleet" });
+    await api.get("/agent-upgrade-batches/latest");
+    await api.get("/agent-upgrade-batches/batch-id");
+    await api.post("/agent-upgrade-batches/batch-id/machines/machine-id/retry", {}, { idempotencyKey: "retry-machine" });
+    const calls = vi.mocked(fetch).mock.calls.slice(-4);
+    expect(calls.map(([url]) => url)).toEqual(["/ca/ht/sjpc", "/ca/ht/sjpc/zx", "/ca/ht/sjpc/batch-id", "/ca/ht/sjpc/batch-id/fwq/machine-id/cs"]);
+    expect(new Headers(calls[0][1]?.headers).get("X-CSRF-Token")).toBeTruthy();
+    expect(new Headers(calls[3][1]?.headers).get("Idempotency-Key")).toBe("retry-machine");
+  });
+
 });

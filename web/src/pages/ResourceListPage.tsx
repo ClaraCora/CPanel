@@ -8,7 +8,7 @@ import { ResourceCategoryFilters, ResourceListFooter, ResourceListNote, Resource
 import { useResource } from "../hooks";
 import { editorHref, useRestoreList } from "../navigation";
 import { subscriptionAvailable, resourceName, statusLabel, requestErrorMessage, agentUpgradeState, latestAgentVersion, canRequestUpgrade, upgradeStateLabel, writeClipboard } from "../resourceModel";
-import { MachineMatrix, MachineTable } from "../components/MachineMatrix";
+import { MachineCards, MachineTable } from "../components/MachineMatrix";
 import { FleetUpgrade } from "../components/FleetUpgrade";
 import "../machines.css";
 import type { Machine } from "../types";
@@ -45,7 +45,7 @@ export function ResourceListPage<T extends Resource>({ title, description, endpo
   const setDetailFilter = (value: string) => updateFilters({ [detailKey]: value });
   const machines = endpoint === "/machines";
   const view = params.get("view") === "table" ? "table" : "cards";
-  const MachineView = view === "table" ? MachineTable : MachineMatrix;
+  const MachineView = view === "table" ? MachineTable : MachineCards;
   const hideAddress = params.get("hide_address") === "1";
   const locks = useRef(new Set<string>());
   const quickIntents = useRef({ user: creationIntent(), friend: creationIntent() });

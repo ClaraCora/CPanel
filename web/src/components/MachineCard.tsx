@@ -11,26 +11,24 @@ export function MachineCard({ machine, hideAddress, upgradeLabel, onEdit, action
   onEdit: () => void;
   actions: ReactNode;
 }) {
-  return <article className="machine-card" data-resource-id={machine.id}>
-    <header>
-      <button type="button" className="machine-card__name" onClick={onEdit}>{machine.name}</button>
-      <StatusBadge status={machine.status} />
-    </header>
-    <div className="machine-card__identity">
+  return <article className="machine-card" data-resource-id={machine.id} aria-label={machine.name}>
+    <header className="machine-card__identity">
+      <div className="machine-card__title">
+        <h3><button type="button" className="machine-card__name" onClick={onEdit}>{machine.name}</button></h3>
+        <StatusBadge status={machine.status} />
+      </div>
       <p className="machine-card__address mono">{hideAddress ? "地址已隐藏" : machine.host || "未设置地址"}</p>
-      <p className="machine-card__region">{machine.region || "未设置区域"}</p>
-    </div>
+      <p className="machine-card__location">
+        <span>{machine.region || "未设置区域"}</span>
+        <Link to={`/nodes?machine=${encodeURIComponent(machine.id)}`}>{machine.node_count} 个节点</Link>
+      </p>
+    </header>
     <MachineMetrics machine={machine} />
-    <div className="machine-card__agent">
-      <span><b>Agent</b><span className="mono">{machine.agent_version || "未接入"}</span><span className="machine-card__protocol">{machine.agent_protocol === "v2" ? "V2 加密" : "旧通讯"}</span></span>
-      <small>{upgradeLabel}</small>
-    </div>
-    <dl className="machine-card__timestamps">
+    <dl className="machine-card__details">
+      <div><dt>Agent 版本</dt><dd><span className="mono">{machine.agent_version || "未接入"}</span><span className="machine-card__protocol">{machine.agent_protocol === "v2" ? "V2 加密" : "旧通讯"}</span></dd></div>
+      <div><dt>升级状态</dt><dd>{upgradeLabel}</dd></div>
       <div><dt>最后心跳</dt><dd>{formatPreciseDate(machine.last_heartbeat_at)}</dd></div>
     </dl>
-    <footer>
-      <Link to={`/nodes?machine=${encodeURIComponent(machine.id)}`}>{machine.node_count} 个节点</Link>
-      {actions}
-    </footer>
+    <footer>{actions}</footer>
   </article>;
 }

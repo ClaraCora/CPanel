@@ -19,11 +19,12 @@ it("confirms the whole fleet through a filtered list and retries the failed mach
     return structuredClone(batch) as never;
   });
   renderResource(MachinesPage, "/machines");
-  const matrix = await screen.findByRole("table", {name: "服务器指标对照"});
+  const cards = await screen.findByRole("region", {name: "服务器指标对照"});
+  expect(within(cards).getAllByRole("article").map((row) => row.getAttribute("aria-label"))).toEqual(machines.map((machine) => machine.name));
   fireEvent.click(screen.getByRole("button", { name: "隐藏地址" }));
-  expect(within(matrix).queryByText(machines[0].host)).toBeNull();
+  expect(within(cards).queryByText(machines[0].host)).toBeNull();
   fireEvent.change(screen.getByRole("textbox", { name: "搜索服务器" }), {target: {value: "香港"}});
-  expect(within(matrix).queryByText(machines[2].name)).toBeNull();
+  expect(within(cards).queryByText(machines[2].name)).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "升级全部 Agent" }));
   const confirm = await screen.findByRole("dialog", { name: "确认升级全部 Agent" });
   expect(within(confirm).getByText(machines[2].name)).toBeTruthy();

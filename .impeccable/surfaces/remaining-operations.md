@@ -1,6 +1,6 @@
 # Remaining operations and preserved account center
 
-Mode: Operate. For administration, the 2026-11-01 extension is superseded by [administrator console](admin-console.md), root `DESIGN.md` and the 2026-11-03 implementation plan. Routes `/subscription`, `/access-ips`, `/routes`, `/outbounds`, `/history`, `/settings`, `/audit` and full node editing inherit the current top-navigation/light-default system. Old 480px/720px drawers, retained sidebar/glass shell and deleted operations CSS are not current authority.
+Mode: Operate. For administration, the 2026-11-01 extension is superseded by [administrator console](admin-console.md), root `DESIGN.md` and the 2026-11-03 implementation plan. Routes `/subscription`, `/access-ips`, `/routes`, `/outbounds`, `/history`, `/settings`, `/audit` and full node editing inherit the shared left navigation and default light theme. Old 480px/720px drawers, retained sidebar/glass shell and deleted operations CSS are not current authority.
 
 ## Preserved portal authority
 

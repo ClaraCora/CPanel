@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { Boxes, ChevronDown, CircleGauge, FileClock, Fingerprint, Group, History, LogOut, Menu, Network, Rss, Route, Server, Settings, ShieldCheck, Users, Waypoints, X } from "lucide-react";
+import { Boxes, ChevronDown, CircleGauge, FileClock, Fingerprint, Group, History, LogOut, Menu, Network, Rss, Route, Server, Settings, ShieldCheck, Users, Waypoints } from "lucide-react";
 import type { Admin } from "../types";
 import { AdminThemeToggle } from "./AdminTheme";
 import { useGuardedAction } from "./AdminNavigation";
-import { RowMenu } from "./ui";
+import { DetailDialog, RowMenu } from "./ui";
 
 const primary = [
   { to: "/", label: "总览", icon: CircleGauge },
@@ -27,29 +27,37 @@ export function AppShell({ admin, demo, onLogout, children }: { admin: Admin; de
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
-  const header = useRef<HTMLElement>(null);
+  const desktopNav = useRef<HTMLElement>(null);
   const request = useGuardedAction();
   const active = (to: string) => to === "/" ? location === "/" : location === to || location.startsWith(to + "/");
   useEffect(() => { setMobileOpen(false); }, [location]);
   useEffect(() => {
     if (!mobileOpen) return;
-    header.current?.querySelector<HTMLElement>(".admin-mobile-navigation a")?.focus();
-    const close = (event: KeyboardEvent) => { if (event.key === "Escape") { setMobileOpen(false); menuButton.current?.focus(); } };
-    const outside = (event: PointerEvent) => { if (!header.current?.contains(event.target as Node)) setMobileOpen(false); };
-    document.addEventListener("keydown", close);
-    document.addEventListener("pointerdown", outside);
-    return () => { document.removeEventListener("keydown", close); document.removeEventListener("pointerdown", outside); };
+    function closeOnDesktop() {
+      if (window.innerWidth < 1050) return;
+      setMobileOpen(false);
+      const nav = desktopNav.current;
+      (nav?.querySelector<HTMLElement>(".is-active") ?? nav?.querySelector<HTMLElement>("a"))?.focus({ preventScroll: true });
+    }
+    window.addEventListener("resize", closeOnDesktop);
+    return () => window.removeEventListener("resize", closeOnDesktop);
   }, [mobileOpen]);
+
+  function drawerLink(item: typeof primary[number]) {
+    const current = active(item.to);
+    return <Link key={item.to} to={item.to} className={current ? "is-active" : undefined} aria-current={current ? "page" : undefined} onClick={() => setMobileOpen(false)}><item.icon size={17} aria-hidden="true" />{item.label}</Link>;
+  }
 
   return <div className="admin-shell">
     <a className="skip-link" href="#main-content">跳到主要内容</a>
-    <header className="admin-header" ref={header}>
+    <header className="admin-header">
       <div className="admin-header__inner">
+        <button ref={menuButton} type="button" className="icon-button admin-menu-toggle" aria-label="打开导航" aria-haspopup="dialog" aria-expanded={mobileOpen} aria-controls={mobileOpen ? "admin-mobile-navigation" : undefined} onClick={() => { menuButton.current?.focus({ preventScroll: true }); setMobileOpen(true); }}><Menu size={20} aria-hidden="true" /></button>
         <Link to="/" className="admin-brand" aria-label="CPanel 总览"><span className="admin-brand__mark">C</span><strong>CPanel</strong></Link>
-        <nav className="admin-desktop-navigation" aria-label="主导航">
+        <nav ref={desktopNav} className="admin-desktop-navigation" aria-label="主导航">
           <span className="workspace-nav-label" aria-hidden="true">工作区</span>
           {primary.map((item) => <Link key={item.to} to={item.to} className={`admin-nav-item ${active(item.to) ? "is-active" : ""}`} aria-current={active(item.to) ? "page" : undefined}><item.icon className="nav-icon" size={17} aria-hidden="true" />{item.label}</Link>)}
-          {groups.map((group) => <RowMenu key={group.label} label={group.label} triggerClassName={`admin-nav-item ${group.items.some((item) => active(item.to)) ? "is-active" : ""}`} trigger={<><group.icon className="nav-icon" size={17} aria-hidden="true" />{group.label}<ChevronDown size={14} aria-hidden="true" /></>}>
+          {groups.map((group) => <RowMenu key={group.label} label={group.label} fallbackFocus={menuButton} triggerClassName={`admin-nav-item ${group.items.some((item) => active(item.to)) ? "is-active" : ""}`} trigger={<><group.icon className="nav-icon" size={17} aria-hidden="true" />{group.label}<ChevronDown size={14} aria-hidden="true" /></>}>
             {group.items.map((item) => <Link key={item.to} to={item.to} aria-current={active(item.to) ? "page" : undefined}><item.icon size={16} aria-hidden="true" />{item.label}</Link>)}
           </RowMenu>)}
         </nav>
@@ -60,14 +68,17 @@ export function AppShell({ admin, demo, onLogout, children }: { admin: Admin; de
             <Link to="/settings?section=account"><Settings size={16} />账户设置</Link>
             <button type="button" onClick={() => request(onLogout)}><LogOut size={16} />退出登录</button>
           </RowMenu>
-          <button ref={menuButton} type="button" className="icon-button admin-menu-toggle" aria-label={mobileOpen ? "关闭导航" : "打开导航"} aria-expanded={mobileOpen} aria-controls="admin-mobile-navigation" onClick={() => setMobileOpen((value) => !value)}>{mobileOpen ? <X size={20} /> : <Menu size={20} />}</button>
         </div>
       </div>
-      {mobileOpen && <nav id="admin-mobile-navigation" className="admin-mobile-navigation" aria-label="移动主导航">
-        <div className="admin-mobile-navigation__group">{primary.map((item) => <Link key={item.to} to={item.to} className={active(item.to) ? "is-active" : ""} aria-current={active(item.to) ? "page" : undefined} onClick={() => setMobileOpen(false)}><item.icon size={17} />{item.label}</Link>)}</div>
-        {groups.map((group) => <div key={group.label} className="admin-mobile-navigation__group"><strong>{group.label}</strong>{group.items.map((item) => <Link key={item.to} to={item.to} className={active(item.to) ? "is-active" : ""} aria-current={active(item.to) ? "page" : undefined} onClick={() => setMobileOpen(false)}><item.icon size={17} />{item.label}</Link>)}</div>)}
-      </nav>}
     </header>
+    <DetailDialog open={mobileOpen} className="admin-navigation-drawer" title="主导航" onClose={() => setMobileOpen(false)}>
+      <nav id="admin-mobile-navigation" className="admin-mobile-navigation" aria-label="移动主导航">
+        <div className="admin-mobile-navigation__group">{primary.map(drawerLink)}</div>
+        {groups.map((group) => <div key={group.label} className="admin-mobile-navigation__group" role="group" aria-label={group.label}>
+          <strong aria-hidden="true">{group.label}</strong>{group.items.map(drawerLink)}
+        </div>)}
+      </nav>
+    </DetailDialog>
     <main className="admin-main" id="main-content">
       {demo && <div className="admin-demo-banner"><Network size={15} aria-hidden="true" /><span>当前使用演示数据，操作不会写入数据库。</span></div>}
       {children}

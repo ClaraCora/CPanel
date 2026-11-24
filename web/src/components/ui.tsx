@@ -1,4 +1,4 @@
-import { Children, cloneElement, isValidElement, createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type RefObject } from "react";
+import { Children, cloneElement, isValidElement, createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AlertCircle, CheckCircle2, Copy, Info, LoaderCircle, X } from "lucide-react";
 import { ApiError } from "../auth";
@@ -89,7 +89,7 @@ export function DetailDialog({ open, command = false, title, description, childr
 }
 
 
-export function RowMenu({ label, children, className = "", trigger, triggerClassName = "", fallbackFocus }: { label: string; children: ReactNode; className?: string; trigger?: ReactNode; triggerClassName?: string; fallbackFocus?: RefObject<HTMLElement | null> }) {
+export function RowMenu({ label, children, className = "", trigger, triggerClassName = "" }: { label: string; children: ReactNode; className?: string; trigger?: ReactNode; triggerClassName?: string }) {
   const menuID = useId();
   const anchorRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -137,9 +137,6 @@ export function RowMenu({ label, children, className = "", trigger, triggerClass
     function onResize() {
       if (anchorRef.current?.getClientRects().length) { place(); return; }
       close();
-      if (document.activeElement === document.body || panelRef.current?.contains(document.activeElement) || document.activeElement === anchorRef.current) {
-        fallbackFocus?.current?.focus({ preventScroll: true });
-      }
     }
     window.addEventListener("resize", onResize);
     window.addEventListener("scroll", onScroll, true);
@@ -150,7 +147,7 @@ export function RowMenu({ label, children, className = "", trigger, triggerClass
       window.removeEventListener("resize", onResize);
       window.removeEventListener("scroll", onScroll, true);
     };
-  }, [close, fallbackFocus, open, place]);
+  }, [close, open, place]);
 
   function navigateMenu(event: ReactKeyboardEvent<HTMLDivElement>) {
     if (!panelRef.current) return;

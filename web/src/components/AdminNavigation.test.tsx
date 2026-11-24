@@ -65,36 +65,65 @@ function renderShell() {
   </AppShell></AdminThemeProvider></AdminNavigation>);
 }
 
-it("includes every desktop destination in the drawer and marks the active route", () => {
-  history.replaceState({}, "", "/plans");
+it("opens the current group on direct entry and reveals the destination group when navigating", () => {
+  history.replaceState({}, "", "/plans/new");
   renderShell();
   const nav = within(screen.getByRole("navigation", { name: "主导航" }));
-  const destinations = nav.getAllByRole("link").map((link) => link.getAttribute("href"));
+  const accounts = nav.getByRole("button", { name: "账号与订阅" });
+  const system = nav.getByRole("button", { name: "系统" });
+  expect(accounts.getAttribute("aria-expanded")).toBe("true");
+  expect(system.getAttribute("aria-expanded")).toBe("false");
+  expect(nav.getByRole("link", { current: "page" }).textContent).toBe("套餐");
+  fireEvent.click(accounts);
+  expect(nav.queryByRole("link", { name: "套餐" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "管理员菜单" }));
+  fireEvent.click(screen.getByRole("menuitem", { name: "账户设置" }));
+  expect(location.pathname).toBe("/settings");
+  expect(system.getAttribute("aria-expanded")).toBe("true");
+  expect(nav.getByRole("link", { current: "page" }).textContent).toBe("系统设置");
+});
+
+it("keeps independently expanded groups inline and shares all destinations with the drawer", () => {
+  renderShell();
+  const nav = within(screen.getByRole("navigation", { name: "主导航" }));
   for (const group of nav.getAllByRole("button")) {
     fireEvent.click(group);
-    const items = within(screen.getByRole("menu")).getAllByRole("menuitem");
-    destinations.push(...items.map((item) => item.getAttribute("href")));
-    fireEvent.keyDown(document, { key: "Escape" });
+    const children = document.getElementById(group.getAttribute("aria-controls")!);
+    expect(children).toBe(group.nextElementSibling);
+    expect(children?.hidden).toBe(false);
   }
+  const destinations = nav.getAllByRole("link").map((link) => link.getAttribute("href"));
+  expect(destinations).toHaveLength(13);
   fireEvent.click(screen.getByRole("button", { name: "打开导航" }));
   const drawer = within(screen.getByRole("dialog", { name: "主导航" }));
-  expect(destinations).toHaveLength(13);
   expect(drawer.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual(destinations);
-  expect(drawer.getByRole("link", { current: "page" }).textContent).toBe("套餐");
+  fireEvent.click(drawer.getByRole("button", { name: "流量策略" }));
+  expect(drawer.queryByRole("link", { name: "出站" })).toBeNull();
   fireEvent.click(drawer.getByRole("link", { name: "系统设置" }));
   expect(location.pathname).toBe("/settings");
   expect(screen.queryByRole("dialog")).toBeNull();
+  expect(nav.getByRole("button", { name: "流量策略" }).getAttribute("aria-expanded")).toBe("false");
 });
 
-it("closes a desktop submenu whose trigger was hidden on resize and focuses the drawer toggle", () => {
+it("supports keyboard movement and restores focus when collapsing or switching to the drawer", () => {
   renderShell();
   const nav = within(screen.getByRole("navigation", { name: "主导航" }));
   const group = nav.getByRole("button", { name: "账号与订阅" });
   fireEvent.click(group);
-  within(screen.getByRole("menu")).getByRole("menuitem", { name: "套餐" }).focus();
-  // In jsdom every element has an empty client rect, as the hidden trigger does in a narrow viewport.
+  group.focus();
+  expect(fireEvent.keyDown(group, { key: "Home", ctrlKey: true })).toBe(true);
+  expect(document.activeElement).toBe(group);
+  fireEvent.keyDown(group, { key: "ArrowUp" });
+  expect(document.activeElement).toBe(nav.getByRole("link", { name: "访问 IP" }));
+  group.focus();
+  fireEvent.keyDown(group, { key: "ArrowDown" });
+  expect(document.activeElement).toBe(nav.getByRole("link", { name: "订阅账号" }));
+  fireEvent.keyDown(document.activeElement!, { key: "End" });
+  expect(document.activeElement).toBe(nav.getByRole("link", { name: "访问 IP" }));
+  fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+  expect(document.activeElement).toBe(group);
+  expect(group.getAttribute("aria-expanded")).toBe("false");
   fireEvent(window, new Event("resize"));
-  expect(screen.queryByRole("menu")).toBeNull();
   expect(document.activeElement).toBe(screen.getByRole("button", { name: "打开导航" }));
 });
 
@@ -107,7 +136,7 @@ it("contains keyboard focus, restores it on dismissal and unlocks page scrolling
   expect(document.activeElement).toBe(close);
   expect(document.body.style.overflow).toBe("hidden");
   fireEvent.keyDown(close, { key: "Tab", shiftKey: true });
-  expect(document.activeElement).toBe(drawer.getByRole("link", { name: "审计日志" }));
+  expect(document.activeElement).toBe(drawer.getByRole("button", { name: "系统" }));
   fireEvent.keyDown(document.activeElement!, { key: "Tab" });
   expect(document.activeElement).toBe(close);
   fireEvent.keyDown(close, { key: "Escape" });
@@ -126,7 +155,10 @@ it("closes the drawer before requesting confirmation for an unsaved page", () =>
   const trigger = screen.getByRole("button", { name: "打开导航" });
   function selectPlans() {
     fireEvent.click(trigger);
-    fireEvent.click(within(screen.getByRole("dialog", { name: "主导航" })).getByRole("link", { name: "套餐" }));
+    const drawer = within(screen.getByRole("dialog", { name: "主导航" }));
+    const accounts = drawer.getByRole("button", { name: "账号与订阅" });
+    if (accounts.getAttribute("aria-expanded") === "false") fireEvent.click(accounts);
+    fireEvent.click(drawer.getByRole("link", { name: "套餐" }));
   }
   selectPlans();
   expect(screen.queryByRole("dialog")).toBeNull();

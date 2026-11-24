@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { Boxes, ChevronDown, CircleGauge, FileClock, Fingerprint, Group, History, LogOut, Menu, Network, Rss, Route, Server, Settings, ShieldCheck, Users, Waypoints } from "lucide-react";
 import type { Admin } from "../types";
@@ -23,29 +23,106 @@ const groups = [
   { label: "系统", icon: Settings, items: [{ to: "/history", label: "历史数据", icon: History }, { to: "/settings", label: "系统设置", icon: Settings }, { to: "/audit", label: "审计日志", icon: FileClock }] },
 ];
 
+function matchesRoute(location: string, to: string) {
+  return location === to || (to !== "/" && location.startsWith(to + "/"));
+}
+
+function NavigationLinks({ location, expanded, toggle, onNavigate }: {
+  location: string; expanded: string[]; toggle: (label: string) => void; onNavigate?: () => void;
+}) {
+  const id = useId();
+  function link(item: typeof primary[number], nested: boolean) {
+    const current = matchesRoute(location, item.to);
+    return <Link key={item.to} to={item.to} className={`admin-nav-item${nested ? " admin-nav-child" : ""}${current ? " is-active" : ""}`}
+      aria-current={current ? "page" : undefined} onClick={onNavigate}><item.icon className="nav-icon" size={nested ? 15 : 17} aria-hidden="true" />{item.label}</Link>;
+  }
+
+  function groupKey(event: KeyboardEvent<HTMLDivElement>, label: string) {
+    if (event.altKey || event.metaKey || event.ctrlKey || event.shiftKey || !expanded.includes(label)) return;
+    if (event.key === "Escape" && !onNavigate) {
+      event.preventDefault();
+      event.currentTarget.querySelector("button")?.focus();
+      toggle(label);
+      return;
+    }
+    const links = Array.from(event.currentTarget.querySelectorAll("a"));
+    const index = links.indexOf(document.activeElement as HTMLAnchorElement);
+    const last = links.length - 1;
+    let target: number;
+    switch (event.key) {
+      case "Home":
+        target = 0;
+        break;
+      case "End":
+        target = last;
+        break;
+      case "ArrowDown":
+        target = index === last ? 0 : index + 1;
+        break;
+      case "ArrowUp":
+        target = index <= 0 ? last : index - 1;
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    links[target]?.focus();
+  }
+
+  return <>
+    {primary.map((item) => link(item, false))}
+    {groups.map((group, index) => {
+      const open = expanded.includes(group.label);
+      const current = group.items.some((item) => matchesRoute(location, item.to));
+      const controls = `${id}-group-${index}`;
+      return <div className="admin-nav-group" key={group.label} onKeyDown={(event) => groupKey(event, group.label)}>
+        <button type="button" className={`admin-nav-item admin-nav-group__toggle${current ? " has-current" : ""}`}
+          aria-expanded={open} aria-controls={controls} onClick={() => toggle(group.label)}>
+          <group.icon className="nav-icon" size={17} aria-hidden="true" />{group.label}<ChevronDown size={14} aria-hidden="true" />
+        </button>
+        <div className="admin-nav-children" id={controls} hidden={!open}>{open && group.items.map((item) => link(item, true))}</div>
+      </div>;
+    })}
+  </>;
+}
+
 export function AppShell({ admin, demo, onLogout, children }: { admin: Admin; demo: boolean; onLogout: () => void; children: ReactNode }) {
   const [location] = useLocation();
+  const currentGroup = groups.find((group) => group.items.some((item) => matchesRoute(location, item.to)))?.label;
+  const [expanded, setExpanded] = useState<string[]>(() => currentGroup ? [currentGroup] : []);
   const [mobileOpen, setMobileOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
   const desktopNav = useRef<HTMLElement>(null);
   const request = useGuardedAction();
-  const active = (to: string) => to === "/" ? location === "/" : location === to || location.startsWith(to + "/");
-  useEffect(() => { setMobileOpen(false); }, [location]);
   useEffect(() => {
-    if (!mobileOpen) return;
-    function closeOnDesktop() {
-      if (window.innerWidth < 1050) return;
-      setMobileOpen(false);
-      const nav = desktopNav.current;
-      (nav?.querySelector<HTMLElement>(".is-active") ?? nav?.querySelector<HTMLElement>("a"))?.focus({ preventScroll: true });
+    setMobileOpen(false);
+    if (currentGroup) setExpanded((previous) => previous.includes(currentGroup) ? previous : [...previous, currentGroup]);
+  }, [location, currentGroup]);
+  useEffect(() => {
+    let desktopFocused = desktopNav.current?.contains(document.activeElement);
+    function trackFocus(event: FocusEvent) {
+      desktopFocused = desktopNav.current?.contains(event.target as Node);
     }
-    window.addEventListener("resize", closeOnDesktop);
-    return () => window.removeEventListener("resize", closeOnDesktop);
+    function resize() {
+      if (window.innerWidth < 1050) {
+        if (desktopFocused) menuButton.current?.focus({ preventScroll: true });
+      } else if (mobileOpen) {
+        setMobileOpen(false);
+        const nav = desktopNav.current;
+        const target = nav?.querySelector<HTMLElement>('[aria-current="page"]') ?? nav?.querySelector<HTMLElement>(".has-current") ?? nav?.querySelector<HTMLElement>("a");
+        target?.focus();
+      }
+    }
+    document.addEventListener("focusin", trackFocus);
+    window.addEventListener("resize", resize);
+    return () => {
+      document.removeEventListener("focusin", trackFocus);
+      window.removeEventListener("resize", resize);
+    };
   }, [mobileOpen]);
 
-  function drawerLink(item: typeof primary[number]) {
-    const current = active(item.to);
-    return <Link key={item.to} to={item.to} className={current ? "is-active" : undefined} aria-current={current ? "page" : undefined} onClick={() => setMobileOpen(false)}><item.icon size={17} aria-hidden="true" />{item.label}</Link>;
+  function toggle(label: string) {
+    setExpanded((previous) => previous.includes(label) ? previous.filter((item) => item !== label) : [...previous, label]);
   }
 
   return <div className="admin-shell">
@@ -56,10 +133,7 @@ export function AppShell({ admin, demo, onLogout, children }: { admin: Admin; de
         <Link to="/" className="admin-brand" aria-label="CPanel 总览"><span className="admin-brand__mark">C</span><strong>CPanel</strong></Link>
         <nav ref={desktopNav} className="admin-desktop-navigation" aria-label="主导航">
           <span className="workspace-nav-label" aria-hidden="true">工作区</span>
-          {primary.map((item) => <Link key={item.to} to={item.to} className={`admin-nav-item ${active(item.to) ? "is-active" : ""}`} aria-current={active(item.to) ? "page" : undefined}><item.icon className="nav-icon" size={17} aria-hidden="true" />{item.label}</Link>)}
-          {groups.map((group) => <RowMenu key={group.label} label={group.label} fallbackFocus={menuButton} triggerClassName={`admin-nav-item ${group.items.some((item) => active(item.to)) ? "is-active" : ""}`} trigger={<><group.icon className="nav-icon" size={17} aria-hidden="true" />{group.label}<ChevronDown size={14} aria-hidden="true" /></>}>
-            {group.items.map((item) => <Link key={item.to} to={item.to} aria-current={active(item.to) ? "page" : undefined}><item.icon size={16} aria-hidden="true" />{item.label}</Link>)}
-          </RowMenu>)}
+          <NavigationLinks location={location} expanded={expanded} toggle={toggle} />
         </nav>
         <div className="admin-header__tools">
           {demo && <span className="admin-demo-label">演示数据</span>}
@@ -73,10 +147,7 @@ export function AppShell({ admin, demo, onLogout, children }: { admin: Admin; de
     </header>
     <DetailDialog open={mobileOpen} className="admin-navigation-drawer" title="主导航" onClose={() => setMobileOpen(false)}>
       <nav id="admin-mobile-navigation" className="admin-mobile-navigation" aria-label="移动主导航">
-        <div className="admin-mobile-navigation__group">{primary.map(drawerLink)}</div>
-        {groups.map((group) => <div key={group.label} className="admin-mobile-navigation__group" role="group" aria-label={group.label}>
-          <strong aria-hidden="true">{group.label}</strong>{group.items.map(drawerLink)}
-        </div>)}
+        <NavigationLinks location={location} expanded={expanded} toggle={toggle} onNavigate={() => setMobileOpen(false)} />
       </nav>
     </DetailDialog>
     <main className="admin-main" id="main-content">

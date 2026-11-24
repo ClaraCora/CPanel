@@ -52,14 +52,7 @@ export default function App() {
     }
   }
 
-  if (checking)
-    return (
-      <main className="boot-screen">
-        <ThemeToggle className="theme-toggle--floating" />
-        <div className="brand__mark">C</div>
-        <span>正在验证管理会话…</span>
-      </main>
-    );
+  if (checking) return <BootScreen label="正在验证管理会话…" />;
   if (!session)
     return (
       <ToastProvider>
@@ -83,11 +76,12 @@ export default function App() {
   </>;
 }
 
-function BootScreen({ label }: { label: string }) {
-  return <main className="boot-screen">
+function BootScreen({ label, children }: { label: string; children?: ReactNode }) {
+  return <main className="admin-entry boot-screen">
     <ThemeToggle className="theme-toggle--floating" />
     <div className="brand__mark">C</div>
     <span>{label}</span>
+    {children}
   </main>;
 }
 
@@ -100,12 +94,9 @@ class AuthenticatedLoadBoundary extends Component<{ children: ReactNode }, { fai
 
   render() {
     if (this.state.failed) {
-      return <main className="boot-screen">
-        <ThemeToggle className="theme-toggle--floating" />
-        <div className="brand__mark">C</div>
-        <span>管理后台加载失败</span>
+      return <BootScreen label="管理后台加载失败">
         <button type="button" className="button button--secondary" onClick={() => window.location.reload()}>重新加载</button>
-      </main>;
+      </BootScreen>;
     }
     return this.props.children;
   }

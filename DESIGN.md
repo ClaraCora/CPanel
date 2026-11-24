@@ -2,46 +2,49 @@
 name: CPanel Administrator Console
 description: Readable server operations with top navigation and complete editing pages.
 colors:
-  light-surface: "#f5f7fa"
+  light-surface: "#f4f6fb"
   light-panel: "#fff"
-  light-panel-strong: "#f1f5f9"
-  light-foreground: "#1f2937"
-  light-secondary: "#475569"
-  light-border: "#e2e8f0"
-  light-border-strong: "#94a3b8"
-  light-primary: "#2563eb"
-  light-primary-hover: "#1d4ed8"
-  light-accent: "#1d4ed8"
-  light-active: "#eff6ff"
-  light-hover: "#f8fafc"
-  light-success: "#166534"
-  light-warning: "#92400e"
-  light-danger: "#b91c1c"
-  light-info: "#1d4ed8"
-  light-success-bg: "#ecfdf3"
-  light-warning-bg: "#fffbeb"
-  light-danger-bg: "#fef2f2"
-  light-info-bg: "#eff6ff"
-  light-focus: "#2563eb"
-  dark-surface: "#10151f"
-  dark-panel: "#182130"
-  dark-panel-strong: "#202c3d"
-  dark-foreground: "#e5eaf2"
-  dark-secondary: "#a7b4c8"
-  dark-border: "#303b4c"
-  dark-border-strong: "#64748b"
-  dark-accent: "#93c5fd"
-  dark-active: "#20375a"
-  dark-hover: "#202c3d"
-  dark-success: "#86efac"
-  dark-warning: "#fcd34d"
-  dark-danger: "#fca5a5"
-  dark-info: "#93c5fd"
-  dark-success-bg: "#19372c"
-  dark-warning-bg: "#3e321c"
-  dark-danger-bg: "#41282d"
-  dark-info-bg: "#20375a"
-  dark-focus: "#93c5fd"
+  light-panel-strong: "#eef1f7"
+  light-foreground: "#202b40"
+  light-secondary: "#526079"
+  light-border: "#d8deea"
+  light-border-strong: "#8491a8"
+  light-primary: "#4855b8"
+  light-primary-hover: "#37459f"
+  light-accent: "#3d4da8"
+  light-active: "#e9edfc"
+  light-hover: "#f0f3f9"
+  light-success: "#23613f"
+  light-warning: "#855415"
+  light-danger: "#a33439"
+  light-info: "#3d4da8"
+  light-success-bg: "#eaf5ee"
+  light-warning-bg: "#fbf2df"
+  light-danger-bg: "#fbeeee"
+  light-info-bg: "#e9edfc"
+  light-focus: "#3d4da8"
+  dark-surface: "#141923"
+  dark-panel: "#1c2331"
+  dark-panel-strong: "#252e40"
+  dark-foreground: "#e7edf7"
+  dark-secondary: "#b1bdd1"
+  dark-border: "#354157"
+  dark-border-strong: "#71809a"
+  dark-accent: "#b3bfff"
+  dark-active: "#2c3855"
+  dark-hover: "#252e3e"
+  dark-success: "#93d7ad"
+  dark-warning: "#ebc277"
+  dark-danger: "#f3a8ab"
+  dark-info: "#b3bfff"
+  dark-success-bg: "#1d342b"
+  dark-warning-bg: "#382f20"
+  dark-danger-bg: "#3b292f"
+  dark-info-bg: "#2c3855"
+  dark-focus: "#b3bfff"
+  dark-primary: "#a9b5fc"
+  dark-primary-hover: "#c0caff"
+  dark-command-text: "#182044"
   command-text: "#ffffff"
 typography:
   title:
@@ -111,11 +114,11 @@ components:
 
 ## Colors
 
-规范 token 来自 `web/src/admin-console.css`。浅色使用 `#f5f7fa` 页面、白色面板、`#1f2937` 主文字、`#475569` 次文字和 `#e2e8f0` 分隔。深色使用 `#10151f` 页面、`#182130` 面板、`#e5eaf2` 主文字、`#a7b4c8` 次文字和 `#303b4c` 分隔。主按钮在两种主题均为 `#2563eb` 配白字；链接分别为 `#1d4ed8` 和 `#93c5fd`。
+A、B、C 版式与管理员登录页共用 `web/src/admin-palette.css` 的颜色。浅色使用灰蓝页面、白色面板和靛蓝主按钮，深色使用石墨蓝页面和浅靛蓝主按钮。导航选中、链接、输入焦点和弹窗跟随同一套主题。
 
 成功、待处理、危险和信息均使用各主题对应前景及底色，并同时显示文字。指标缺失为“—”，不能用零值表达。禁用控件降低透明度；危险操作不使用普通蓝色来弱化风险。
 
-后台 token 限定在 `html[data-admin-theme]` 与 `.admin-console`。`#admin-overlays` 承接菜单和窗口。首次无偏好时为浅色，读写既有 `cpanel.theme`；后台卸载时恢复公共页面属性，门户继续独立使用 `cpanel.portal.theme`。公共 CSS 明确排除 `html[data-admin-theme]`。
+后台颜色定义在 `html[data-admin-surface][data-theme]`。弹窗和菜单继承同一组变量。首次无偏好时使用浅色，登录、重新认证和各后台布局都读取 `cpanel.theme`。订阅门户使用自己的 `cpanel.portal.theme`。
 
 ## Typography
 

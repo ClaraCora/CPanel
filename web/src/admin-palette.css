@@ -1,0 +1,59 @@
+/* Shared by the administrator entry, workspace and its dialogs. */
+html:root[data-admin-surface][data-theme] {
+  --surface: #f4f6fb;
+  --panel: #fff;
+  --panel-strong: #eef1f7;
+  --foreground: #202b40;
+  --secondary: #526079;
+  --border: #d8deea;
+  --border-strong: #8491a8;
+  --primary: #4855b8;
+  --primary-hover: #37459f;
+  --on-primary: #fff;
+  --accent: #3d4da8;
+  --active: #e9edfc;
+  --hover: #f0f3f9;
+  --chart-secondary: #77869f;
+  --success: #23613f;
+  --success-bg: #eaf5ee;
+  --warning: #855415;
+  --warning-bg: #fbf2df;
+  --danger: #a33439;
+  --danger-bg: #fbeeee;
+  --danger-action: #a63238;
+  --danger-action-hover: #89252b;
+  --on-danger: #fff;
+  --shadow-overlay: 0 16px 48px rgb(22 32 54 / 16%);
+  --text: var(--foreground);
+  --muted: var(--panel-strong);
+  --focus: var(--accent);
+  --info: var(--accent);
+  --info-bg: var(--active);
+}
+
+html:root[data-admin-surface][data-theme="dark"] {
+  --surface: #141923;
+  --panel: #1c2331;
+  --panel-strong: #252e40;
+  --foreground: #e7edf7;
+  --secondary: #b1bdd1;
+  --border: #354157;
+  --border-strong: #71809a;
+  --primary: #a9b5fc;
+  --primary-hover: #c0caff;
+  --on-primary: #182044;
+  --accent: #b3bfff;
+  --active: #2c3855;
+  --hover: #252e3e;
+  --chart-secondary: #73839e;
+  --success: #93d7ad;
+  --success-bg: #1d342b;
+  --warning: #ebc277;
+  --warning-bg: #382f20;
+  --danger: #f3a8ab;
+  --danger-bg: #3b292f;
+  --danger-action: #efaaad;
+  --danger-action-hover: #ffc1c3;
+  --on-danger: #411c25;
+  --shadow-overlay: 0 16px 48px rgb(4 8 16 / 38%);
+}

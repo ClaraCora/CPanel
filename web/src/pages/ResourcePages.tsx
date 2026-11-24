@@ -135,7 +135,7 @@ export function UsersPage() {
       { label: "套餐", width: "11%", render: (item) => item.plan_id ? <Link to={editorHref("/plans", item.plan_id)}>{item.plan_name || item.plan_id}</Link> : "未分配" },
       { label: "流量用量", width: "16%", render: (item) => <TrafficUsage used={item.traffic_used_bytes} limit={item.traffic_limit_bytes} /> },
 		{ label: "门户", width: "13%", render: (item) => item.role === "admin" ? <span>后台进入<span className="resource-id">管理员只读代入</span></span> : item.portal_enabled ? item.portal_login : "未启用" },
-      { label: "到期", render: (item) => item.expires_at ? <ResourceDate value={item.expires_at} formatted={formatDateWithYear(item.expires_at)} /> : "长期" },
+      { label: "到期", width: "8rem", render: (item) => item.expires_at ? <ResourceDate value={item.expires_at} formatted={formatDateWithYear(item.expires_at)} /> : "长期" },
     ]}
   />;
 }

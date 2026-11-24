@@ -5,6 +5,7 @@ import { useState } from "react";
 import { AdminNavigation, useUnsavedChanges } from "./AdminNavigation";
 import { AdminThemeProvider, AdminThemeToggle } from "./AdminTheme";
 import { safeReturnTo } from "../navigation";
+import { initializeTheme } from "../theme";
 
 beforeEach(() => { history.replaceState({}, "", "/edit"); localStorage.clear(); });
 
@@ -38,14 +39,21 @@ it("uses the native unload warning for a draft and permits a completed save", as
   expect(screen.queryByRole("alertdialog")).toBeNull();
 });
 
-it("defaults the authenticated console to light and retains an explicit dark preference", async () => {
+it("starts the plans layout in light mode and keeps the chosen theme across layouts and reloads", async () => {
+  history.replaceState({}, "", "/plans");
+  initializeTheme();
   const view = render(<AdminThemeProvider><AdminThemeToggle /></AdminThemeProvider>);
+  expect(document.documentElement.dataset.consoleLayout).toBe("B");
   expect(document.documentElement.dataset.adminTheme).toBe("light");
   fireEvent.click(screen.getByRole("button", { name: "切换为深色模式" }));
   expect(localStorage.getItem("cpanel.theme")).toBe("dark");
+  expect(document.documentElement.dataset.theme).toBe("dark");
   view.unmount();
   expect(document.documentElement.dataset.adminTheme).toBeUndefined();
+  history.replaceState({}, "", "/settings");
+  initializeTheme();
   render(<AdminThemeProvider><AdminThemeToggle /></AdminThemeProvider>);
+  expect(document.documentElement.dataset.consoleLayout).toBe("C");
   await waitFor(() => expect(document.documentElement.dataset.adminTheme).toBe("dark"));
 });
 

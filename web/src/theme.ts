@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 
 export type Theme = "dark" | "light";
 
-const storageKey = window.location.pathname === "/edu" || window.location.pathname === "/edu/" ? "cpanel.portal.theme" : "cpanel.theme";
+export const isPortal = window.location.pathname === "/edu" || window.location.pathname === "/edu/";
+const storageKey = isPortal ? "cpanel.portal.theme" : "cpanel.theme";
 const changeEvent = "cpanel:theme-change";
 
 function storedTheme(): Theme | null {
@@ -22,7 +23,9 @@ export function currentTheme(): Theme {
 export function applyTheme(theme: Theme, persist = false) {
   document.documentElement.dataset.theme = theme;
   document.documentElement.style.colorScheme = theme;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#07090f" : "#f6f7f9");
+  const surface = isPortal ? (theme === "dark" ? "#07090f" : "#f6f7f9")
+    : getComputedStyle(document.documentElement).getPropertyValue("--surface").trim();
+  if (surface) document.querySelector('meta[name="theme-color"]')?.setAttribute("content", surface);
   if (persist) {
     try {
       window.localStorage.setItem(storageKey, theme);
@@ -34,6 +37,7 @@ export function applyTheme(theme: Theme, persist = false) {
 }
 
 export function initializeTheme() {
+  document.documentElement.toggleAttribute("data-admin-surface", !isPortal);
   applyTheme(storedTheme() ?? "light");
 }
 

@@ -4,8 +4,10 @@ import {
   ArrowRight,
   Boxes,
   LoaderCircle,
+  UsersRound,
 } from "lucide-react";
-import { useState } from "react";
+import type { LucideIcon } from "lucide-react";
+import { useId, useState } from "react";
 import { Link } from "wouter";
 import { useResource } from "../hooks";
 import type { Overview, TrafficRank } from "../types";
@@ -82,49 +84,45 @@ export function OverviewPage() {
         <>
           <OverviewTraffic data={data} />
           <section className="ranking-section" aria-labelledby="traffic-ranking-title">
-            <div className="section-heading">
+            <div className="section-heading ranking-section__heading">
               <div>
                 <h2 id="traffic-ranking-title">{periodLabel}流量排行</h2>
-                <p>按上传与下载合计排序，最多显示 10 条。</p>
+                <p>按上传与下载合计排序，最多显示 10 条。条形长度以各榜榜首为基准。</p>
               </div>
               <div className="overview-heading-actions">
-              <DataFreshness lastSuccessAt={lastSuccessAt} stale={stale} refreshing={refreshing} error={refreshError} />
-              <div
-                className="ranking-period"
-                role="group"
-                aria-label="流量排行时间范围"
-              >
-                {rankingPeriods.map((item) => (
-                  <button
-                    type="button"
-                    className={period === item.value ? "active" : ""}
-                    aria-pressed={period === item.value}
-                    onClick={() => setPeriod(item.value)}
-                    key={item.value}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-                {loading && (
-                  <LoaderCircle
-                    className="spin ranking-period__loading"
-                    size={15}
-                    aria-label="正在更新排行"
-                  />
+                {loading ? (
+                  <span className="data-freshness ranking-section__loading" role="status">
+                    <LoaderCircle className="spin" size={14} aria-hidden="true" />
+                    正在更新排行
+                  </span>
+                ) : (
+                  <DataFreshness lastSuccessAt={lastSuccessAt} stale={stale} refreshing={refreshing} error={refreshError} />
                 )}
-              </div></div>
+                <div className="ranking-period" role="group" aria-label="流量排行时间范围">
+                  {rankingPeriods.map((item) => (
+                    <button
+                      type="button"
+                      aria-pressed={period === item.value}
+                      onClick={() => setPeriod(item.value)}
+                      key={item.value}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
             {error && (
-              <div className="ranking-error" role="alert">
-                <span>{error}</span>
-                <button type="button" onClick={() => void reload()}>
+              <div className="ranking-error">
+                <p role="alert">{error}。当前显示上次加载成功的排行。</p>
+                <button type="button" className="button button--secondary" onClick={() => void reload()}>
                   重新加载
                 </button>
               </div>
             )}
-            <div className={`ranking-grid ${loading ? "is-loading" : ""}`}>
-              <TrafficRanking title="节点流量排行" items={data.node_traffic_ranking} empty={`${periodLabel}还没有节点流量`} />
-              <TrafficRanking title="用户流量排行" items={data.user_traffic_ranking} empty={`${periodLabel}还没有用户流量`} />
+            <div className="ranking-grid" aria-busy={loading}>
+              <TrafficRanking title="节点流量排行" icon={Boxes} items={data.node_traffic_ranking} empty={`${periodLabel}还没有节点流量`} />
+              <TrafficRanking title="用户流量排行" icon={UsersRound} items={data.user_traffic_ranking} empty={`${periodLabel}还没有用户流量`} />
             </div>
           </section>
           <section className="overview-section">
@@ -173,6 +171,57 @@ export function OverviewPage() {
   );
 }
 
-function TrafficRanking({ title, items, empty }: { title: string; items: TrafficRank[]; empty: string }) {
-  return <div className="traffic-ranking"><h3>{title}</h3>{items.length === 0 ? <p className="ranking-empty">{empty}</p> : <div className="table-scroll"><table><thead><tr><th>#</th><th>名称</th><th>上传</th><th>下载</th><th>合计</th></tr></thead><tbody>{items.map((item, index) => <tr key={item.id}><td className="mono">{index + 1}</td><td><strong className="cell-primary">{item.name}</strong></td><td className="mono">{formatBytes(item.upload_bytes)}</td><td className="mono">{formatBytes(item.download_bytes)}</td><td className="mono"><strong>{formatBytes(item.total_bytes)}</strong></td></tr>)}</tbody></table></div>}</div>;
+function TrafficRanking({ title, icon: Icon, items, empty }: {
+  title: string;
+  icon: LucideIcon;
+  items: TrafficRank[];
+  empty: string;
+}) {
+  const titleId = useId();
+  const peak = Math.max(0, ...items.map((item) => item.total_bytes));
+
+  return (
+    <div className="traffic-ranking">
+      <h3 id={titleId}><Icon size={18} aria-hidden="true" />{title}</h3>
+      {items.length === 0 ? (
+        <p className="ranking-empty">{empty}</p>
+      ) : (
+        <table role="table" aria-labelledby={titleId}>
+          <thead role="rowgroup">
+            <tr role="row">
+              <th scope="col" role="columnheader">排名与名称</th>
+              <th scope="col" role="columnheader" className="traffic-ranking__amount">上传</th>
+              <th scope="col" role="columnheader" className="traffic-ranking__amount">下载</th>
+              <th scope="col" role="columnheader" className="traffic-ranking__amount">合计</th>
+            </tr>
+          </thead>
+          <tbody role="rowgroup">
+            {items.map((item, index) => (
+              <tr role="row" key={item.id}>
+                <th scope="row" role="rowheader" className="traffic-ranking__identity">
+                  <span className="traffic-ranking__rank">{index + 1}</span>
+                  <span className="traffic-ranking__name">{item.name}</span>
+                </th>
+                <td role="cell" className="traffic-ranking__amount traffic-ranking__upload">
+                  <span className="traffic-ranking__mobile-label" aria-hidden="true">上传</span>
+                  {formatBytes(item.upload_bytes)}
+                </td>
+                <td role="cell" className="traffic-ranking__amount traffic-ranking__download">
+                  <span className="traffic-ranking__mobile-label" aria-hidden="true">下载</span>
+                  {formatBytes(item.download_bytes)}
+                </td>
+                <td role="cell" className="traffic-ranking__amount traffic-ranking__total">
+                  <span className="traffic-ranking__mobile-label" aria-hidden="true">合计</span>
+                  <strong>{formatBytes(item.total_bytes)}</strong>
+                  <span className="traffic-ranking__track" aria-hidden="true">
+                    <span style={{ width: `${peak ? 100 * item.total_bytes / peak : 0}%` }} />
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
 }

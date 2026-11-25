@@ -267,7 +267,7 @@ export function ResourceListPage<T extends Resource>({ title, description, endpo
         list?.kind === "plans" ? <PlanBoard items={filtered} columns={columns}>{renderTable()}</PlanBoard> : renderTable()
       )}
     </div>
-    {list && !loading && !error && <ResourceListFooter visible={filtered.length} total={data.length} />}
+    {list && list.kind !== "users" && !loading && !error && <ResourceListFooter visible={filtered.length} total={data.length} />}
     </ResourceListSurface>
     {list && <ResourceListNote>{list.note}</ResourceListNote>}
     <DetailDialog command className="resource-detail machine-install-dialog" open={Boolean(install)} title="一键安装 Corade Agent" onClose={() => setInstall(null)}>{install && <div className="machine-install">

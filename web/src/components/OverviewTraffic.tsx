@@ -1,6 +1,16 @@
+import { ArrowDown, ArrowUp, Boxes, CalendarDays, ChevronDown, Server, UsersRound } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
 import type { Overview } from "../types";
 import { formatBytes } from "./ui";
+
+type OverviewMetric = {
+  label: string;
+  icon: LucideIcon;
+  total: number;
+  initiallyOpen?: boolean;
+  details: { label: string; value: number; tone?: "online" | "offline" }[];
+};
 
 export function OverviewTraffic({ data }: { data: Overview }) {
   const end = data.traffic_day && Date.parse(data.traffic_day + "T00:00:00Z");
@@ -17,33 +27,127 @@ export function OverviewTraffic({ data }: { data: Overview }) {
   const download = selected ? selected.sample?.download_bytes : data.traffic_today_download_bytes;
   const total = selected ? selected.sample && selected.total : data.traffic_today_bytes;
   const peak = Math.max(0, ...days.map(({ total }) => total));
-  return <section className="overview-report" aria-label="流量与运行指标">
-    <div className="traffic-report">
-      <h2>每日流量</h2>
-      <p>{shownDate ?? "今日"}</p>
-      <strong className="traffic-report__total">{total === undefined ? "无采样" : formatBytes(total)}</strong>
-      {days.length > 0 ? <figure className="traffic-chart" aria-label="近七日上传与下载流量">
-        <div className="traffic-chart__axis" aria-hidden="true"><span>{peak ? formatBytes(peak) : ""}</span><span>0 B</span></div>
-        <div className="traffic-chart__days">{days.map(({ day, total, sample }) => {
-          const label = sample ? `${day} 上传 ${formatBytes(sample.upload_bytes)}，下载 ${formatBytes(sample.download_bytes)}` : `${day} 无采样`;
-          return <button type="button" className="traffic-chart__day" key={day} aria-pressed={day === shownDate} aria-label={label} title={label} onClick={() => setSelectedDay(day)}>
-            <span className="traffic-chart__plot">{sample ? total > 0 ? <span className="traffic-chart__stack" style={{ height: `${100 * total / peak}%` }}>
-              <i style={{ flexGrow: sample.upload_bytes }} /><i style={{ flexGrow: sample.download_bytes }} />
-            </span> : <span>0</span> : <span>—</span>}</span>
-            <small>{Number(day.slice(5, 7))}/{Number(day.slice(8, 10))}</small>
-          </button>;
-        })}</div>
-      </figure> : <p>暂无近七日流量数据</p>}
-      <div className="traffic-chart__legend" aria-live="polite">
-        <span>{selected ? "上传" : "今日上传"} {upload === undefined ? "—" : formatBytes(upload)}</span>
-        <span>{selected ? "下载" : "今日下载"} {download === undefined ? "—" : formatBytes(download)}</span>
-        <small>— 无采样</small>
+  const metrics: OverviewMetric[] = [
+    {
+      label: "服务器",
+      icon: Server,
+      total: data.machines_total,
+      initiallyOpen: true,
+      details: [
+        { label: "在线", value: data.machines_online, tone: "online" },
+        { label: "离线", value: data.machines_offline, tone: data.machines_offline > 0 ? "offline" : undefined },
+      ],
+    },
+    {
+      label: "节点",
+      icon: Boxes,
+      total: data.nodes_total,
+      details: [{ label: "已发布", value: data.nodes_published }],
+    },
+    {
+      label: "订阅账号",
+      icon: UsersRound,
+      total: data.admins_active + data.users_active + data.friends_active,
+      details: [
+        { label: "管理员", value: data.admins_active },
+        { label: "用户", value: data.users_active },
+        { label: "朋友", value: data.friends_active },
+      ],
+    },
+  ];
+
+  return (
+    <section className="overview-report" aria-label="流量与运行指标">
+      <div className="traffic-report">
+        <header className="traffic-report__header">
+          <h2>每日流量</h2>
+          <span className="traffic-report__date">
+            <CalendarDays size={15} aria-hidden="true" />
+            {shownDate ? <time dateTime={shownDate}>{shownDate}</time> : "今日"}
+          </span>
+        </header>
+        <dl className="traffic-report__summary" aria-live="polite">
+          <div className="traffic-report__total">
+            <dt>合计流量</dt>
+            <dd>{total === undefined ? "无采样" : formatBytes(total)}</dd>
+          </div>
+          <div className="traffic-report__transfer">
+            <div className="traffic-report__upload">
+              <dt><ArrowUp size={14} aria-hidden="true" />{selected ? "上传" : "今日上传"}</dt>
+              <dd>{upload === undefined ? "—" : formatBytes(upload)}</dd>
+            </div>
+            <div className="traffic-report__download">
+              <dt><ArrowDown size={14} aria-hidden="true" />{selected ? "下载" : "今日下载"}</dt>
+              <dd>{download === undefined ? "—" : formatBytes(download)}</dd>
+            </div>
+          </div>
+        </dl>
+        {days.length > 0 ? (
+          <figure className="traffic-chart" aria-label="近七日上传与下载流量">
+            <div className="traffic-chart__axis" aria-hidden="true">
+              <span>{peak > 0 && formatBytes(peak)}</span>
+              <span>{peak >= 2 && formatBytes(peak / 2)}</span>
+              <span>0 B</span>
+            </div>
+            <div className="traffic-chart__days">
+              {days.map(({ day, total, sample }) => {
+                const label = sample
+                  ? `${day} 上传 ${formatBytes(sample.upload_bytes)}，下载 ${formatBytes(sample.download_bytes)}`
+                  : `${day} 无采样`;
+                return (
+                  <button
+                    type="button"
+                    className="traffic-chart__day"
+                    key={day}
+                    aria-pressed={day === shownDate}
+                    aria-label={label}
+                    title={label}
+                    onClick={() => setSelectedDay(day)}
+                  >
+                    <span className="traffic-chart__plot" aria-hidden="true">
+                      {sample && total > 0 ? (
+                        <span className="traffic-chart__stack" style={{ height: `${100 * total / peak}%` }}>
+                          <i style={{ flexGrow: sample.upload_bytes }} />
+                          <i style={{ flexGrow: sample.download_bytes }} />
+                        </span>
+                      ) : <span className="traffic-chart__empty-mark">{sample ? "0" : "—"}</span>}
+                    </span>
+                    <span className="traffic-chart__date">{Number(day.slice(5, 7))}/{Number(day.slice(8, 10))}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <figcaption className="traffic-chart__legend">
+              <span className="traffic-report__upload">上传</span>
+              <span className="traffic-report__download">下载</span>
+              <span>— 无采样</span>
+            </figcaption>
+          </figure>
+        ) : <p className="traffic-chart__empty">暂无近七日流量数据</p>}
       </div>
-    </div>
-    <div className="overview-index"><h2>运行指标</h2>
-      <details open><summary>服务器 <b>{data.machines_total}</b></summary><p>{data.machines_online} 在线 / {data.machines_offline} 离线</p></details>
-      <details><summary>节点 <b>{data.nodes_total}</b></summary><p>{data.nodes_published} 已发布</p></details>
-      <details><summary>订阅账号 <b>{data.admins_active + data.users_active + data.friends_active}</b></summary><p>{data.admins_active} 管理员 / {data.users_active} 用户 / {data.friends_active} 朋友</p></details>
-    </div>
-  </section>;
+      <div className="overview-index">
+        <h2>运行指标</h2>
+        <div className="overview-index__rows">
+          {metrics.map(({ label, icon: Icon, total, initiallyOpen, details }) => (
+            <details key={label} open={initiallyOpen}>
+              <summary>
+                <Icon size={18} className="overview-index__icon" aria-hidden="true" />
+                <span>{label}</span>
+                <strong>{total}</strong>
+                <ChevronDown size={16} className="overview-index__chevron" aria-hidden="true" />
+              </summary>
+              <dl className="overview-index__breakdown">
+                {details.map(({ label, value, tone }) => (
+                  <div key={label} data-tone={tone}>
+                    <dt>{label}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </details>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
 }

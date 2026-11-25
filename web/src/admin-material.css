@@ -86,12 +86,12 @@
   box-shadow: var(--glass-highlight), var(--glass-card-shadow);
 }
 .admin-console :is(.clear-list, .table-surface--standalone, .metric-band, .machine-card, .revision-content, .revision-history,
-  .traffic-ranking, .attention-list, .subscription-access, .node-picker, .missing-page) { border-color: var(--glass-edge); }
+  .traffic-report, .overview-index, .traffic-ranking, .attention-list, .subscription-access, .node-picker, .missing-page) { border-color: var(--glass-edge); }
 .admin-console :is(.machine-grid, .plan-board) { background-color: var(--glass-well); }
 .admin-console .machine-comparison:not(.machine-row-list) { background-color: transparent; }
 .admin-console .machine-card .machine-metrics { background-color: var(--glass-well); box-shadow: var(--glass-highlight); }
 .admin-console :is(.toolbar, .resource-categories, .history-toolbar, .machine-comparison > header, .resource-list-footer,
-  .revision-json > pre, .overview-index, .history-summary, .fleet-target, .editor-summary, .detail-dialog__header) {
+  .revision-json > pre, .history-summary, .fleet-target, .editor-summary, .detail-dialog__header) {
   background-color: var(--glass-well);
   border-color: var(--glass-separator);
 }
@@ -127,14 +127,7 @@
   box-shadow: var(--material-shadow);
 }
 
-/* Traffic reporting and the operational index. The selected day stays legible with an empty bar. */
-.admin-console .traffic-report { border-block-color: var(--border-strong); }
-.admin-console .traffic-chart__day[aria-pressed="true"] { background-color: var(--active); }
-.admin-console .overview-index details { border-color: var(--glass-separator); }
-.admin-console .overview-index details[open] summary, .admin-console .traffic-ranking tbody td:last-child strong {
-  color: var(--accent);
-}
-.admin-console .traffic-ranking h3, .admin-console .attention-row { border-color: var(--glass-separator); }
+.admin-console .attention-row { border-color: var(--glass-separator); }
 
 /* Machines, fleet progress and the install command. Frozen table headings need an opaque fill. */
 .admin-console .machine-card__details dt, .admin-console .machine-card__location { color: var(--secondary); }
@@ -336,14 +329,6 @@
 .admin-console[data-admin-theme] :is(.machine-metric__track, .traffic-usage__track) > i {
   border-radius: var(--radius-pill);
 }
-
-/* Preserve the meeting point of the two series while rounding the visible top of each stack. */
-.admin-console .traffic-chart__day { border-radius: var(--radius-control); }
-.admin-console .traffic-chart__stack {
-  border-radius: var(--radius-detail) var(--radius-detail) 0 0;
-  overflow: hidden;
-}
-.admin-console .traffic-chart__legend span::before { border-radius: var(--radius-detail); }
 
 /* A table inset in a form or detail window owns its corners. Tables joined to a list use its rim. */
 .admin-console[data-admin-theme] :is(.editor-form, .revision-content, .access-ip-detail) .table-scroll {

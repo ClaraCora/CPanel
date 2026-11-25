@@ -1,5 +1,4 @@
 import { Link, useLocation, useParams } from "wouter";
-import { KeyRound } from "lucide-react";
 import { formatBytes, formatDateWithYear, formatPreciseDate } from "../components/ui";
 import { defaultOutboundSettings } from "../components/OutboundConfigForm";
 import { MachineMetrics } from "../components/MachineMetrics";
@@ -12,6 +11,7 @@ import { ResourceListPage } from "./ResourceListPage";
 import { ResourceEditorPage } from "./ResourceEditorPage";
 import { GroupContext, UserEntitlementContext } from "../components/EntitlementContext";
 import { editorHref } from "../navigation";
+import "../user-list.css";
 
 function ResourcePage<T extends Resource>(definition: ResourceDefinition<T>) {
   const [path] = useLocation();
@@ -130,12 +130,35 @@ export function UsersPage() {
     }}
     toValues={(item) => ({ role: item.role, uuid: item.uuid, name: item.name, email: item.email ?? "", plan_id: item.plan_id ?? "", expires_mode: "keep", expires_at: localDateTime(item.expires_at), notes: item.notes ?? "", portal_login: item.portal_login ?? "", portal_password: "" })}
     columns={[
-      { label: "账号", width: "21%", render: (item) => primary(item.name, item.id, item.email || item.id) },
-      { label: "分类", width: "8%", render: (item) => <span className="resource-role">{item.role === "admin" && <KeyRound size={12} aria-hidden="true" />}{item.role === "admin" ? "管理员" : item.role === "friend" ? "朋友" : "用户"}</span> },
-      { label: "套餐", width: "11%", render: (item) => item.plan_id ? <Link to={editorHref("/plans", item.plan_id)}>{item.plan_name || item.plan_id}</Link> : "未分配" },
-      { label: "流量用量", width: "16%", render: (item) => <TrafficUsage used={item.traffic_used_bytes} limit={item.traffic_limit_bytes} /> },
-		{ label: "门户", width: "13%", render: (item) => item.role === "admin" ? <span>后台进入<span className="resource-id">管理员只读代入</span></span> : item.portal_enabled ? item.portal_login : "未启用" },
-      { label: "到期", width: "8rem", render: (item) => item.expires_at ? <ResourceDate value={item.expires_at} formatted={formatDateWithYear(item.expires_at)} /> : "长期" },
+      {
+        label: "账号",
+        className: "user-list-account",
+        render: (item) => <>
+          <strong className="cell-primary">{item.name}</strong>
+          {item.email && <span className="user-list-email">{item.email}</span>}
+        </>,
+      },
+      {
+        label: "分类",
+        className: "user-list-role",
+        width: "8%",
+        render: (item) => (
+          <span className="user-list-role__label" data-role={item.role}>
+            {item.role === "admin" ? "管理员" : item.role === "friend" ? "朋友" : "用户"}
+          </span>
+        ),
+      },
+      { label: "套餐", className: "user-list-plan", width: "10%", render: (item) => item.plan_id ? <Link to={editorHref("/plans", item.plan_id)}>{item.plan_name || item.plan_id}</Link> : "未分配" },
+      { label: "流量用量", className: "user-list-traffic", width: "18%", render: (item) => <TrafficUsage used={item.traffic_used_bytes} limit={item.traffic_limit_bytes} /> },
+      {
+        label: "门户",
+        className: "user-list-portal",
+        width: "14%",
+        render: (item) => item.role === "admin"
+          ? <span>后台进入<span className="resource-id">管理员只读代入</span></span>
+          : item.portal_enabled ? item.portal_login : <span className="user-list-muted">未启用</span>,
+      },
+      { label: "到期", className: "user-list-expiry", width: "104px", render: (item) => item.expires_at ? <ResourceDate value={item.expires_at} formatted={formatDateWithYear(item.expires_at)} /> : "长期" },
     ]}
   />;
 }

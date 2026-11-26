@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { Profiler, StrictMode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderResource } from "../test/renderResource";
@@ -77,6 +77,31 @@ describe("Clear A operations safeguards", () => {
     expect(within(summary).getByText("https://example.com")).toBeTruthy();
     expect(within(summary).getByText("保存时更新")).toBeTruthy();
     expect(summary.innerHTML).not.toMatch(/operator|private|secret/);
+  });
+
+  it("loads settings sections on first visit and keeps drafts across compact picker changes", async () => {
+    history.replaceState({}, "", "/settings?section=site");
+    render(<SettingsPage admin={{ id: "adm", name: "管理", email: "admin@example.com", status: "active" }} onAdminChange={() => undefined} />);
+    const title = await screen.findByLabelText("平台名称");
+    expect(vi.mocked(api.getWithMeta).mock.calls.map(([path]) => path)).toEqual(["/settings/site"]);
+    fireEvent.change(title, { target: { value: "草稿" } });
+    const picker = screen.getByRole("combobox", { name: "设置分区" });
+    fireEvent.change(picker, { target: { value: "security" } });
+    await screen.findByRole("spinbutton", { name: "密码最小长度" });
+    fireEvent.change(picker, { target: { value: "site" } });
+    expect((screen.getByLabelText("平台名称") as HTMLInputElement).value).toBe("草稿");
+    expect(vi.mocked(api.getWithMeta).mock.calls.map(([path]) => path)).toEqual(["/settings/site", "/settings/security"]);
+  });
+
+  it("focuses the first invalid password and clears its error when edited", async () => {
+    render(<SettingsPage admin={{ id: "adm", name: "管理", email: "admin@example.com", status: "active" }} onAdminChange={() => undefined} />);
+    fireEvent.click(screen.getByRole("button", { name: "更新密码" }));
+    const current = screen.getByLabelText(/当前密码/);
+    await waitFor(() => expect(document.activeElement).toBe(current));
+    expect(current.getAttribute("aria-invalid")).toBe("true");
+    fireEvent.change(current, { target: { value: "previous" } });
+    expect(current.hasAttribute("aria-invalid")).toBe(false);
+    expect(screen.getByLabelText(/^新密码/).getAttribute("aria-invalid")).toBe("true");
   });
 
   it("retains a settings draft across category switches", async () => {

@@ -84,7 +84,7 @@ export function PlansPage() {
     transform={(v) => ({ name: v.name, access_group_id: v.access_group_id, traffic_limit_bytes: Number(v.traffic_gb) * 1024 ** 3, speed_limit_mbps: Number(v.speed_limit_mbps || 0), device_limit: Number(v.device_limit || 0), reset_strategy: v.reset_strategy, default_valid_days: Number(v.default_valid_days || 0), notes: v.notes })}
     toValues={(item) => ({ name: item.name, access_group_id: item.access_group_id, traffic_gb: String(item.traffic_limit_bytes / 1024 ** 3), speed_limit_mbps: String(item.speed_limit_mbps), device_limit: String(item.device_limit), reset_strategy: item.reset_strategy, default_valid_days: String(item.default_valid_days), notes: item.notes ?? "" })}
     columns={[
-      { label: "套餐 / 权限组", width: "25%", render: (item) => <>{primary(item.name, item.id)}<Link className="resource-id" to={editorHref("/access-groups", item.access_group_id)}>{item.access_group_name}</Link></> },
+      { label: "套餐 / 权限组", width: "25%", render: (item) => <><Link className="clear-resource-open" aria-label={`查看并编辑 ${item.name}`} to={editorHref("/plans", item.id)}>{primary(item.name, item.id)}</Link><Link className="resource-id" to={editorHref("/access-groups", item.access_group_id)}>{item.access_group_name}</Link></> },
       { label: "流量", width: "13%", className: "mono", render: (item) => formatBytes(item.traffic_limit_bytes) },
       { label: "速率", width: "13%", className: "mono", render: (item) => `${item.speed_limit_mbps || "不限"}${item.speed_limit_mbps ? " Mbps" : ""}` },
       { label: "设备", width: "8%", render: (item) => item.device_limit ? `${item.device_limit} 台` : "不限" },
@@ -94,13 +94,17 @@ export function PlansPage() {
   />;
 }
 
+function accountSearchText(user: User) {
+  return Object.values(user).join("\n");
+}
+
 export function UsersPage() {
   const { data: plans, loading: relatedLoading, error: relatedError, reload: retryRelated } = useResource<Plan[]>("/plans", []);
   return <ResourcePage<User> related={{ loading: relatedLoading, error: relatedError, retry: () => { void retryRelated(); } }}
     title="订阅账号"
     description="管理员可登录后台并使用订阅；用户与朋友仅能使用订阅"
     endpoint="/users"
-    list={{ kind: "users", searchPlaceholder: "搜索名称、邮箱或门户账号", note: "管理员可登录后台，用户与朋友使用订阅中心。管理员代入订阅中心时保持只读。", categories: [{ value: "user", label: "用户", matches: (item) => item.role === "user" }, { value: "friend", label: "朋友", matches: (item) => item.role === "friend" }, { value: "admin", label: "管理员", matches: (item) => item.role === "admin" }], filter: { label: "按套餐筛选订阅账号", allLabel: "全部套餐", value: (item) => item.plan_name || "未分配" } }}
+    list={{ kind: "users", searchText: accountSearchText, searchPlaceholder: "搜索名称、邮箱或门户账号", note: "管理员可登录后台，用户与朋友使用订阅中心。管理员代入订阅中心时保持只读。", categories: [{ value: "user", label: "用户", matches: (item) => item.role === "user" }, { value: "friend", label: "朋友", matches: (item) => item.role === "friend" }, { value: "admin", label: "管理员", matches: (item) => item.role === "admin" }], filter: { label: "按套餐筛选订阅账号", allLabel: "全部套餐", value: (item) => item.plan_name || "未分配" } }}
     createLabel="添加用户或朋友"
     subscriptionActions
 	portalActions

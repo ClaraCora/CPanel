@@ -31,6 +31,11 @@ import type { Machine, Node } from "../types";
 import { creationIntent } from "../mutations";
 
 const currentApplicationFailed = (node: Node) => node.apply_status === "failed" && node.attempted_revision === node.current_revision;
+function matchesNodeStatus(node: Node, status: string) {
+  if (status === "draft") return node.status === "draft" || node.has_draft;
+  if (status === "error") return node.status === "error" || (node.status === "published" && currentApplicationFailed(node));
+  return !status || node.status === status;
+}
 const hasConfigVersion = (node: Node): node is Node & { config_version: number } => Number.isSafeInteger(node.config_version) && (node.config_version ?? 0) > 0;
 const versionConflict = (reason: unknown) => reason instanceof ApiError && ["EDIT_VERSION_CONFLICT", "CONFIG_VERSION_CONFLICT"].includes(reason.code);
 type PublishIntent = { key: string; configVersion: number };
@@ -93,7 +98,7 @@ export function NodesPage() {
             .toLowerCase()
             .includes(needle)) &&
         (!machine || node.machine_id === machine) &&
-        (!status || (status === "draft" ? node.status === "draft" || node.has_draft : node.status === status)),
+        matchesNodeStatus(node, status),
     );
   }, [nodes, search, machine, status]);
 
@@ -187,14 +192,14 @@ export function NodesPage() {
       />
       {conflicts.size > 0 && <div className="form-alert" role="alert">节点配置已变化，请刷新列表并检查最新状态后再操作。<Button onClick={refresh} disabled={publishing.size > 0 || Boolean(changingStatus) || deleting}>刷新并检查最新状态</Button></div>}
       <ResourceListSurface>
-        <ResourceCategoryFilters label="节点分类筛选" value={status} options={[
+        <ResourceCategoryFilters label="节点分类筛选" countsReady={!loading && !error} value={status} options={[
           { value: "", label: "全部", count: nodes.length },
-          ...[{ value: "published", label: "已发布" }, { value: "draft", label: "待发布" }, { value: "disabled", label: "已停用" }, { value: "error", label: "异常" }].map((option) => ({ ...option, count: nodes.filter((node) => option.value === "draft" ? node.status === "draft" || node.has_draft : node.status === option.value).length })),
+          ...[{ value: "published", label: "已发布" }, { value: "draft", label: "待发布" }, { value: "disabled", label: "已停用" }, { value: "error", label: "异常" }].map((option) => ({ ...option, count: nodes.filter((node) => matchesNodeStatus(node, option.value)).length })),
         ]} onChange={(value) => { syncFilters({ status: value }); }} />
         <div className="toolbar">
           <label className="search-box"><Search size={16} aria-hidden="true" /><span className="sr-only">搜索节点</span><input name="node-search" autoComplete="off" value={search} onChange={(event) => { syncFilters({ search: event.target.value }); }} placeholder="搜索名称、服务器、协议或端口…" /></label>
           <div className="toolbar__filters"><Filter size={15} aria-hidden="true" /><select aria-label="按服务器筛选" value={machine} onChange={(event) => { syncFilters({ machine: event.target.value }); }}><option value="">全部服务器</option>{machines.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></div>
-          <span className="toolbar__count">{filtered.length} 个节点</span>
+          <span className="toolbar__count" role="status">{!loading && !error && `${filtered.length} 个节点`}</span>
         </div>
         <div className="table-surface">
           {loading ? <TableSkeleton columns={7} /> : error ? <EmptyState title="节点加载失败" description={error} action={<Button onClick={() => void reload()}>重新加载</Button>} /> : filtered.length === 0 ? <EmptyState title={nodes.length ? "没有符合筛选条件的节点" : "还没有节点"} description={nodes.length ? "调整搜索词或筛选条件后重试。" : "添加第一个节点并绑定到已经接入的服务器。"} action={nodes.length ? <Button onClick={() => { syncFilters({ search: "", machine: "", status: "" }); }}>清除筛选</Button> : <Link className="button button--primary" to={editorHref("/nodes")}><Plus size={16} />添加节点</Link>} /> : (

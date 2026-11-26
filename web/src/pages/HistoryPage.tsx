@@ -3,26 +3,14 @@ import { Link, useSearchParams } from "wouter";
 import { Button, EmptyState, PageHeader, Pagination, StatusBadge, TableSkeleton, formatBusinessDate, formatBytes, formatDate } from "../components/ui";
 import { ResourceListNote } from "../components/ResourceList";
 import { usePagedResource, useResource } from "../hooks";
-import type { DailyTraffic, DeviceHistory, HistoricalData, MetricSample } from "../types";
-
-const emptyHistory: HistoricalData = {
-  retention: { devices_days: 30, traffic_days: 90 },
-  traffic: [],
-  machine_metrics: [],
-  node_metrics: [],
-  devices: [],
-};
+import type { DailyTraffic, DeviceHistory, MetricSample, Setting } from "../types";
 
 type View = "traffic" | "machines" | "nodes" | "devices";
 
 export function HistoryPage() {
-  const { data, loading, error, reload } = useResource<HistoricalData>("/history", emptyHistory);
   const [params, setParams] = useSearchParams();
   const view = (["traffic", "machines", "nodes", "devices"].includes(params.get("view") || "") ? params.get("view") : "traffic") as View;
   const setView = (value: View) => setParams((current) => { const next = new URLSearchParams(current); next.set("view", value); next.delete("page"); return next; }, { replace: true });
-  const paged = usePagedResource<DailyTraffic | MetricSample | DeviceHistory>(`/history?view=${view}`);
-  const retentionLabel = view === "traffic" ? `保留 ${data.retention.traffic_days} 天` : view === "devices" ? `保留 ${data.retention.devices_days} 天` : "仅保留最新值";
-
   return <div className="page resource-page operations-page admin-history">
     <PageHeader title="历史数据" description="查看保留期内的流量、运行指标与设备连接记录" actions={<Link className="button button--secondary" to="/settings?section=retention"><Settings size={16} />保留设置</Link>} />
     <section className="clear-list"><div className="history-toolbar">
@@ -32,11 +20,43 @@ export function HistoryPage() {
         <Tab active={view === "nodes"} onClick={() => setView("nodes")}>节点指标</Tab>
         <Tab active={view === "devices"} onClick={() => setView("devices")}>设备记录</Tab>
       </div>
-      <span className="retention-label"><Clock3 size={15} />{retentionLabel}</span>
+      <span className="retention-label"><Clock3 size={15} aria-hidden="true" />{view === "traffic" || view === "devices" ? <RetentionDays view={view} /> : "仅保留最新值"}</span>
     </div>
-    {view === "traffic" && !paged.loading && !paged.error && <div className="history-summary"><span>本页 {paged.data.length} 天</span><span>上传 <strong>{formatBytes((paged.data as DailyTraffic[]).reduce((sum, item) => sum + item.upload_bytes, 0))}</strong></span><span>下载 <strong>{formatBytes((paged.data as DailyTraffic[]).reduce((sum, item) => sum + item.download_bytes, 0))}</strong></span><span>合计 <strong>{formatBytes((paged.data as DailyTraffic[]).reduce((sum, item) => sum + item.upload_bytes + item.download_bytes, 0))}</strong></span></div>}
-    {loading || paged.loading ? <TableSkeleton columns={5} rows={8} /> : error || paged.error ? <EmptyState title="历史数据加载失败" description={error || paged.error} action={<Button onClick={() => { void reload(); void paged.reload(); }}>重新加载</Button>} /> : view === "traffic" ? <TrafficTable items={paged.data as DailyTraffic[]} page={paged.page} pageSize={paged.pageSize} total={paged.total} hasMore={paged.hasMore} onPageChange={paged.setPage} /> : view === "machines" ? <MetricsTable title="服务器指标" items={paged.data as MetricSample[]} page={paged.page} pageSize={paged.pageSize} total={paged.total} hasMore={paged.hasMore} onPageChange={paged.setPage} /> : view === "nodes" ? <MetricsTable title="节点指标" items={paged.data as MetricSample[]} page={paged.page} pageSize={paged.pageSize} total={paged.total} hasMore={paged.hasMore} onPageChange={paged.setPage} /> : <DeviceTable items={paged.data as DeviceHistory[]} page={paged.page} pageSize={paged.pageSize} total={paged.total} hasMore={paged.hasMore} onPageChange={paged.setPage} />}
+    <HistoryResults key={view} view={view} />
   </section><ResourceListNote>服务器与节点指标仅保留最新值。流量与设备记录按数据保留设置清理。</ResourceListNote></div>;
+}
+
+function RetentionDays({ view }: { view: "traffic" | "devices" }) {
+  const { data, loading, error, reload } = useResource<Setting[]>("/settings/retention", []);
+  if (loading) return <>正在读取保留期…</>;
+  if (error) return <><span role="status">保留期读取失败</span><Button onClick={() => void reload()} aria-label="重新读取保留期">重试</Button></>;
+  const raw = data.find((item) => item.key === `${view}_days`)?.value;
+  const days = typeof raw === "number" || (typeof raw === "string" && /^\+?\d+$/.test(raw)) ? Number(raw) : 0;
+  const fallback = view === "traffic" ? 90 : 30;
+  return <>保留 {Number.isSafeInteger(days) && days > 0 ? days : fallback} 天</>;
+}
+
+function HistoryResults({ view }: { view: View }) {
+  const paged = usePagedResource<DailyTraffic | MetricSample | DeviceHistory>(`/history?view=${view}`);
+  if (paged.loading) return <TableSkeleton columns={5} rows={8} />;
+  if (paged.error) return <EmptyState title="历史数据加载失败" description={paged.error} action={<Button onClick={() => void paged.reload()}>重新加载</Button>} />;
+
+  const pagination = { page: paged.page, pageSize: paged.pageSize, total: paged.total, hasMore: paged.hasMore, onPageChange: paged.setPage };
+  if (view === "devices") return <DeviceTable items={paged.data as DeviceHistory[]} {...pagination} />;
+  if (view !== "traffic") return <MetricsTable title={view === "machines" ? "服务器指标" : "节点指标"} items={paged.data as MetricSample[]} {...pagination} />;
+
+  const items = paged.data as DailyTraffic[];
+  const upload = items.reduce((sum, item) => sum + item.upload_bytes, 0);
+  const download = items.reduce((sum, item) => sum + item.download_bytes, 0);
+  return <>
+    <div className="history-summary">
+      <span>本页 {items.length} 天</span>
+      <span>上传 <strong>{formatBytes(upload)}</strong></span>
+      <span>下载 <strong>{formatBytes(download)}</strong></span>
+      <span>合计 <strong>{formatBytes(upload + download)}</strong></span>
+    </div>
+    <TrafficTable items={items} {...pagination} />
+  </>;
 }
 
 function Tab({ active, onClick, children }: { active: boolean; onClick: () => void; children: string }) {

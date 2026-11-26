@@ -126,6 +126,18 @@ describe("standalone resource editors", () => {
     expect(location.pathname).toBe(`/nodes/${saved.id}/edit`);
   });
 
+  it("moves keyboard focus to a chapter and marks the section containing the focused field", async () => {
+    open(NodeEditorPage, "/nodes", "/new");
+    const form = await screen.findByRole("form", { name: "添加节点" });
+    const chapter = screen.getByRole("button", { name: "协议配置" });
+    const destination = document.getElementById(chapter.getAttribute("aria-controls")!)!;
+    destination.scrollIntoView = vi.fn();
+    fireEvent.click(chapter);
+    expect(document.activeElement).toBe(within(form).getByRole("heading", { name: "节点类型与协议配置" }));
+    fireEvent.focus(within(form).getByLabelText(/节点名称/));
+    expect(screen.getByRole("button", { name: "基础信息" }).getAttribute("aria-current")).toBe("location");
+  });
+
   it("focuses and describes the invalid node endpoint without dropping other input", async () => {
     open(NodeEditorPage, "/nodes", "/new");
     const form = await screen.findByRole("form", { name: "添加节点" });

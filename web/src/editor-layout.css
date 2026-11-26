@@ -10,6 +10,7 @@
   margin: 0 0 4px; padding: 6px 8px 10px; border-bottom: 1px solid var(--border);
   color: var(--secondary); font-size: 12px;
 }
+.admin-console .form-section__heading h2[tabindex]:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 .admin-console .editor-workspace .editor-fields { gap: 14px; }
 .admin-console .editor-workspace .editor-form { gap: 14px; max-width: none; }
 .admin-console .editor-workspace .form-section { min-width: 0; padding: 0 18px 16px; }
@@ -47,6 +48,7 @@
 }
 .admin-console .editor-review .editor-section-nav button[aria-current],
 .admin-console .settings-review .settings-nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+.admin-console .settings-section-picker { display: none; }
 .admin-console .settings-review .settings-context { padding: 0; flex-basis: 100%; }
 .admin-console .editor-review .editor-form { width: 100%; max-width: none; min-width: 0; margin: 0; }
 .admin-console .editor-review .editor-fields { gap: 30px; }
@@ -99,6 +101,12 @@
 @media (max-width: 600px) {
   .admin-console .editor-review .form-section > .form-grid > [data-field-key] > .field:not([role=group]),
   .admin-console .settings-review .field { display: flex; flex-direction: column; align-items: stretch; }
-  .admin-console .editor-review .editor-section-nav button,
-  .admin-console .settings-review .settings-nav button { min-height: 44px; }
+  .admin-console .editor-review .editor-section-nav button { min-height: 44px; }
+  .admin-console .settings-review .settings-nav { margin-bottom: 0; }
+  .admin-console .settings-review .settings-nav button { display: none; }
+  .admin-console .settings-section-picker {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    color: var(--secondary); font-weight: 600;
+  }
+  .admin-console .settings-section-picker select { flex: 1; min-width: 0; min-height: 44px; }
 }

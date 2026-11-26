@@ -63,14 +63,60 @@ function settingReview(section: SettingSection, values: Record<string, string>):
 export function SettingsPage({ admin, onAdminChange }: { admin: Admin; onAdminChange: (admin: Admin) => void }) {
   const [params, setParams] = useSearchParams();
   const active = sections.some((item) => item.id === params.get("section")) ? params.get("section")! : "account";
+  // Keep visited forms mounted so switching sections preserves drafts and pending saves.
+  const [visited, setVisited] = useState<string[]>([active]);
+  useEffect(() => {
+    setVisited((previous) => previous.includes(active) ? previous : [...previous, active]);
+  }, [active]);
   const setActive = (value: string) => setParams((current) => { const next = new URLSearchParams(current); next.set("section", value); return next; }, { replace: true });
   const icons = [UserRound, Globe, Server, ShieldCheck, Network, FileKey2, Send, Database];
-  return <div className="page resource-page operations-page admin-settings settings-review"><PageHeader title="系统设置" description="维护管理员账户、站点与运行参数" /><div className="settings-layout"><nav className="settings-nav" aria-label="设置分区">{sections.map((item, index) => { const Icon = icons[index]; return <button type="button" aria-pressed={item.id === active} className={item.id === active ? "active" : ""} onClick={() => setActive(item.id)} key={item.id}><Icon size={16} /><strong>{item.label}</strong></button>; })}<p className="settings-context">修改配置后，请保存当前分区。切换分类会保留未保存的输入。</p></nav><div className="settings-panels">{sections.map((section) => <section className="settings-content" key={section.id} hidden={section.id !== active}><header><div><h2>{section.label}</h2><p>{section.description}</p></div>{section.fields?.some((field) => field.sensitive) && <span className="security-note"><KeyRound size={15} />敏感值加密存储</span>}</header>{section.id === "account" ? <AccountSettings admin={admin} onAdminChange={onAdminChange} review={section.id === active} /> : <SystemSettingForm section={section} review={section.id === active} />}</section>)}</div></div><ResourceListNote>所有变更都会记录到审计日志；敏感值留空时保留原值。</ResourceListNote></div>;
+  return <div className="page resource-page operations-page admin-settings settings-review">
+    <PageHeader title="系统设置" description="维护管理员账户、站点与运行参数" />
+    <div className="settings-layout">
+      <nav className="settings-nav" aria-label="设置分区">
+        <label className="settings-section-picker">设置分区
+          <select name="settings-section" value={active} onChange={(event) => setActive(event.target.value)}>
+            {sections.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}
+          </select>
+        </label>
+        {sections.map((item, index) => {
+          const Icon = icons[index];
+          return <button type="button" key={item.id} aria-pressed={item.id === active}
+            className={item.id === active ? "active" : ""} onClick={() => setActive(item.id)}>
+            <Icon size={16} aria-hidden="true" /><strong>{item.label}</strong>
+          </button>;
+        })}
+        <p className="settings-context">修改配置后，请保存当前分区。切换分类会保留未保存的输入。</p>
+      </nav>
+      <div className="settings-panels">
+        {sections.filter((section) => section.id === active || visited.includes(section.id)).map((section) =>
+          <section className="settings-content" key={section.id} hidden={section.id !== active}>
+            <header>
+              <div><h2>{section.label}</h2><p>{section.description}</p></div>
+              {section.fields?.some((field) => field.sensitive) &&
+                <span className="security-note"><KeyRound size={15} aria-hidden="true" />敏感值加密存储</span>}
+            </header>
+            {section.id === "account"
+              ? <AccountSettings admin={admin} onAdminChange={onAdminChange} review={section.id === active} />
+              : <SystemSettingForm section={section} review={section.id === active} />}
+          </section>)}
+      </div>
+    </div>
+    <ResourceListNote>所有变更都会记录到审计日志，敏感值留空时保留原值。</ResourceListNote>
+  </div>;
 }
 
 export function SubscriptionPage() {
   const [expanded, setExpanded] = useState(() => !window.matchMedia("(max-width: 700px)").matches);
   return <div className="page resource-page operations-page admin-subscription"><PageHeader title="订阅" description="管理订阅输出、访问策略与客户端拉取记录" /><div className="operation-stack"><section className="settings-content"><header><div><h2>{subscriptionSection.label}</h2><p>{subscriptionSection.description}</p></div><Button type="button" aria-expanded={expanded} aria-controls="subscription-settings" onClick={() => setExpanded((value) => !value)}>{expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}{expanded ? "收起设置" : "展开设置"}</Button></header><div id="subscription-settings" hidden={!expanded}><SystemSettingForm section={subscriptionSection} /></div></section><SubscriptionAccessLog /></div></div>;
+}
+
+function focusInvalidSetting(form: HTMLFormElement) {
+  requestAnimationFrame(() => {
+    if (form.isConnected && !form.closest("[hidden]")) {
+      form.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+    }
+  });
 }
 
 function AccountSettings({ admin, onAdminChange, review }: { admin: Admin; onAdminChange: (admin: Admin) => void; review: boolean }) {
@@ -89,47 +135,88 @@ function AccountSettings({ admin, onAdminChange, review }: { admin: Admin; onAdm
   const passwordMinimum = Number.isInteger(configuredMinimum) && configuredMinimum >= 8 ? configuredMinimum : 8;
   useEffect(() => setProfile({ name: admin.name, email: admin.email }), [admin.email, admin.name]);
 
-  async function saveProfile(event: FormEvent) {
+  async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = event.currentTarget;
     if (locks.current.has("profile")) return;
     const errors: Record<string, string> = {};
     if (!profile.name.trim()) errors.name = "请填写管理员名称";
     if (!/^\S+@\S+\.\S+$/.test(profile.email.trim())) errors.email = "请填写有效的管理员邮箱";
     setProfileErrors(errors);
-    if (Object.keys(errors).length) return;
+    if (Object.keys(errors).length) { focusInvalidSetting(form); return; }
     locks.current.add("profile"); setProfileSaving(true);
     try {
       const updated = await api.patch<Admin>("/account/profile", { name: profile.name.trim(), email: profile.email.trim() });
       onAdminChange(updated);
       toast("管理员资料已保存");
     } catch (reason) {
-      if (reason instanceof ApiError) setProfileErrors(reason.fields);
+      if (reason instanceof ApiError) { setProfileErrors(reason.fields); focusInvalidSetting(form); }
       toast(reason instanceof ApiError ? reason.message : "管理员资料保存失败", "error");
     } finally { locks.current.delete("profile"); setProfileSaving(false); }
   }
 
-  async function savePassword(event: FormEvent) {
+  async function savePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = event.currentTarget;
     if (locks.current.has("password")) return;
     const errors: Record<string, string> = {};
     if (!password.current_password) errors.current_password = "请输入当前密码";
     if (Array.from(password.new_password).length < passwordMinimum) errors.new_password = `新密码至少需要 ${passwordMinimum} 个字符`;
     if (password.new_password !== password.confirm_password) errors.confirm_password = "两次输入的新密码不一致";
     setPasswordErrors(errors);
-    if (Object.keys(errors).length) return;
+    if (Object.keys(errors).length) { focusInvalidSetting(form); return; }
     locks.current.add("password"); setPasswordSaving(true);
     try {
       await api.patch("/account/password", password);
       setPassword({ current_password: "", new_password: "", confirm_password: "" });
       toast("密码已更新，其他管理会话已退出");
     } catch (reason) {
-      if (reason instanceof ApiError) setPasswordErrors(reason.fields);
+      if (reason instanceof ApiError) { setPasswordErrors(reason.fields); focusInvalidSetting(form); }
       toast(reason instanceof ApiError ? reason.message : "密码修改失败", "error");
     } finally { locks.current.delete("password"); setPasswordSaving(false); }
   }
 
+  function updateProfile(key: keyof typeof profile, value: string) {
+    setProfile((current) => ({ ...current, [key]: value }));
+    setProfileErrors((current) => ({ ...current, [key]: "" }));
+  }
+
+  function updatePassword(key: keyof typeof password, value: string) {
+    setPassword((current) => ({ ...current, [key]: value }));
+    setPasswordErrors((current) => ({ ...current, [key]: "" }));
+  }
+
   const passwordType = showPassword ? "text" : "password";
-  return <><div className="account-settings"><form className="settings-form account-form" onSubmit={saveProfile}><fieldset disabled={profileSaving} className="settings-fields"><div className="account-form__heading"><UserRound size={18} /><div><h3>账户资料</h3><p>用于登录后台、管理员菜单和审计记录。</p></div></div><Field label="管理员名称" required error={profileErrors.name}><input value={profile.name} onChange={(event) => setProfile((current) => ({ ...current, name: event.target.value }))} autoComplete="name" /></Field><Field label="登录邮箱" required error={profileErrors.email}><input type="email" value={profile.email} onChange={(event) => setProfile((current) => ({ ...current, email: event.target.value }))} autoComplete="username" /></Field><footer><span><ShieldCheck size={15} />修改会写入管理员审计日志</span><Button type="submit" variant="primary" loading={profileSaving}><Save size={16} />保存账户资料</Button></footer></fieldset></form><form className="settings-form account-form account-form--password" onSubmit={savePassword}><fieldset disabled={passwordSaving} className="settings-fields"><div className="account-form__heading"><LockKeyhole size={18} /><div><h3>修改密码</h3><p>修改前必须验证当前密码，新密码至少 {passwordMinimum} 个字符。</p></div><button type="button" className="icon-button account-password-toggle" aria-label={showPassword ? "隐藏密码" : "显示密码"} title={showPassword ? "隐藏密码" : "显示密码"} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></div><Field label="当前密码" required error={passwordErrors.current_password}><input type={passwordType} autoComplete="current-password" value={password.current_password} onChange={(event) => setPassword((current) => ({ ...current, current_password: event.target.value }))} /></Field><Field label="新密码" required error={passwordErrors.new_password}><input type={passwordType} minLength={passwordMinimum} autoComplete="new-password" value={password.new_password} onChange={(event) => setPassword((current) => ({ ...current, new_password: event.target.value }))} /></Field><Field label="确认新密码" required error={passwordErrors.confirm_password}><input type={passwordType} minLength={passwordMinimum} autoComplete="new-password" value={password.confirm_password} onChange={(event) => setPassword((current) => ({ ...current, confirm_password: event.target.value }))} /></Field><footer><span><ShieldCheck size={15} />保存后当前设备保持登录，其他会话将退出</span><Button type="submit" variant="primary" loading={passwordSaving}><KeyRound size={16} />更新密码</Button></footer></fieldset></form></div>
+  return <>
+    <div className="account-settings">
+      <form className="settings-form account-form" onSubmit={saveProfile}>
+        <fieldset disabled={profileSaving} className="settings-fields">
+          <div className="account-form__heading"><UserRound size={18} /><div><h3>账户资料</h3><p>用于登录后台、管理员菜单和审计记录。</p></div></div>
+          <Field label="管理员名称" required error={profileErrors.name}>
+            <input name="name" value={profile.name} onChange={(event) => updateProfile("name", event.target.value)} autoComplete="name" />
+          </Field>
+          <Field label="登录邮箱" required error={profileErrors.email}>
+            <input type="email" name="email" autoCapitalize="none" spellCheck={false} value={profile.email} onChange={(event) => updateProfile("email", event.target.value)} autoComplete="username" />
+          </Field>
+          <footer><span><ShieldCheck size={15} />修改会写入管理员审计日志</span><Button type="submit" variant="primary" loading={profileSaving}><Save size={16} />保存账户资料</Button></footer>
+        </fieldset>
+      </form>
+      <form className="settings-form account-form account-form--password" onSubmit={savePassword}>
+        <fieldset disabled={passwordSaving} className="settings-fields">
+          <div className="account-form__heading"><LockKeyhole size={18} /><div><h3>修改密码</h3><p>修改前必须验证当前密码，新密码至少 {passwordMinimum} 个字符。</p></div><button type="button" className="icon-button account-password-toggle" aria-label={showPassword ? "隐藏密码" : "显示密码"} title={showPassword ? "隐藏密码" : "显示密码"} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></div>
+          <Field label="当前密码" required error={passwordErrors.current_password}>
+            <input name="current_password" type={passwordType} autoComplete="current-password" value={password.current_password} onChange={(event) => updatePassword("current_password", event.target.value)} />
+          </Field>
+          <Field label="新密码" required error={passwordErrors.new_password}>
+            <input name="new_password" type={passwordType} minLength={passwordMinimum} autoComplete="new-password" value={password.new_password} onChange={(event) => updatePassword("new_password", event.target.value)} />
+          </Field>
+          <Field label="确认新密码" required error={passwordErrors.confirm_password}>
+            <input name="confirm_password" type={passwordType} minLength={passwordMinimum} autoComplete="new-password" value={password.confirm_password} onChange={(event) => updatePassword("confirm_password", event.target.value)} />
+          </Field>
+          <footer><span><ShieldCheck size={15} />保存后当前设备保持登录，其他会话将退出</span><Button type="submit" variant="primary" loading={passwordSaving}><KeyRound size={16} />更新密码</Button></footer>
+        </fieldset>
+      </form>
+    </div>
     {review && <ConfigSummary groups={[{ title: "登录身份", rows: [["管理员名称", profile.name], ["登录邮箱", profile.email]] },
       { title: "密码保护", rows: [["长度要求", `至少 ${passwordMinimum} 个字符`], ["密码修改", password.new_password ? "待提交" : "未修改"]] }]} />}
   </>;
@@ -174,8 +261,9 @@ function SystemSettingForm({ section, review = false }: { section: SettingSectio
     updateValue(field.key, `cpa_${value}`);
   }
 
-  async function save(event: FormEvent) {
+  async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = event.currentTarget;
     if (locks.current.has("save") || locks.current.has("test")) return;
     if (configVersion === undefined) { setSaveError("服务未返回配置版本，请重新加载设置后再保存。"); return; }
     locks.current.add("save"); setSaving(true); setSaveError(""); setFieldErrors({});
@@ -188,7 +276,7 @@ function SystemSettingForm({ section, review = false }: { section: SettingSectio
       setSaveFailure(null);
       await reload();
     }
-    catch (reason) { if (reason instanceof ApiError) setFieldErrors(reason.fields); setSaveFailure(reason); setSaveError(reason instanceof ApiError ? reason.message : "设置保存失败，请检查网络后重试"); }
+    catch (reason) { if (reason instanceof ApiError) { setFieldErrors(reason.fields); focusInvalidSetting(form); } setSaveFailure(reason); setSaveError(reason instanceof ApiError ? reason.message : "设置保存失败，请检查网络后重试"); }
     finally { locks.current.delete("save"); setSaving(false); }
   }
 

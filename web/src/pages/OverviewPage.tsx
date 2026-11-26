@@ -1,14 +1,15 @@
 import { OverviewTraffic } from "../components/OverviewTraffic";
 import {
   AlertTriangle,
+  CheckCircle2,
   ArrowRight,
   Boxes,
   LoaderCircle,
   UsersRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useId, useState } from "react";
-import { Link } from "wouter";
+import { useId } from "react";
+import { Link, useSearchParams } from "wouter";
 import { useResource } from "../hooks";
 import type { Overview, TrafficRank } from "../types";
 import {
@@ -45,15 +46,23 @@ const rankingPeriods = [
 type RankingPeriod = (typeof rankingPeriods)[number]["value"];
 
 export function OverviewPage() {
-  const [period, setPeriod] = useState<RankingPeriod>("today");
-  const { data, loading, error, reload, lastSuccessAt, refreshing, stale, refreshError } = useResource<Overview>(
-    `/overview?period=${period}`,
+  const [params, setParams] = useSearchParams();
+  const period = rankingPeriods.find((item) => item.value === params.get("period")) ?? rankingPeriods[0];
+  function selectPeriod(value: RankingPeriod) {
+    setParams((previous) => {
+      const next = new URLSearchParams(previous);
+      if (value === "today") next.delete("period");
+      else next.set("period", value);
+      return next;
+    }, { replace: true });
+  }
+  const { data, loading, error, reload, lastSuccessAt, lastSuccessPath, refreshing, stale, refreshError } = useResource<Overview>(
+    `/overview?period=${period.value}`,
     emptyOverview,
     60_000,
   );
-  const hasLoaded = data !== emptyOverview;
-  const periodLabel =
-    rankingPeriods.find((item) => item.value === period)?.label ?? "今日";
+  const hasLoaded = lastSuccessPath !== null;
+  const shownPeriod = rankingPeriods.find((item) => lastSuccessPath === `/overview?period=${item.value}`) ?? period;
   return (
     <div className="page">
       <PageHeader
@@ -82,18 +91,19 @@ export function OverviewPage() {
         <TableSkeleton columns={4} rows={2} />
       ) : (
         <>
+          <OverviewAttention data={data} />
           <OverviewTraffic data={data} />
           <section className="ranking-section" aria-labelledby="traffic-ranking-title">
             <div className="section-heading ranking-section__heading">
               <div>
-                <h2 id="traffic-ranking-title">{periodLabel}流量排行</h2>
+                <h2 id="traffic-ranking-title">{shownPeriod.label}流量排行</h2>
                 <p>按上传与下载合计排序，最多显示 10 条。条形长度以各榜榜首为基准。</p>
               </div>
               <div className="overview-heading-actions">
                 {loading ? (
                   <span className="data-freshness ranking-section__loading" role="status">
                     <LoaderCircle className="spin" size={14} aria-hidden="true" />
-                    正在更新排行
+                    正在加载{period.label}排行…
                   </span>
                 ) : (
                   <DataFreshness lastSuccessAt={lastSuccessAt} stale={stale} refreshing={refreshing} error={refreshError} />
@@ -102,8 +112,8 @@ export function OverviewPage() {
                   {rankingPeriods.map((item) => (
                     <button
                       type="button"
-                      aria-pressed={period === item.value}
-                      onClick={() => setPeriod(item.value)}
+                      aria-pressed={period.value === item.value}
+                      onClick={() => selectPeriod(item.value)}
                       key={item.value}
                     >
                       {item.label}
@@ -114,61 +124,47 @@ export function OverviewPage() {
             </div>
             {error && (
               <div className="ranking-error">
-                <p role="alert">{error}。当前显示上次加载成功的排行。</p>
+                <p role="alert">{period.label}排行加载失败，当前显示{shownPeriod.label}排行。{error}</p>
                 <button type="button" className="button button--secondary" onClick={() => void reload()}>
                   重新加载
                 </button>
               </div>
             )}
             <div className="ranking-grid" aria-busy={loading}>
-              <TrafficRanking title="节点流量排行" icon={Boxes} items={data.node_traffic_ranking} empty={`${periodLabel}还没有节点流量`} />
-              <TrafficRanking title="用户流量排行" icon={UsersRound} items={data.user_traffic_ranking} empty={`${periodLabel}还没有用户流量`} />
+              <TrafficRanking title="节点流量排行" icon={Boxes} items={data.node_traffic_ranking} empty={`${shownPeriod.label}还没有节点流量`} />
+              <TrafficRanking title="用户流量排行" icon={UsersRound} items={data.user_traffic_ranking} empty={`${shownPeriod.label}还没有用户流量`} />
             </div>
-          </section>
-          <section className="overview-section">
-            <div className="section-heading">
-              <div>
-                <h2>需要关注</h2>
-                <p>检查离线服务器及未处于已发布状态的节点。</p>
-              </div>
-            </div>
-            {data.machines_offline === 0 &&
-            data.nodes_total === data.nodes_published ? (
-              <EmptyState
-                title="当前没有待处理事项"
-                description="服务器在线且所有节点配置均已发布。"
-              />
-            ) : (
-              <div className="attention-list">
-                {data.machines_offline > 0 && (
-                  <Link to="/machines" className="attention-row">
-                    <AlertTriangle size={18} className="text-danger" />
-                    <div>
-                      <strong>{data.machines_offline} 台服务器离线</strong>
-                      <span>检查最后心跳、Agent 进程与接入凭据。</span>
-                    </div>
-                    <ArrowRight size={17} />
-                  </Link>
-                )}
-                {data.nodes_total > data.nodes_published && (
-                  <Link to="/nodes" className="attention-row">
-                    <Boxes size={18} className="text-warning" />
-                    <div>
-                      <strong>
-                        {data.nodes_total - data.nodes_published} 个节点未处于已发布状态
-                      </strong>
-                      <span>查看草稿、停用或异常状态，再决定处理操作。</span>
-                    </div>
-                    <ArrowRight size={17} />
-                  </Link>
-                )}
-              </div>
-            )}
           </section>
         </>
       )}
     </div>
   );
+}
+
+function OverviewAttention({ data }: { data: Overview }) {
+  const unpublished = data.nodes_total - data.nodes_published;
+  if (!data.machines_offline && !unpublished) {
+    const hasResources = data.machines_total > 0 || data.nodes_total > 0;
+    return <p className="overview-health">
+      {hasResources && <CheckCircle2 size={16} aria-hidden="true" />}
+      {hasResources ? "当前没有离线服务器或未发布节点" : "尚未接入服务器或节点"}
+    </p>;
+  }
+  return <section className="overview-attention" aria-labelledby="overview-attention-title">
+    <h2 id="overview-attention-title">需要关注</h2>
+    <div className="attention-list">
+      {data.machines_offline > 0 && <Link to="/machines?status=offline" className="attention-row">
+        <AlertTriangle size={18} className="text-danger" aria-hidden="true" />
+        <div><strong>{data.machines_offline} 台服务器离线</strong><span>查看离线服务器和最后心跳</span></div>
+        <ArrowRight size={16} aria-hidden="true" />
+      </Link>}
+      {unpublished > 0 && <Link to="/nodes" className="attention-row">
+        <Boxes size={18} className="text-warning" aria-hidden="true" />
+        <div><strong>{unpublished} 个节点未发布</strong><span>查看节点状态与配置</span></div>
+        <ArrowRight size={16} aria-hidden="true" />
+      </Link>}
+    </div>
+  </section>;
 }
 
 function TrafficRanking({ title, icon: Icon, items, empty }: {

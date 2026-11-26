@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { Profiler } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Route } from "wouter";
 import { ApiError, api } from "../api";
@@ -156,10 +157,21 @@ describe("settings and entitlement safeguards", () => {
 
   it("requires an explicit expiry choice and excludes disabled plans from new assignments", async () => {
     const disabled = { ...demoPlans[1], id: "disabled-plan", status: "disabled", name: "停用套餐" };
-    vi.mocked(api.get).mockImplementation(async (path) => (path === "/plans" ? [...demoPlans, disabled] : path === "/settings/site" ? demoSettings.site : []) as never);
+    let finishLoadingPlans!: () => void;
+    const plansReady = new Promise<void>((resolve) => { finishLoadingPlans = resolve; });
+    vi.mocked(api.get).mockImplementation(async (path) => {
+      if (path === "/plans") { await plansReady; return [...demoPlans, disabled] as never; }
+      return (path === "/settings/site" ? demoSettings.site : []) as never;
+    });
     history.replaceState({}, "", "/users/new");
-    render(<AdminNavigation><Route path="/users/new" component={UsersPage} /></AdminNavigation>);
+    let firstDisplayedPlan: string | undefined;
+    render(<Profiler id="new-account" onRender={() => {
+      firstDisplayedPlan ??= document.querySelector<HTMLSelectElement>('select[name="plan_id"]')?.value;
+    }}><AdminNavigation><Route path="/users/new" component={UsersPage} /></AdminNavigation></Profiler>);
+    expect(screen.queryByRole("form")).toBeNull();
+    await act(async () => finishLoadingPlans());
     const form = await screen.findByRole("form");
+    expect(firstDisplayedPlan).toBe(demoPlans.find((item) => item.status === "active")!.id);
     expect(within(form).queryByRole("option", { name: /停用套餐/ })).toBeNull();
     expect((within(form).getByLabelText("到期方式") as HTMLSelectElement).value).toBe("default");
     fireEvent.change(within(form).getByLabelText("到期方式"), { target: { value: "custom" } });
@@ -193,7 +205,7 @@ describe("portal popup recovery", () => {
     const post = vi.spyOn(api, "post").mockImplementation(() => new Promise((done) => { resolve = done as typeof resolve; }));
     accountList();
     await screen.findByRole("table");
-    fireEvent.click(screen.getByRole("button", { name: `${demoUsers[0].id} 更多操作` }));
+    fireEvent.click(screen.getByRole("button", { name: `${demoUsers[0].name} 更多操作` }));
     fireEvent.click(screen.getByRole("menuitem", { name: "进入订阅页面" }));
     expect(open).toHaveBeenCalledWith("about:blank", "_blank");
     expect(open.mock.invocationCallOrder[0]).toBeLessThan(post.mock.invocationCallOrder[0]);
@@ -208,7 +220,7 @@ describe("portal popup recovery", () => {
     const post = vi.spyOn(api, "post");
     accountList();
     await screen.findByRole("table");
-    fireEvent.click(screen.getByRole("button", { name: `${demoUsers[0].id} 更多操作` }));
+    fireEvent.click(screen.getByRole("button", { name: `${demoUsers[0].name} 更多操作` }));
     fireEvent.click(screen.getByRole("menuitem", { name: "进入订阅页面" }));
     await screen.findByText("浏览器阻止了新窗口，请允许本站弹出窗口后重试。");
     expect(post).not.toHaveBeenCalled();

@@ -19,6 +19,7 @@ export function useResource<T>(path: string, initial: T, refreshIntervalMs = 0, 
   const [error, setError] = useState("");
   const [refreshError, setRefreshError] = useState("");
   const [lastSuccessAt, setLastSuccessAt] = useState<number | null>(null);
+  const [lastSuccessPath, setLastSuccessPath] = useState<string | null>(null);
   const [configVersion, setConfigVersion] = useState<number | undefined>(undefined);
   const sequenceRef = useRef(0);
   const inFlightRef = useRef<InFlightRequest | null>(null);
@@ -44,6 +45,7 @@ export function useResource<T>(path: string, initial: T, refreshIntervalMs = 0, 
         const result = versioned ? await api.getWithMeta<T>(path, controller.signal) : { data: await api.get<T>(path, controller.signal), meta: { config_version: undefined } };
         if (sequence !== sequenceRef.current) return;
         setData(result.data);
+        setLastSuccessPath(path);
         setConfigVersion(result.meta.config_version);
         setError("");
         setRefreshError("");
@@ -88,6 +90,7 @@ export function useResource<T>(path: string, initial: T, refreshIntervalMs = 0, 
     error,
     refreshError,
     lastSuccessAt,
+    lastSuccessPath,
     configVersion,
     stale: Boolean(refreshError && lastSuccessAt),
     reload,

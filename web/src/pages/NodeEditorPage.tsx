@@ -35,7 +35,15 @@ import { safeReturnTo } from "../navigation";
 import { requestErrorMessage } from "../resourceModel";
 import { prepareHysteriaTLS } from "../nodeTLS";
 import { creationIntent } from "../mutations";
+import { EditorSectionNav } from "../components/EditorSectionNav";
 import { VersionConflict } from "../components/VersionConflict";
+
+const nodeSections = [
+  { id: "node-endpoints", title: "节点入口" },
+  { id: "node-basics", title: "基础信息" },
+  { id: "node-listener", title: "协议与监听" },
+  { id: "node-protocol", title: "协议配置" },
+];
 
 type NodeForm = {
   name: string;
@@ -282,13 +290,8 @@ function NodeEditor() {
             : "创建节点配置并绑定到一台 Corade 服务器。"
         }
       />
-      <div className="editor-layout node-editor-layout"><nav className="editor-section-nav" aria-label="节点编辑章节">
-        <h2 className="editor-index-title">编辑目录</h2>
-        <button type="button" aria-current={activeSection === "node-endpoints" ? "location" : undefined} onClick={() => { setActiveSection("node-endpoints"); document.getElementById("node-endpoints")?.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" }); }}>节点入口</button>
-        <button type="button" aria-current={activeSection === "node-basics" ? "location" : undefined} onClick={() => { setActiveSection("node-basics"); document.getElementById("node-basics")?.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" }); }}>基础信息</button>
-        <button type="button" aria-current={activeSection === "node-listener" ? "location" : undefined} onClick={() => { setActiveSection("node-listener"); document.getElementById("node-listener")?.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" }); }}>协议与监听</button>
-        <button type="button" aria-current={activeSection === "node-protocol" ? "location" : undefined} onClick={() => { setActiveSection("node-protocol"); document.getElementById("node-protocol")?.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" }); }}>协议配置</button>
-      </nav>
+      <div className="editor-layout node-editor-layout"><EditorSectionNav label="节点编辑章节" sections={nodeSections}
+        showTitle current={activeSection} onSelect={setActiveSection} />
       <form
         className="editor-form"
         aria-label={editing ? "编辑节点" : copying ? "复制节点" : "添加节点"}
@@ -299,20 +302,20 @@ function NodeEditor() {
         {requestError && <div id="node-request-error" className="form-alert" role="alert" tabIndex={-1}>{requestError}<ErrorDiagnostic error={requestFailure} /></div>}
         {((savedID.current && initialized.current && configVersion.current === undefined) || (requestFailure instanceof ApiError && ["CONFIG_VERSION_CONFLICT", "EDIT_VERSION_CONFLICT"].includes(requestFailure.code))) && <VersionConflict version={configVersion.current} missing={configVersion.current === undefined} onReload={() => { setRequestError(""); setRequestFailure(null); setErrors({}); setAttempt((value) => value + 1); }} />}
         <fieldset disabled={Boolean(saving)} className="editor-fields">
-        <section className="form-section" id="node-endpoints">
+        <section className="form-section" id="node-endpoints" onFocus={() => setActiveSection("node-endpoints")}>
           <div className="form-section__heading">
             <div>
-              <h2>节点入口</h2>
+              <h2 tabIndex={-1}>节点入口</h2>
               <p>维护订阅中展示的入口名称、连接地址、端口和权限范围；不会创建额外 Corade 入站。</p>
             </div>
             <Button type="button" onClick={() => update("endpoints", [...form.endpoints, { name: form.name || "新入口", host: selectedMachine?.host || "", port: Number(form.server_port) || 443, status: "active", access_scope: "default", sort_order: form.endpoints.length }])}><Plus size={15} />添加入口</Button>
           </div>
           {form.endpoints.length === 0 ? <div className="endpoint-empty"><p>未配置入口时，订阅将使用服务器地址和节点监听端口（默认权限）。</p><Button type="button" onClick={() => update("endpoints", [{ name: form.name || "新入口", host: selectedMachine?.host || "", port: Number(form.server_port) || 443, status: "active", access_scope: "default", sort_order: 0 }])}><Plus size={15} />添加第一个入口</Button></div> : <div className="endpoint-table table-scroll"><table><thead><tr><th>入口名称</th><th>地址</th><th>端口</th><th>权限组</th><th>状态</th><th className="col-actions">操作</th></tr></thead><tbody>{form.endpoints.map((endpoint, index) => <tr key={endpoint.id ?? index}><td data-label="入口名称"><input id={`endpoint_${index}_name`} aria-invalid={Boolean(errors[`endpoint_${index}_name`])} aria-describedby={errors[`endpoint_${index}_name`] ? `endpoint_${index}_name-error` : undefined} aria-label={`入口 ${index + 1} 名称`} value={endpoint.name} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} />{errors[`endpoint_${index}_name`] && <span id={`endpoint_${index}_name-error`} className="field__error">{errors[`endpoint_${index}_name`]}</span>}</td><td data-label="地址"><input id={`endpoint_${index}_host`} aria-invalid={Boolean(errors[`endpoint_${index}_host`])} aria-describedby={errors[`endpoint_${index}_host`] ? `endpoint_${index}_host-error` : undefined} aria-label={`入口 ${index + 1} 地址`} className="mono" value={endpoint.host} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, host: event.target.value } : item))} />{errors[`endpoint_${index}_host`] && <span id={`endpoint_${index}_host-error`} className="field__error">{errors[`endpoint_${index}_host`]}</span>}</td><td data-label="端口"><input id={`endpoint_${index}_port`} aria-invalid={Boolean(errors[`endpoint_${index}_port`])} aria-describedby={errors[`endpoint_${index}_port`] ? `endpoint_${index}_port-error` : undefined} aria-label={`入口 ${index + 1} 端口`} className="port-input mono" inputMode="numeric" type="number" min="1" max="65535" value={endpoint.port} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, port: Number(event.target.value) } : item))} />{errors[`endpoint_${index}_port`] && <span id={`endpoint_${index}_port-error`} className="field__error">{errors[`endpoint_${index}_port`]}</span>}</td><td data-label="权限范围"><select id={`endpoint_${index}_access_scope`} aria-invalid={Boolean(errors[`endpoint_${index}_access_scope`])} aria-describedby={errors[`endpoint_${index}_access_scope`] ? `endpoint_${index}_access_scope-error` : undefined} aria-label={`入口 ${index + 1} 权限组`} value={endpoint.access_scope || "default"} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, access_scope: event.target.value as NodeEndpoint["access_scope"] } : item))}><option value="default">默认</option><option value="admin">仅管理员</option></select>{errors[`endpoint_${index}_access_scope`] && <span id={`endpoint_${index}_access_scope-error`} className="field__error">{errors[`endpoint_${index}_access_scope`]}</span>}</td><td data-label="状态"><select aria-label={`入口 ${index + 1} 状态`} value={endpoint.status} onChange={(event) => update("endpoints", form.endpoints.map((item, itemIndex) => itemIndex === index ? { ...item, status: event.target.value as NodeEndpoint["status"] } : item))}><option value="active">启用</option><option value="disabled">停用</option></select></td><td data-label="操作" className="row-actions"><button type="button" className="icon-button" aria-label={`删除入口 ${endpoint.name}`} title="删除入口" onClick={() => update("endpoints", form.endpoints.filter((_, itemIndex) => itemIndex !== index))}><Trash2 size={16} /></button></td></tr>)}</tbody></table></div>}
         </section>
-        <section className="form-section" id="node-basics">
+        <section className="form-section" id="node-basics" onFocus={() => setActiveSection("node-basics")}>
           <div className="form-section__heading">
             <div>
-              <h2>基础信息</h2>
+              <h2 tabIndex={-1}>基础信息</h2>
               <p>用于在后台识别节点并确定运行位置。</p>
             </div>
             <Info size={18} />
@@ -324,7 +327,6 @@ function NodeEditor() {
                 value={form.name}
                 onChange={(event) => update("name", event.target.value)}
                 placeholder="例如：香港 VLESS 主入口"
-                autoFocus
               />
             </Field>
             <Field
@@ -386,10 +388,10 @@ function NodeEditor() {
             </Field>
           </div>
         </section>
-        <section className="form-section" id="node-listener">
+        <section className="form-section" id="node-listener" onFocus={() => setActiveSection("node-listener")}>
           <div className="form-section__heading">
             <div>
-              <h2>协议与监听</h2>
+              <h2 tabIndex={-1}>协议与监听</h2>
               <p>定义 Corade 创建的入站服务及本机监听地址。</p>
             </div>
           </div>
@@ -434,10 +436,10 @@ function NodeEditor() {
             </span>
           </div>
         </section>
-        <section className="form-section" id="node-protocol">
+        <section className="form-section" id="node-protocol" onFocus={() => setActiveSection("node-protocol")}>
           <div className="form-section__heading">
             <div>
-              <h2>节点类型与协议配置</h2>
+              <h2 tabIndex={-1}>节点类型与协议配置</h2>
               <p>选择节点类型后，通过表单维护传输、安全和协议参数。</p>
             </div>
             <SlidersHorizontal size={18} />

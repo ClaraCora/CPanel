@@ -2,10 +2,10 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderResource } from "../test/renderResource";
 import { api } from "../api";
-import { demoMachines, demoNodes, demoPlans, demoUsers } from "../mock";
+import { demoGroups, demoMachines, demoNodes, demoPlans, demoUsers } from "../mock";
 import type { User } from "../types";
 import { NodesPage } from "./NodesPage";
-import { MachinesPage, UsersPage } from "./ResourcePages";
+import { MachinesPage, PlansPage, UsersPage } from "./ResourcePages";
 
 vi.mock("../api", async (original) => ({ ...await original<typeof import("../api")>(), demoMode: true }));
 
@@ -20,12 +20,61 @@ const accounts: User[] = [
 beforeEach(() => {
   window.history.replaceState({}, "", "/?demo=1");
   const resources: Record<string, unknown> = {
-    "/machines": demoMachines, "/nodes": demoNodes, "/plans": demoPlans, "/users": accounts,
+    "/machines": demoMachines, "/nodes": demoNodes, "/plans": demoPlans, "/users": accounts, "/access-groups": demoGroups,
   };
   vi.spyOn(api, "get").mockImplementation(async (path) => resources[path] as never);
 });
 
 describe("clear resource list workflows", () => {
+  it("searches account values and partial identifiers without matching JSON field names", async () => {
+    const accountsForSearch = [
+      { ...demoUsers[0], name: "MC", email: null, portal_login: "member", uuid: demoUsers[0].uuid.toUpperCase() },
+      { ...demoUsers[1], name: "朋友", email: "friend@example.test", portal_login: "buddy", id: "usr_123xyz456", notes: "续费提醒" },
+    ];
+    vi.mocked(api.get).mockImplementation(async (path) => (path === "/users" ? accountsForSearch : demoPlans) as never);
+    renderResource(UsersPage, "/users");
+    expect(screen.getByRole("button", { name: "全部" })).toBeTruthy();
+    expect(screen.queryByText("0 条记录")).toBeNull();
+    const table = await screen.findByRole("table");
+    const input = screen.getByRole("textbox", { name: "搜索订阅账号" });
+    for (const [query, expected] of [
+      ["mc", "MC"], ["buddy", "朋友"], ["@example.test", "朋友"],
+      ["123XYZ", "朋友"], [demoUsers[0].uuid.slice(7, 15), "MC"],
+      ["标准套餐", "MC"], ["续费", "朋友"], ["2026-12-31", "MC"],
+    ]) {
+      fireEvent.change(input, { target: { value: query } });
+      expect(within(table).getAllByRole("row")).toHaveLength(2);
+      expect(within(table).getByRole("button", { name: `查看并编辑 ${expected}` })).toBeTruthy();
+    }
+    fireEvent.change(input, { target: { value: "subscription_available" } });
+    expect(screen.getByText("没有符合搜索条件的记录")).toBeTruthy();
+  });
+
+  it("opens each destination from the expanded plan table independently", async () => {
+    renderResource(PlansPage, "/plans");
+    fireEvent.click(await screen.findByText("完整表格与操作"));
+    const table = screen.getByRole("table", { name: "套餐列表" });
+    const group = within(table).getByRole("link", { name: "标准线路" });
+    const plan = within(table).getByRole("link", { name: "查看并编辑 标准套餐" });
+    expect(new URL((plan as HTMLAnchorElement).href).pathname).toBe("/plans/pln_standard/edit");
+    expect(new URL((group as HTMLAnchorElement).href).pathname).toBe("/access-groups/grp_standard/edit");
+    expect(group.parentElement?.closest("a, button")).toBeNull();
+  });
+
+  it("shows only the latest apply failure and explicit error statuses under 异常", async () => {
+    const nodes = demoNodes.map((node, index) => index === 0 || index === 2
+      ? { ...node, applied_revision: node.current_revision - 1, apply_status: "failed", attempted_revision: node.current_revision - (index === 2 ? 1 : 0) }
+      : node);
+    vi.mocked(api.get).mockImplementation(async (path) => (path === "/nodes" ? nodes : demoMachines) as never);
+    render(<NodesPage />);
+    const table = await screen.findByRole("table");
+    fireEvent.click(screen.getByRole("button", { name: /异常\s*2/ }));
+    expect(within(table).getAllByRole("row")).toHaveLength(3);
+    expect(within(table).getByText(demoNodes[0].name)).toBeTruthy();
+    expect(within(table).getByText(demoNodes[3].name)).toBeTruthy();
+    expect(within(table).queryByText(demoNodes[2].name)).toBeNull();
+  });
+
   it("combines role, status, plan, and search, then clears all filters", async () => {
     renderResource(UsersPage, "/users");
     const table = await screen.findByRole("table", { name: "订阅账号列表" });
@@ -45,7 +94,7 @@ describe("clear resource list workflows", () => {
   it("preserves admin protection in the menu and editor", async () => {
     renderResource(UsersPage, "/users");
     await screen.findByRole("table");
-    fireEvent.click(screen.getByRole("button", { name: "admin-a 更多操作" }));
+    fireEvent.click(screen.getByRole("button", { name: "测试管理员 更多操作" }));
     const menu = screen.getByRole("menu");
     expect(within(menu).queryByRole("menuitem", { name: "暂停" })).toBeNull();
     expect(within(menu).queryByRole("menuitem", { name: "删除" })).toBeNull();

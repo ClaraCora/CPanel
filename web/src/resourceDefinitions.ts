@@ -8,6 +8,7 @@ export type Column<T> = { label: string; render: (item: T) => ReactNode; classNa
 export type ClearListOptions<T> = {
   kind: "machines" | "users" | "plans" | "groups" | "routes" | "outbounds";
   searchPlaceholder: string;
+  searchText?: (item: T) => string;
   note: string;
   categories?: { value: string; label: string; matches: (item: T) => boolean }[];
   filter?: { label: string; allLabel: string; value: (item: T) => string };

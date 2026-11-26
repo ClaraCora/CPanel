@@ -24,7 +24,7 @@ beforeEach(() => {
 });
 
 function open() { return render(<ToastProvider><AdminNavigation><ResourceListPage {...definition} /></AdminNavigation></ToastProvider>); }
-function menu() { fireEvent.click(screen.getByRole("button", { name: `${current.id} 更多操作` })); }
+function menu() { fireEvent.click(screen.getByRole("button", { name: `${current.name} 更多操作` })); }
 function confirm(label: string) { fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: label })); }
 
 describe("shared resource list write protection", () => {

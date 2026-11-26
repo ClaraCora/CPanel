@@ -9,15 +9,16 @@ export function ResourceRowActions({ enabled, children }: { enabled: boolean; ch
   return enabled ? <div className="clear-row-actions">{children}</div> : <>{children}</>;
 }
 
-export function ResourceCategoryFilters({ label, value, options, onChange }: {
+export function ResourceCategoryFilters({ label, value, options, countsReady, onChange }: {
   label: string;
   value: string;
+  countsReady: boolean;
   options: { value: string; label: string; count: number }[];
   onChange: (value: string) => void;
 }) {
   return <div className="resource-categories" role="group" aria-label={label}>
     {options.map((option) => <button type="button" key={option.value} className={option.value === value ? "is-active" : ""} aria-pressed={option.value === value} onClick={() => onChange(option.value)}>
-      {option.label}<span>{option.count}</span>
+      {option.label}{countsReady && <span>{option.count}</span>}
     </button>)}
   </div>;
 }

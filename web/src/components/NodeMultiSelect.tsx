@@ -40,7 +40,7 @@ export function NodeMultiSelect({ value, options, onChange }: { value: string; o
       <label className="node-picker__search">
         <Search size={15} aria-hidden="true" />
         <span className="sr-only">筛选节点</span>
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="按名称、协议或服务器筛选" />
+        <input name="node-filter" autoComplete="off" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="按名称、协议或服务器筛选…" />
         {query && <button type="button" aria-label="清除筛选" title="清除筛选" onClick={() => setQuery("")}><X size={14} /></button>}
       </label>
       <span className="node-picker__count">已选择 <strong>{selected.size}</strong> 个</span>

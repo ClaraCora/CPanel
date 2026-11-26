@@ -1,6 +1,6 @@
 import { Clock3, Settings } from "lucide-react";
 import { Link, useSearchParams } from "wouter";
-import { Button, EmptyState, PageHeader, Pagination, StatusBadge, TableSkeleton, formatBytes, formatDate } from "../components/ui";
+import { Button, EmptyState, PageHeader, Pagination, StatusBadge, TableSkeleton, formatBusinessDate, formatBytes, formatDate } from "../components/ui";
 import { ResourceListNote } from "../components/ResourceList";
 import { usePagedResource, useResource } from "../hooks";
 import type { DailyTraffic, DeviceHistory, HistoricalData, MetricSample } from "../types";
@@ -45,7 +45,7 @@ function Tab({ active, onClick, children }: { active: boolean; onClick: () => vo
 
 function TrafficTable({ items, page, pageSize, total, hasMore, onPageChange }: { items: DailyTraffic[]; page: number; pageSize: number; total: number; hasMore: boolean; onPageChange: (page: number) => void }) {
   if (!items.length) return <><HistoryEmpty title={page > 1 ? "这一页已没有流量记录" : "保留期内没有流量记录"} /><Pagination page={page} pageSize={pageSize} total={total} hasMore={hasMore} onPageChange={onPageChange} /></>;
-  return <div className="table-surface table-surface--standalone"><div className="table-scroll"><table><thead><tr><th>日期</th><th>上传</th><th>下载</th><th>合计</th></tr></thead><tbody>{items.map((item) => <tr key={item.day}><td data-label="日期"><strong className="cell-primary">{new Date(item.day).toLocaleDateString("zh-CN")}</strong></td><td data-label="上传" className="mono">{formatBytes(item.upload_bytes)}</td><td data-label="下载" className="mono">{formatBytes(item.download_bytes)}</td><td data-label="合计" className="mono"><strong>{formatBytes(item.upload_bytes + item.download_bytes)}</strong></td></tr>)}</tbody></table></div><Pagination page={page} pageSize={pageSize} total={total} hasMore={hasMore} onPageChange={onPageChange} /></div>;
+  return <div className="table-surface table-surface--standalone"><div className="table-scroll"><table><thead><tr><th>日期</th><th>上传</th><th>下载</th><th>合计</th></tr></thead><tbody>{items.map((item) => <tr key={item.day}><td data-label="日期"><strong className="cell-primary" title={item.day}>{formatBusinessDate(item.day)}</strong></td><td data-label="上传" className="mono">{formatBytes(item.upload_bytes)}</td><td data-label="下载" className="mono">{formatBytes(item.download_bytes)}</td><td data-label="合计" className="mono"><strong>{formatBytes(item.upload_bytes + item.download_bytes)}</strong></td></tr>)}</tbody></table></div><Pagination page={page} pageSize={pageSize} total={total} hasMore={hasMore} onPageChange={onPageChange} /></div>;
 }
 
 function MetricsTable({ title, items, page, pageSize, total, hasMore, onPageChange }: { title: string; items: MetricSample[]; page: number; pageSize: number; total: number; hasMore: boolean; onPageChange: (page: number) => void }) {

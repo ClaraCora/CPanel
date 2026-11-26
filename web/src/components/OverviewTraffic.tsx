@@ -13,16 +13,17 @@ type OverviewMetric = {
 };
 
 export function OverviewTraffic({ data }: { data: Overview }) {
-  const end = data.traffic_day && Date.parse(data.traffic_day + "T00:00:00Z");
+  const trafficDay = data.traffic_day?.slice(0, 10);
+  const end = trafficDay ? Date.parse(`${trafficDay}T00:00:00Z`) : NaN;
   const samples = new Map(data.traffic_week?.map((row) => [row.day.slice(0, 10), row]));
-  const days = typeof end === "number" && Number.isFinite(end) ? Array.from({ length: 7 }, (_, i) => {
+  const days = Number.isFinite(end) ? Array.from({ length: 7 }, (_, i) => {
     const day = new Date(end - (6 - i) * 86_400_000).toISOString().slice(0, 10);
     const sample = samples.get(day);
     return { day, sample, total: sample ? sample.upload_bytes + sample.download_bytes : 0 };
   }) : [];
   const [selectedDay, setSelectedDay] = useState("");
-  const selected = days.find(({ day }) => day === selectedDay && day !== data.traffic_day);
-  const shownDate = selected?.day ?? data.traffic_day;
+  const selected = days.find(({ day }) => day === selectedDay && day !== trafficDay);
+  const shownDate = selected?.day ?? trafficDay;
   const upload = selected ? selected.sample?.upload_bytes : data.traffic_today_upload_bytes;
   const download = selected ? selected.sample?.download_bytes : data.traffic_today_download_bytes;
   const total = selected ? selected.sample && selected.total : data.traffic_today_bytes;

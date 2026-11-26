@@ -192,7 +192,7 @@ export function NodesPage() {
           ...[{ value: "published", label: "已发布" }, { value: "draft", label: "待发布" }, { value: "disabled", label: "已停用" }, { value: "error", label: "异常" }].map((option) => ({ ...option, count: nodes.filter((node) => option.value === "draft" ? node.status === "draft" || node.has_draft : node.status === option.value).length })),
         ]} onChange={(value) => { syncFilters({ status: value }); }} />
         <div className="toolbar">
-          <label className="search-box"><Search size={16} aria-hidden="true" /><span className="sr-only">搜索节点</span><input value={search} onChange={(event) => { syncFilters({ search: event.target.value }); }} placeholder="搜索名称、服务器、协议或端口" /></label>
+          <label className="search-box"><Search size={16} aria-hidden="true" /><span className="sr-only">搜索节点</span><input name="node-search" autoComplete="off" value={search} onChange={(event) => { syncFilters({ search: event.target.value }); }} placeholder="搜索名称、服务器、协议或端口…" /></label>
           <div className="toolbar__filters"><Filter size={15} aria-hidden="true" /><select aria-label="按服务器筛选" value={machine} onChange={(event) => { syncFilters({ machine: event.target.value }); }}><option value="">全部服务器</option>{machines.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></div>
           <span className="toolbar__count">{filtered.length} 个节点</span>
         </div>

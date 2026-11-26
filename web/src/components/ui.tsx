@@ -109,11 +109,12 @@ export function RowMenu({ label, children, className = "", trigger, triggerClass
   }, []);
 
   useLayoutEffect(() => { if (open) place(); }, [open, place]);
+  const positioned = position !== null;
   useEffect(() => {
-    if (!open) return;
+    if (!open || !positioned) return;
     const frame = window.requestAnimationFrame(() => panelRef.current?.querySelector<HTMLElement>("button:not(:disabled), a[href]")?.focus({ preventScroll: true }));
     return () => window.cancelAnimationFrame(frame);
-  }, [open]);
+  }, [open, positioned]);
   useEffect(() => {
     if (!open) return;
     const onPointer = (event: PointerEvent) => {
@@ -260,15 +261,36 @@ function lockDocumentScroll() {
   };
 }
 
-export function Field({ label, required, error, helper, group = false, children }: { label: string; required?: boolean; error?: string; helper?: string; group?: boolean; children: ReactNode }) {
+export function Field({ label, required, error, helper, group = false, controlId, children }: { label: string; required?: boolean; error?: string; helper?: string; group?: boolean; controlId?: string; children: ReactNode }) {
   const id = useId();
+  const resolvedControlId = controlId ?? `${id}-control`;
   const description = error || helper ? `${id}-description` : undefined;
-  const controls = Children.map(children, (child) => {
-    if (!isValidElement<Record<string, unknown>>(child) || !["input", "select", "textarea"].includes(String(child.type))) return child;
-    return cloneElement(child, { "aria-invalid": error ? true : undefined, "aria-describedby": [child.props["aria-describedby"], description].filter(Boolean).join(" ") || undefined });
-  });
-  const content = <><span id={`${id}-label`} className="field__label">{label}{required && <b aria-hidden="true"> *</b>}</span>{controls}{error ? <span id={description} className="field__error" role="alert">{error}</span> : helper ? <span id={description} className="field__helper">{helper}</span> : null}</>;
-  return group ? <div role="group" aria-labelledby={`${id}-label`} aria-describedby={description} className={`field ${error ? "field--error" : ""}`}>{content}</div> : <label className={`field ${error ? "field--error" : ""}`}>{content}</label>;
+  const [controls, actualControlId] = enhanceFieldControls(children, resolvedControlId, error, description);
+  const labelNode = <span id={`${id}-label`} className="field__label">{label}{required && <b aria-hidden="true"> *</b>}</span>;
+  const content = <>{group ? labelNode : <label className="field__label" htmlFor={actualControlId}>{label}{required && <b aria-hidden="true"> *</b>}</label>}{controls}{error ? <span id={description} className="field__error" role="alert">{error}</span> : helper ? <span id={description} className="field__helper">{helper}</span> : null}</>;
+  return <div role={group ? "group" : undefined} aria-labelledby={group ? `${id}-label` : undefined} aria-describedby={description} className={`field ${error ? "field--error" : ""}`}>{content}</div>;
+}
+
+function enhanceFieldControls(children: ReactNode, controlId: string, error?: string, description?: string): [ReactNode, string] {
+  let controlFound = false;
+  let actualControlId = controlId;
+  function visit(child: ReactNode): ReactNode {
+    if (!isValidElement<Record<string, unknown>>(child)) return child;
+    const elementType = String(child.type);
+    if (["input", "select", "textarea"].includes(elementType)) {
+      controlFound = true;
+      if (actualControlId === controlId) actualControlId = String(child.props.id ?? controlId);
+      return cloneElement(child, {
+        id: child.props.id ?? controlId,
+        "aria-invalid": error ? true : undefined,
+        "aria-describedby": [child.props["aria-describedby"], description].filter(Boolean).join(" ") || undefined,
+      });
+    }
+    if (child.props.children === undefined) return child;
+    return cloneElement(child, undefined, Children.map(child.props.children as ReactNode, visit));
+  }
+  const result = Children.map(children, visit);
+  return [controlFound ? result : children, actualControlId];
 }
 
 export function ErrorDiagnostic({ error }: { error: unknown }) {
@@ -298,7 +320,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setItems((value) => [...value, { id, tone, message }]);
     if (tone !== "error") window.setTimeout(() => setItems((value) => value.filter((item) => item.id !== id)), 4000);
   }, []);
-  return <ToastContext.Provider value={show}>{children}{createPortal(<div className="toast-region" aria-live="polite">{items.map((item) => <div className={`toast toast--${item.tone}`} key={item.id}>{item.tone === "success" ? <CheckCircle2 size={17} /> : <AlertCircle size={17} />}<div><span>{item.message instanceof Error ? item.message.message : item.message}</span><ErrorDiagnostic error={item.message} /></div><button aria-label="关闭通知" onClick={() => setItems((value) => value.filter((entry) => entry.id !== item.id))}><X size={15} /></button></div>)}</div>, overlayRoot())}</ToastContext.Provider>;
+  return <ToastContext.Provider value={show}>{children}{createPortal(<div className="toast-region" role="region" aria-label="通知">{items.map((item) => <div className={`toast toast--${item.tone}`} key={item.id}>{item.tone === "success" ? <CheckCircle2 size={17} aria-hidden="true" /> : <AlertCircle size={17} aria-hidden="true" />}<div><span role={item.tone === "error" ? "alert" : "status"}>{item.message instanceof Error ? item.message.message : item.message}</span><ErrorDiagnostic error={item.message} /></div><button type="button" aria-label="关闭通知" onClick={() => setItems((value) => value.filter((entry) => entry.id !== item.id))}><X size={15} aria-hidden="true" /></button></div>)}</div>, overlayRoot())}</ToastContext.Provider>;
 }
 
 export const useToast = () => useContext(ToastContext);
@@ -309,9 +331,11 @@ let largeByteFormatter: Intl.NumberFormat | undefined;
 let shortDate: Intl.DateTimeFormat | undefined;
 let preciseDate: Intl.DateTimeFormat | undefined;
 let fullDate: Intl.DateTimeFormat | undefined;
+let businessDate: Intl.DateTimeFormat | undefined;
 
-export function formatBytes(value: number) {
-  if (!Number.isFinite(value) || value <= 0) return "0 B";
+export function formatBytes(value: number | null | undefined) {
+  if (value == null || !Number.isFinite(value)) return "—";
+  if (value <= 0) return "0 B";
   const units = ["B", "KB", "MB", "GB", "TB", "PB"];
   const index = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
   const formatter = index > 2
@@ -333,6 +357,11 @@ export function formatPreciseDate(value: string | null | undefined) {
 export function formatDateWithYear(value: string | null | undefined) {
   fullDate ??= new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
   return formatDateValue(value, fullDate);
+}
+
+export function formatBusinessDate(value: string | null | undefined) {
+  businessDate ??= new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" });
+  return formatDateValue(value ? `${value.slice(0, 10)}T00:00:00+08:00` : value, businessDate);
 }
 
 function formatDateValue(value: string | null | undefined, formatter: Intl.DateTimeFormat) {

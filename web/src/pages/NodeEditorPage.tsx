@@ -35,7 +35,7 @@ import { safeReturnTo } from "../navigation";
 import { requestErrorMessage } from "../resourceModel";
 import { prepareHysteriaTLS } from "../nodeTLS";
 import { creationIntent } from "../mutations";
-import { EditorSectionNav } from "../components/EditorSectionNav";
+import { EditorSectionNav, revealEditorField } from "../components/EditorSectionNav";
 import { VersionConflict } from "../components/VersionConflict";
 
 const nodeSections = [
@@ -301,7 +301,7 @@ function NodeEditor() {
       >
         {requestError && <div id="node-request-error" className="form-alert" role="alert" tabIndex={-1}>{requestError}<ErrorDiagnostic error={requestFailure} /></div>}
         {((savedID.current && initialized.current && configVersion.current === undefined) || (requestFailure instanceof ApiError && ["CONFIG_VERSION_CONFLICT", "EDIT_VERSION_CONFLICT"].includes(requestFailure.code))) && <VersionConflict version={configVersion.current} missing={configVersion.current === undefined} onReload={() => { setRequestError(""); setRequestFailure(null); setErrors({}); setAttempt((value) => value + 1); }} />}
-        <fieldset disabled={Boolean(saving)} className="editor-fields">
+        <fieldset disabled={Boolean(saving)} className="editor-fields" onFocus={revealEditorField}>
         <section className="form-section" id="node-endpoints" onFocus={() => setActiveSection("node-endpoints")}>
           <div className="form-section__heading">
             <div>
@@ -459,8 +459,6 @@ function NodeEditor() {
           <span className="editor-status" role="status">{saving ? "正在提交…" : dirty ? "有未保存修改" : pendingPublish ? "配置已保存，等待重新发布" : "配置已加载"}</span>
           <div>
             <Button type="button" variant="ghost" disabled={Boolean(saving)} onClick={() => navigate(returnTo, { replace: true })}>取消</Button>
-          </div>
-          <div>
             <Button type="submit" loading={saving === "save"} disabled={Boolean(saving)}>
               <Save size={16} />
               保存草稿

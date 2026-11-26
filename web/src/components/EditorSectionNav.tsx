@@ -1,3 +1,21 @@
+import type { FocusEvent } from "react";
+
+export function revealEditorField(event: FocusEvent<HTMLFieldSetElement>) {
+  const field = event.target;
+  const footer = event.currentTarget.form?.querySelector(".editor-actions");
+  if (!footer) return;
+
+  // The browser can scroll the focused field after dispatching the focus event.
+  requestAnimationFrame(() => {
+    if (document.activeElement !== field || getComputedStyle(footer).position !== "sticky") return;
+    const focused = field.getBoundingClientRect();
+    const actions = footer.getBoundingClientRect();
+    if (focused.bottom > actions.top && focused.top < actions.bottom) {
+      field.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+    }
+  });
+}
+
 type EditorSection = { id: string; title: string };
 
 export function EditorSectionNav({ label, sections, current, showTitle, onSelect }: {

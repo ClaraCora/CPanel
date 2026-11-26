@@ -171,7 +171,6 @@
 .admin-console .traffic-usage__track { background-color: var(--material-line); }
 .admin-console .entitlement-context, .admin-console .plan-entry header { border-color: var(--glass-separator); }
 .admin-console .entitlement-context a, .admin-console .plan-table summary { color: var(--accent); }
-.admin-console .node-picker__toolbar { background-color: var(--glass-well); }
 .admin-console .node-picker__count strong { color: var(--accent); }
 .admin-console .node-picker__list > label.is-selected { background-color: var(--active); }
 .admin-console .plan-lane h2 span {
@@ -293,7 +292,7 @@
   border-end-start-radius: inherit;
   border-end-end-radius: inherit;
 }
-.admin-console[data-admin-theme] :is(.node-picker__toolbar, .node-picker__list > label:first-child) {
+.admin-console[data-admin-theme] .node-picker__list > label:first-child {
   border-start-start-radius: inherit;
   border-start-end-radius: inherit;
 }
@@ -337,6 +336,9 @@
 .admin-console[data-admin-theme] :is(.detail-dialog, .confirm-dialog) { border-radius: var(--radius-dialog); }
 .admin-console[data-admin-theme] .admin-navigation-drawer .detail-dialog {
   border-radius: 0 var(--radius-dialog) var(--radius-dialog) 0;
+}
+@media (max-width: 767px) {
+  .admin-console[data-admin-theme] .detail-layer:not(.admin-navigation-drawer) .detail-dialog { border-radius: 0; }
 }
 .admin-console[data-admin-theme] :is(.row-menu__panel, .toast, .navigation-notice) {
   border-radius: var(--radius-card);

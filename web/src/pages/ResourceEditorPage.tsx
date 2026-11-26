@@ -5,7 +5,7 @@ import { ApiError, api } from "../api";
 import { Button, EmptyState, PageHeader, RequestFailure, StatusBadge, TableSkeleton, useToast } from "../components/ui";
 import { VersionConflict } from "../components/VersionConflict";
 import { creationIntent } from "../mutations";
-import { EditorSectionNav } from "../components/EditorSectionNav";
+import { EditorSectionNav, revealEditorField } from "../components/EditorSectionNav";
 import { ConfigSummary, resourceSummary } from "../components/ConfigSummary";
 import "../editor-layout.css";
 import { ResourceFields } from "../components/ResourceFields";
@@ -121,7 +121,7 @@ export function ResourceEditorPage<T extends Resource>({ definition, id }: { def
   const groups = [...grouping, ...(fields.some((field) => !assigned.has(field.key)) ? [{ title: "其他配置", keys: fields.filter((field) => !assigned.has(field.key)).map((field) => field.key) }] : [])];
   const summary = resourceSummary(endpoint, values, fields);
   const layout = summary.length ? "editor-review" : "editor-workspace";
-  return <div className={`page resource-page resource-editor-page ${layout}`}>
+  return <div className={`page resource-page resource-editor-page ${layout}${endpoint === "/route-policies" ? " route-editor" : ""}`}>
     <div className="back-row"><Link to={returnTo}><ArrowLeft size={16} />返回{title}列表</Link></div>
     <PageHeader title={pageTitle} description={id ? "修改配置后保存，返回时保留原列表的筛选条件。" : `填写${title}配置，完成后保存。`} actions={record && <StatusBadge status={record.status} />} />
     {loading ? <TableSkeleton columns={2} rows={6} /> : loadState === "error" || related?.error ? <EmptyState title={`${title}加载失败`} description={loadError || related?.error || "关联数据加载失败"} action={<Button onClick={() => { setAttempt((value) => value + 1); related?.retry(); }}>重新加载</Button>} /> : loadState === "missing" ? <EmptyState title={`${title}不存在`} description="记录可能已被删除，请返回列表确认。" action={<Link className="button button--secondary" to={returnTo}>返回列表</Link>} /> : <div className="editor-layout">
@@ -130,7 +130,7 @@ export function ResourceEditorPage<T extends Resource>({ definition, id }: { def
       <form className={`editor-form ${["/route-policies", "/outbounds"].includes(endpoint) ? "" : "editor-form--standard"}`} onSubmit={(event) => void save(event)} noValidate aria-label={pageTitle} aria-busy={saving}>
         {requestError && <RequestFailure message={requestError} error={requestFailure} />}
         {((id && record?.config_version === undefined) || (requestFailure instanceof ApiError && ["CONFIG_VERSION_CONFLICT", "EDIT_VERSION_CONFLICT"].includes(requestFailure.code))) && <VersionConflict version={record?.config_version} missing={record?.config_version === undefined} onReload={() => { setRequestError(""); setRequestFailure(null); setErrors({}); setAttempt((value) => value + 1); }} />}
-        <fieldset disabled={saving} className="editor-fields">
+        <fieldset disabled={saving} className="editor-fields" onFocus={revealEditorField}>
         {groups.map((section, index) => <section className="form-section" id={`resource-section-${index}`} key={section.title} onFocus={() => setActiveSection(`resource-section-${index}`)}><div className="form-section__heading"><h2 tabIndex={-1}>{section.title}</h2></div><ResourceFields fields={fields.filter((field) => section.keys.includes(field.key))} record={record} values={values} errors={errors} onChange={(key, value) => { setValues((current) => ({ ...current, [key]: value })); setErrors((current) => ({ ...current, [key]: "" })); }} />{section.keys.some((key) => ["plan_id", "access_group_id", "node_ids"].includes(key)) && definition.editorContext?.(values, record)}</section>)}
         </fieldset>
         <footer className="editor-actions"><span className="editor-status" role="status">{saving ? "正在保存…" : dirty ? "有未保存修改" : id ? "已加载当前配置" : "填写后保存"}</span><div><Button type="button" variant="ghost" disabled={saving} onClick={() => navigate(returnTo, { replace: true })}>取消</Button><Button type="submit" variant="primary" loading={saving}><Save size={16} />{id ? "保存修改" : "创建"}</Button></div></footer>

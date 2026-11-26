@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, History, RefreshCw, RotateCcw } from "lucide-react";
+import { ArrowLeft, ChevronDown, History, RefreshCw, RotateCcw } from "lucide-react";
 import { Link, useLocation, useRoute } from "wouter";
 import { api, ApiError } from "../api";
 import { Button, ConfirmDialog, EmptyState, PageHeader, RequestFailure, TableSkeleton, formatPreciseDate, useToast } from "../components/ui";
@@ -81,7 +81,7 @@ export function NodeHistoryPage() {
         <label className="revision-compare">比较基准<select value={baseline ?? ""} onChange={(event) => setBaseline(Number(event.target.value))}>{history.data.map((item) => <option key={item.revision} value={item.revision}>版本 {item.revision}{item.restorable ? "" : "（部分记录）"}</option>)}</select></label>
         <p className="revision-count" role="status">版本 {baseline} → 版本 {selected}，{changes.length} 项差异。敏感值已隐藏。</p>
         {changes.length ? <div className="table-scroll"><table aria-label="配置差异"><thead><tr><th>字段</th><th>基准版本</th><th>所选版本</th></tr></thead><tbody>{changes.map((change) => <tr key={change.path}><th scope="row" data-label="字段"><code>{change.path}</code></th><td data-label="基准版本"><pre>{change.before}</pre></td><td data-label="所选版本"><pre>{change.after}</pre></td></tr>)}</tbody></table></div> : <p>两份记录没有可比较的配置差异。</p>}
-        <details className="revision-json"><summary>查看所选版本完整结构（敏感值已隐藏）</summary><pre>{JSON.stringify(redactRevision(effectiveConfiguration(current)), null, 2)}</pre></details>
+        <details className="revision-json"><summary>查看所选版本完整结构（敏感值已隐藏）<ChevronDown size={16} aria-hidden="true" /></summary><pre tabIndex={0} aria-label="所选版本配置">{JSON.stringify(redactRevision(effectiveConfiguration(current)), null, 2)}</pre></details>
       </section>
     </div>}
     <ConfirmDialog open={confirm} title={`恢复版本 ${selected} 为草稿？`} description={`${node.data?.has_draft ? "当前未发布草稿将被替换。" : ""}恢复后进入完整编辑页，确认并发布后才会应用。路由将使用该版本独立快照，不再跟随原共享策略变化。`} confirmLabel="恢复并编辑" confirmVariant="primary" loading={restoring} onClose={() => { if (!restoring) setConfirm(false); }} onConfirm={() => void restore()} />

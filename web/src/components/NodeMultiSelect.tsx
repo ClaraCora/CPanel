@@ -1,5 +1,5 @@
-import { Check, Search, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Search, X } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
 
 export type MultiSelectOption = {
   value: string;
@@ -10,6 +10,7 @@ export type MultiSelectOption = {
 
 export function NodeMultiSelect({ value, options, onChange }: { value: string; options: MultiSelectOption[]; onChange: (value: string) => void }) {
   const [query, setQuery] = useState("");
+  const searchInput = useRef<HTMLInputElement>(null);
   const selected = useMemo(() => new Set(value.split(",").filter(Boolean)), [value]);
   const visible = useMemo(() => {
     const term = query.trim().toLocaleLowerCase();
@@ -37,17 +38,24 @@ export function NodeMultiSelect({ value, options, onChange }: { value: string; o
 
   return <div className="node-picker">
     <div className="node-picker__toolbar">
-      <label className="node-picker__search">
-        <Search size={15} aria-hidden="true" />
-        <span className="sr-only">筛选节点</span>
-        <input name="node-filter" autoComplete="off" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="按名称、协议或服务器筛选…" />
-        {query && <button type="button" aria-label="清除筛选" title="清除筛选" onClick={() => setQuery("")}><X size={14} /></button>}
-      </label>
-      <span className="node-picker__count">已选择 <strong>{selected.size}</strong> 个</span>
-    </div>
-    <div className="node-picker__commands">
-      <button type="button" disabled={visible.length === 0} onClick={selectVisible}>全选筛选结果</button>
-      <button type="button" disabled={selected.size === 0} onClick={() => commit(new Set())}>清空</button>
+      <div className="node-picker__search">
+        <label className="search-box">
+          <Search size={15} aria-hidden="true" />
+          <span className="sr-only">筛选节点</span>
+          <input ref={searchInput} name="node-filter" autoComplete="off" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="按名称、协议或服务器筛选…" />
+        </label>
+        {query && <button className="icon-button" type="button" aria-label="清除筛选" title="清除筛选" onClick={() => {
+          searchInput.current?.focus();
+          setQuery("");
+        }}><X size={14} /></button>}
+      </div>
+      <div className="node-picker__selection">
+        <span className="node-picker__count" role="status">已选择 <strong>{selected.size}</strong> 个</span>
+        <div className="node-picker__commands">
+          <button type="button" disabled={visible.length === 0} onClick={selectVisible}>全选筛选结果</button>
+          <button type="button" disabled={selected.size === 0} onClick={() => commit(new Set())}>清空</button>
+        </div>
+      </div>
     </div>
     {[...selected].filter((id) => !options.some((option) => option.value === id)).map((id) => <p className="inline-notice" key={id}>未找到已绑定节点 {id}，保存时将保留该绑定。<button type="button" onClick={() => toggle(id)}>移除此绑定</button></p>)}
     <div className="node-picker__list" role="group" aria-label="可访问节点">
@@ -55,7 +63,6 @@ export function NodeMultiSelect({ value, options, onChange }: { value: string; o
         const checked = selected.has(option.value);
         return <label className={checked ? "is-selected" : ""} key={option.value}>
           <input type="checkbox" checked={checked} onChange={() => toggle(option.value)} />
-          <span className="node-picker__check" aria-hidden="true"><Check size={12} /></span>
           <span className="node-picker__copy"><strong>{option.label}</strong>{option.detail && <small>{option.detail}</small>}</span>
         </label>;
       })}

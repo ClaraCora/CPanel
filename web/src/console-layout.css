@@ -47,7 +47,7 @@
 .admin-console .admin-mobile-navigation { display: grid; gap: 3px; padding-block: 8px; }
 .admin-console .admin-mobile-navigation > a + .admin-nav-group { margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--border); }
 .admin-console .admin-mobile-navigation .admin-nav-item { min-height: 44px; }
-[data-console-layout="B"] .admin-console .page-header { border: 1px solid var(--border); border-left: 4px solid var(--accent); padding: 18px 21px; background: var(--panel-strong); border-radius: 4px; }
+[data-console-layout="B"] .admin-console .page-header { border: 1px solid var(--border); padding: 18px 21px; background: var(--panel-strong); border-radius: 4px; }
 [data-console-layout="C"] .page-header { padding-bottom: 19px; margin-bottom: 24px; border-bottom: 2px solid var(--foreground); }
 [data-console-layout="C"] .admin-console .page-header h1 { font-size: clamp(30px,3.1vw,47px); }
 [data-console-layout="C"] .admin-console :is(.button,.icon-button,.traffic-ranking,.attention-list):where(:not(.admin-header *, .admin-navigation-drawer *)) { border-radius: 3px; }
@@ -235,13 +235,12 @@
 .overview-index__breakdown [data-tone="online"] dd { color: var(--success); }
 .overview-index__breakdown [data-tone="offline"] dd { color: var(--danger); }
 
-.plan-table summary { cursor: pointer; }
 .plan-board { padding: 20px; background: var(--surface); display: grid; grid-template-columns: repeat(auto-fit,minmax(min(280px,100%),1fr)); gap: 20px; }
 .plan-lane { min-width: 0; }
-.plan-lane h2 { margin: 0 0 14px; padding: 10px 0 0; border-top: 3px solid var(--accent); font-size: 15px; }
+.plan-lane h2 { margin: 0 0 14px; padding: 10px 0 0; border-top: 1px solid var(--border-strong); font-size: 15px; }
 .plan-lane h2 span { margin-left: 4px; padding: 2px 6px; color: var(--accent); background: var(--active); font-size: 12px; }
 .plan-lane__items { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit,minmax(min(300px,100%),1fr)); }
-.plan-entry { padding: 16px; background: var(--panel); border: 1px solid var(--border); border-inline-start: 4px solid var(--accent); min-width: 0; overflow-wrap: anywhere; }
+.plan-entry { padding: 16px; background: var(--panel); border: 1px solid var(--border); min-width: 0; overflow-wrap: anywhere; }
 .plan-entry header { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 9px; }
 .plan-entry header .cell-primary { font-size: 17px; }
 .plan-entry header > a { flex-shrink: 0; font-size: 13px; }
@@ -249,7 +248,19 @@
 .plan-entry dl > div { display: grid; grid-template-columns: minmax(55px,.65fr) minmax(0,1.35fr); gap: 8px; }
 .plan-entry dt { color: var(--secondary); font-size: 12px; }
 .plan-entry dd { margin: 0; font-variant-numeric: tabular-nums; }
-.plan-table summary { padding: 10px 16px; color: var(--secondary); }
+.admin-console :is(.plan-table, .revision-json) > summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-height: 44px; padding: 8px 12px; color: var(--secondary);
+  border-radius: var(--radius-detail); list-style: none; cursor: pointer;
+}
+.admin-console :is(.plan-table, .revision-json) > summary::-webkit-details-marker { display: none; }
+.admin-console :is(.plan-table, .revision-json) > summary:is(:hover, :focus-visible) { background: var(--hover); }
+.admin-console :is(.plan-table, .revision-json) > summary:focus-visible { outline-offset: -3px; }
+.admin-console :is(.plan-table, .revision-json) > summary > svg { flex: none; }
+.admin-console :is(.plan-table, .revision-json)[open] > summary > svg { transform: rotate(180deg); }
+@media (max-width: 767px) {
+  .admin-console :is(.missing-page a, .plan-entry header > a) { min-height: 44px; min-width: 44px; justify-content: center; }
+}
 @media (max-width: 800px) {
   .admin-console .overview-report { grid-template-columns: minmax(0,1fr); gap: 14px; }
   .admin-console .missing-page { grid-template-columns: 1fr; }

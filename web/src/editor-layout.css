@@ -21,13 +21,18 @@
 .admin-console .editor-workspace .form-section__heading h2 { font-size: 16px; }
 .admin-console .editor-workspace .form-grid { gap: 14px 16px; }
 .admin-console .editor-workspace .field { gap: 5px; }
+/* These groups repeat their section heading as an accessible name. */
+.admin-console .editor-workspace :is([data-field-key="node_ids"], [data-field-key="rules"]) > .field > .field__label {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
 .admin-console .editor-workspace .editor-actions { padding: 10px 16px; border: 1px solid var(--border); border-radius: 8px; }
 
 @media (min-width: 1280px) {
   .admin-console .editor-workspace.resource-editor-page .editor-fields { grid-template-columns: repeat(2,minmax(0,1fr)); align-items:start; }
   .admin-console .editor-workspace .form-grid--three,
   .admin-console .editor-workspace.admin-node-editor .form-section > .form-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
-  .admin-console .editor-workspace .form-section:has([data-field-key=rules]) { grid-column: 1 / -1; }
+  .admin-console .route-editor.editor-workspace .editor-fields { grid-template-columns: minmax(0, 1fr); }
+  .admin-console .route-editor .form-section:not(:has(.route-builder)) .form-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 .admin-console .editor-review .editor-layout,

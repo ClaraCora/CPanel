@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { ChevronDown } from "lucide-react";
 import { editorHref } from "../navigation";
 import type { ReactNode } from "react";
 import type { Column, Resource } from "../resourceDefinitions";
@@ -24,5 +25,5 @@ export function PlanBoard<T extends Resource>({ items, columns, children }: {
         <dl>{columns.slice(1).map((column) => <div key={column.label}><dt>{column.label}</dt><dd>{column.render(plan)}</dd></div>)}</dl>
       </article>)}</div>
     </section>)}
-  </div><details className="plan-table"><summary>完整表格与操作</summary>{children}</details></>;
+  </div><details className="plan-table"><summary>完整表格与操作<ChevronDown size={16} aria-hidden="true" /></summary>{children}</details></>;
 }
